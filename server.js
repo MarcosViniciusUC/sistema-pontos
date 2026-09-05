@@ -1,10 +1,12 @@
-const jwt = require("jsonwebtoken");
 const bcrypt = require("bcrypt");
 const express = require("express");
 const pool = require("./src/config/database");
+const authRoutes = require("./src/routes/auth.routes");
 
 const app = express();
 app.use(express.json());
+
+app.use(authRoutes);
 
 app.post("/usuarios", async (req, res) => {
     const { nome, email, senha, telefone } = req.body;
@@ -25,58 +27,6 @@ app.post("/usuarios", async (req, res) => {
 
         res.status(500).json({
             mensagem: "Erro ao cadastrar usuário"
-        });
-    }
-});
-app.post("/login", async (req, res) => {
-    const { email, senha } = req.body;
-
-    try {
-        const resultado = await pool.query(
-            "SELECT * FROM usuarios WHERE email = $1",
-            [email]
-        );
-
-        if (resultado.rows.length === 0) {
-            return res.status(401).json({
-                mensagem: "Email ou senha inválidos"
-            });
-        }
-
-        const usuario = resultado.rows[0];
-
-        const senhaCorreta = await bcrypt.compare(
-            senha,
-            usuario.senha
-        );
-
-        if (!senhaCorreta) {
-            return res.status(401).json({
-                mensagem: "Email ou senha inválidos"
-            });
-        }
-
-        const token = jwt.sign(
-    {
-        id: usuario.id,
-        tipo: usuario.tipo
-    },
-    process.env.JWT_SECRET,
-    {
-        expiresIn: "1h"
-    }
-);
-
-res.json({
-    mensagem: "Login realizado com sucesso",
-    token: token
-});''
-
-    } catch (erro) {
-        console.log(erro);
-
-        res.status(500).json({
-            mensagem: "Erro ao realizar login"
         });
     }
 });
