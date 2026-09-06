@@ -21,6 +21,15 @@ router.get(
     rewardController.listar
 );
 
+// Listagem administrativa (ativas + inativas). Admin-only — cliente e
+// funcionário continuam só com GET /recompensas (só ativas), inalterado.
+router.get(
+    "/recompensas/admin",
+    authMiddleware,
+    roleMiddleware("admin"),
+    rewardController.listarAdmin
+);
+
 router.put(
     "/recompensas/:id",
     authMiddleware,
@@ -34,6 +43,14 @@ router.delete(
     authMiddleware,
     roleMiddleware("admin"),
     rewardController.remover
+);
+
+// Soft-delete reverso: só religa ativo=true, nunca cria uma recompensa nova.
+router.patch(
+    "/recompensas/:id/reativar",
+    authMiddleware,
+    roleMiddleware("admin"),
+    rewardController.reativar
 );
 
 module.exports = router;

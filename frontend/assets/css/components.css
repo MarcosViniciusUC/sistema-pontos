@@ -1,0 +1,548 @@
+/* ==========================================================================
+   Tela de autenticação
+   ========================================================================== */
+
+.auth-screen {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--space-5) var(--space-4);
+    position: relative;
+    overflow: hidden;
+}
+
+/* Painel diagonal discreto no fundo */
+.auth-screen::before {
+    content: "";
+    position: absolute;
+    top: -20%;
+    right: -15%;
+    width: 55%;
+    height: 140%;
+    background: var(--black-soft);
+    transform: skewX(-12deg);
+    z-index: 0;
+}
+
+/* Segunda linha diagonal, bem mais fina e discreta — textura, não decoração */
+.auth-screen::after {
+    content: "";
+    position: absolute;
+    bottom: 8%;
+    left: -10%;
+    width: 45%;
+    height: 1px;
+    background: var(--line-strong);
+    transform: rotate(-12deg);
+    z-index: 0;
+}
+
+.auth-card {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    max-width: 440px;
+    background: var(--black-soft);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: var(--space-6) var(--space-5) var(--space-5);
+}
+
+/* Corte diagonal vermelho no canto do card — assinatura visual do sistema */
+.auth-card::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 48px;
+    height: 48px;
+    background: var(--red);
+    clip-path: polygon(100% 0, 100% 100%, 0 0);
+    border-top-right-radius: var(--radius);
+}
+
+.brand {
+    display: flex;
+    align-items: center;
+    gap: var(--space-4);
+    margin-bottom: var(--space-7);
+}
+
+/* Espaço reservado para o logo real da Movement (svg/png). Nenhum
+   símbolo é desenhado aqui de propósito — só a área que vai recebê-lo. */
+.brand__mark {
+    flex-shrink: 0;
+    width: 48px;
+    height: 48px;
+    background: var(--black);
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius-sm);
+}
+
+.brand__lockup {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+}
+
+.brand__name {
+    font-size: 28px;
+    font-weight: 800;
+    letter-spacing: 0.03em;
+    color: var(--white);
+}
+
+.brand__tagline {
+    font-family: var(--font-body);
+    font-size: 13px;
+    line-height: 1.4;
+    color: var(--gray);
+}
+
+/* ==========================================================================
+   Formulário
+   ========================================================================== */
+
+.auth-form {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+}
+
+.field {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+}
+
+.field label {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--gray-light);
+}
+
+.field input,
+.field select {
+    background: var(--black);
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius-md);
+    color: var(--white);
+    font-size: 16px;
+    padding: 14px var(--space-4);
+    transition: border-color var(--transition-fast);
+}
+
+.field select {
+    font-family: inherit;
+}
+
+.field input::placeholder {
+    color: var(--gray);
+}
+
+.field input:hover,
+.field select:hover {
+    border-color: var(--gray);
+}
+
+.field input:focus-visible,
+.field select:focus-visible {
+    border-color: var(--red);
+    outline: 2px solid var(--red);
+    outline-offset: 2px;
+}
+
+/* Link para trocar entre login e cadastro, abaixo do formulário. */
+.auth-form__footer {
+    margin-top: var(--space-5);
+    text-align: center;
+    font-size: 14px;
+    color: var(--gray-light);
+}
+
+/* ==========================================================================
+   Botão
+   ========================================================================== */
+
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-2);
+    border: none;
+    border-radius: var(--radius-md);
+    font-family: var(--font-display);
+    font-size: 18px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    text-decoration: none;
+    cursor: pointer;
+    padding: var(--space-4) var(--space-5);
+    transition: background-color var(--transition-fast), transform var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.btn--primary {
+    background: var(--red);
+    color: var(--white);
+}
+
+.btn--primary:hover:not(:disabled) {
+    background: var(--red-dark);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(184, 5, 16, 0.35);
+}
+
+.btn--ghost {
+    background: transparent;
+    color: var(--gray-light);
+    border: 1px solid var(--line-strong);
+}
+
+.btn--ghost:hover:not(:disabled) {
+    border-color: var(--red);
+    color: var(--white);
+}
+
+.btn--block {
+    width: 100%;
+}
+
+.btn:disabled {
+    opacity: 0.65;
+    cursor: not-allowed;
+}
+
+.btn.is-loading .btn__spinner {
+    display: inline-block;
+}
+
+.btn__spinner {
+    display: none;
+    width: 15px;
+    height: 15px;
+    border: 2px solid rgba(255, 255, 255, 0.4);
+    border-top-color: var(--white);
+    border-radius: 50%;
+    animation: spin 700ms linear infinite;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* ==========================================================================
+   Mensagens de formulário (erro / sucesso)
+   ========================================================================== */
+
+.form-message {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-2);
+    font-size: 14px;
+    padding: var(--space-3);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--line-strong);
+}
+
+/* Regra de autor (.form-message) tem prioridade sobre o estilo padrão do
+   navegador para [hidden] — sem isto, a caixa aparecia vazia (com padding
+   e borda) mesmo sem nenhuma mensagem definida. */
+.form-message[hidden] {
+    display: none;
+}
+
+.form-message__icon {
+    flex-shrink: 0;
+    font-weight: 700;
+}
+
+.form-message--erro {
+    background: rgba(227, 6, 19, 0.08);
+    border-color: var(--red);
+    color: var(--gray-light);
+}
+
+.form-message--erro .form-message__icon {
+    color: var(--red-bright);
+}
+
+.form-message--sucesso {
+    background: rgba(255, 255, 255, 0.04);
+    border-color: var(--line-strong);
+    color: var(--gray-light);
+}
+
+.form-message--sucesso .form-message__icon {
+    color: var(--white);
+}
+
+/* ==========================================================================
+   Cabeçalho do app (compartilhado entre área do cliente e área admin)
+   ========================================================================== */
+
+.dash-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+    padding: var(--space-4) var(--space-4);
+    border-bottom: 1px solid var(--line);
+}
+
+.dash-header__brand {
+    font-family: var(--font-display);
+    font-size: 20px;
+    font-weight: 800;
+    letter-spacing: 0.03em;
+    color: var(--white);
+}
+
+.dash-header__user {
+    display: flex;
+    align-items: center;
+    gap: var(--space-4);
+}
+
+.dash-header__greeting {
+    font-size: 13px;
+    color: var(--gray);
+    max-width: 160px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* ==========================================================================
+   Botão "☰ Menu" — abre a navegação principal (.bottom-nav do cliente ou
+   .admin-nav do admin) como painel no celular. Compartilhado entre as duas
+   áreas porque o botão em si é idêntico; cada área continua estilizando seu
+   próprio painel (dashboard.css / admin.css). Separado de propósito de
+   .tabs-menu-btn (admin.css), que é só para as abas internas do funcionário.
+   ========================================================================== */
+
+.nav-menu-btn {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    padding: var(--space-2) var(--space-3);
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--gray-light);
+    background: var(--black-soft);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    font-family: inherit;
+}
+
+.nav-menu-btn[aria-expanded="true"] {
+    color: var(--red);
+    border-color: var(--red);
+}
+
+@media (min-width: 768px) {
+    .nav-menu-btn {
+        display: none;
+    }
+}
+
+.link-btn {
+    background: none;
+    border: none;
+    color: var(--gray-light);
+    font-family: var(--font-body);
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    padding: var(--space-1) 0;
+    transition: color var(--transition-fast);
+}
+
+.link-btn:hover {
+    color: var(--red-bright);
+}
+
+/* ==========================================================================
+   Título/placeholder de seção (compartilhado)
+   ========================================================================== */
+
+.dash-section__title {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--white);
+    margin-bottom: var(--space-3);
+}
+
+.dash-section__placeholder {
+    font-size: 14px;
+    color: var(--gray);
+    padding: var(--space-4) 0;
+}
+
+/* ==========================================================================
+   Esqueleto genérico de modal (compartilhado — conteúdo específico de cada
+   modal, como os dados de uma recompensa, fica no CSS de cada área)
+   ========================================================================== */
+
+.modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(11, 13, 15, 0.75);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--space-4);
+    z-index: 100;
+}
+
+.modal-overlay[hidden] {
+    display: none;
+}
+
+.modal {
+    width: 100%;
+    max-width: 360px;
+    background: var(--black-soft);
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius);
+    padding: var(--space-6) var(--space-5) var(--space-5);
+}
+
+.modal--wide {
+    max-width: 480px;
+}
+
+.modal__title {
+    font-size: 20px;
+    margin-bottom: var(--space-4);
+    color: var(--white);
+}
+
+.modal__reward-name {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--white);
+    margin-bottom: var(--space-1);
+}
+
+.modal__note {
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--gray);
+    margin-bottom: var(--space-4);
+}
+
+.receipt-row {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    margin-bottom: var(--space-3);
+}
+
+.receipt-row__label {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--gray);
+}
+
+.receipt-row__value {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--white);
+}
+
+.modal__codigo {
+    display: block;
+    font-family: var(--font-display);
+    font-size: 26px;
+    font-weight: 800;
+    letter-spacing: 0.1em;
+    color: var(--white);
+}
+
+.modal__error {
+    font-size: 13px;
+    color: var(--red-bright);
+    margin-bottom: var(--space-3);
+}
+
+.modal__actions {
+    display: flex;
+    gap: var(--space-3);
+}
+
+.modal__actions .btn {
+    flex: 1;
+}
+
+/* ==========================================================================
+   Selo de status (resgates) — usado no painel admin e em "Meus Resgates"
+   ========================================================================== */
+
+.status-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: var(--space-1) 10px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    border-radius: 999px;
+    border: 1px solid var(--line-strong);
+    color: var(--gray-light);
+    white-space: nowrap;
+}
+
+.status-badge--pendente {
+    border-color: var(--gray);
+    color: var(--gray-light);
+}
+
+.status-badge--aprovado {
+    background: var(--red);
+    border-color: var(--red);
+    color: var(--white);
+}
+
+/* Área de QR Code gerado (qrcodejs) — usada no resgate do cliente e no QR
+   individual do cliente no painel admin. */
+.qrcode-container {
+    display: flex;
+    justify-content: center;
+    margin: var(--space-2) 0 var(--space-4);
+}
+
+/* qrcodejs renderiza como <canvas>, <img> ou <table>, dependendo do
+   navegador — a moldura branca garante contraste/zona de silêncio em
+   qualquer um dos três. */
+.qrcode-container canvas,
+.qrcode-container img,
+.qrcode-container table {
+    background: var(--white);
+    padding: var(--space-3);
+    border-radius: var(--radius-sm);
+}
+
+.status-badge--recusado {
+    /* Antes usava opacity, que mistura a cor com o fundo e derruba o
+       contraste para ~4.26:1 (abaixo do mínimo WCAG AA de 4.5:1). Cor
+       sólida em --gray já rende ~7.4:1 sobre --black-soft, preservando o
+       mesmo efeito "esmaecido" em relação ao --gray-light do pendente. */
+    color: var(--gray);
+}
+
+/* ==========================================================================
+   Responsivo
+   ========================================================================== */
+
+@media (min-width: 640px) {
+    .auth-card {
+        padding: var(--space-8) var(--space-7) var(--space-7);
+    }
+}

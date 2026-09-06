@@ -1,18 +1,43 @@
+const path = require("path");
 const express = require("express");
 const cors = require("cors");
 const helmet = require("helmet");
 const rateLimit = require("express-rate-limit");
-const pool = require("./src/config/database");
 const authRoutes = require("./src/routes/auth.routes");
 const userRoutes = require("./src/routes/user.routes");
 const pointsRoutes = require("./src/routes/points.routes");
 const rewardRoutes = require("./src/routes/reward.routes");
 const redemptionRoutes = require("./src/routes/redemption.routes");
+const adminRoutes = require("./src/routes/admin.routes");
+const empresaRoutes = require("./src/routes/empresa.routes");
 const errorHandler = require("./src/middlewares/errorHandler");
 
 const app = express();
 
-app.use(helmet());
+// Mesmas diretivas padrão do Helmet, com dois ajustes pontuais:
+//
+// - "upgrade-insecure-requests" desativada, só pra permitir acessar o
+//   servidor por HTTP via IP local (ex: http://192.168.12.105:3000) durante
+//   o desenvolvimento — sem isso, o navegador tentava recarregar CSS/JS por
+//   HTTPS (que este servidor não expõe) e a requisição falhava em silêncio.
+//
+// - "script-src" ganha explicitamente os dois CDNs usados pelo frontend
+//   (qrcodejs em cdnjs.cloudflare.com, jsQR em cdn.jsdelivr.net) — sem isso,
+//   o padrão 'self' bloqueia esses scripts e os QR Codes/leitores de câmera
+//   ficam em branco sem erro visível. Lista fechada nesses dois domínios
+//   específicos (não "https:" genérico, que liberaria qualquer host HTTPS).
+//
+// Todas as outras diretivas e as demais proteções do Helmet (HSTS,
+// X-Frame-Options, etc.) continuam nos valores padrão, sem nenhuma mudança.
+app.use(helmet({
+    contentSecurityPolicy: {
+        directives: {
+            ...helmet.contentSecurityPolicy.getDefaultDirectives(),
+            "upgrade-insecure-requests": null,
+            "script-src": ["'self'", "https://cdnjs.cloudflare.com", "https://cdn.jsdelivr.net"]
+        }
+    }
+}));
 
 app.use(cors({
     origin: process.env.CORS_ORIGIN
@@ -28,29 +53,19 @@ const globalLimiter = rateLimit({
 });
 app.use(globalLimiter);
 
+// Serve o frontend estático (caminho absoluto via __dirname, não depende do
+// diretório de onde o processo é iniciado). express.static já resolve "/"
+// e "/index.html" para frontend/index.html automaticamente, além de servir
+// o resto dos arquivos (assets/js, assets/css etc.) pelo mesmo caminho.
+app.use(express.static(path.join(__dirname, "frontend")));
+
 app.use(authRoutes);
 app.use(userRoutes);
 app.use(pointsRoutes);
 app.use(rewardRoutes);
 app.use(redemptionRoutes);
-
-app.get("/", async (req, res) => {
-    try {
-        const resultado = await pool.query("SELECT NOW()");
-
-        res.json({
-            mensagem: "API e banco funcionando!",
-            horario: resultado.rows[0].now
-        });
-
-    } catch (erro) {
-        console.log(erro);
-
-        res.status(500).json({
-            mensagem: "Erro ao conectar com o banco"
-        });
-    }
-});
+app.use(adminRoutes);
+app.use(empresaRoutes);
 
 app.use((req, res) => {
     res.status(404).json({

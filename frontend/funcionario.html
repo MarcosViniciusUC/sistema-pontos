@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Movement | Funcionário</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@600;700;800;900&display=swap" rel="stylesheet">
+
+    <link rel="stylesheet" href="assets/css/tokens.css">
+    <link rel="stylesheet" href="assets/css/base.css">
+    <link rel="stylesheet" href="assets/css/components.css">
+    <link rel="stylesheet" href="assets/css/admin.css">
+</head>
+<body>
+    <div class="admin-shell">
+        <header class="dash-header">
+            <span class="dash-header__brand">MOVEMENT</span>
+
+            <div class="dash-header__user">
+                <span id="user-greeting" class="dash-header__greeting">Olá!</span>
+                <button type="button" id="logout-btn" class="link-btn">Sair</button>
+            </div>
+        </header>
+
+        <div class="admin-body">
+            <main class="admin-main">
+                <h1 class="admin-page-title">Área do Funcionário</h1>
+
+                <!-- Abas: só reorganizam a apresentação dos três cards
+                     existentes em dois grupos — nenhuma lógica de
+                     identificação/pontos/validação muda, só a troca de
+                     aba (ver funcionario.js). No celular (ver admin.css), a
+                     mesma .tabs vira um dropdown aberto pelo botão "Menu" —
+                     os dois botões de aba são os mesmos nos dois tamanhos
+                     de tela, nada é duplicado. -->
+                <div class="tabs-nav">
+                    <button type="button" id="tabs-menu-btn" class="tabs-menu-btn" aria-haspopup="true" aria-expanded="false" aria-controls="tabs-menu">
+                        <span aria-hidden="true">☰</span> Menu
+                    </button>
+
+                    <div class="tabs" id="tabs-menu" role="tablist" aria-label="Áreas do funcionário">
+                        <button type="button" id="tab-pontos-btn" class="tabs__item is-active" role="tab" aria-selected="true" aria-controls="tab-pontos-painel">Adicionar Pontos</button>
+                        <button type="button" id="tab-validar-btn" class="tabs__item" role="tab" aria-selected="false" aria-controls="tab-validar-painel" tabindex="-1">Validação de Resgate</button>
+                    </div>
+                </div>
+
+                <div id="tab-pontos-painel" class="tab-panel" role="tabpanel" aria-labelledby="tab-pontos-btn">
+                <!-- ==========================================================
+                     1. Identificar cliente (QR ou busca por nome/email)
+                     ========================================================== -->
+                <section class="dash-section">
+                    <h2 class="dash-section__title">1. Identificar cliente</h2>
+
+                    <div class="operacao-panel admin-form--narrow">
+                        <button type="button" id="abrir-scanner-btn" class="btn btn--ghost btn--block">
+                            Ler QR do Cliente
+                        </button>
+
+                        <div class="admin-toolbar">
+                            <input
+                                type="search"
+                                id="busca-cliente-input"
+                                class="search-input"
+                                placeholder="Ou busque por nome ou email..."
+                                aria-label="Buscar cliente por nome ou email"
+                                autocomplete="off"
+                            >
+                        </div>
+
+                        <div id="busca-resultados-container"></div>
+
+                        <div
+                            id="resultado-mensagem"
+                            class="form-message"
+                            role="status"
+                            aria-live="polite"
+                            tabindex="-1"
+                            hidden
+                        ></div>
+
+                        <!-- Não mostra email/qr_token/senha/JWT — só o que o
+                             funcionário precisa pra atender o cliente. -->
+                        <div id="resultado-cliente" class="admin-result-card" hidden>
+                            <div class="receipt-row">
+                                <span class="receipt-row__label">Cliente</span>
+                                <span class="receipt-row__value" id="resultado-nome"></span>
+                            </div>
+
+                            <div class="receipt-row">
+                                <span class="receipt-row__label">Telefone</span>
+                                <span class="receipt-row__value" id="resultado-telefone"></span>
+                            </div>
+
+                            <div class="receipt-row">
+                                <span class="receipt-row__label">Saldo</span>
+                                <span class="receipt-row__value" id="resultado-saldo"></span>
+                            </div>
+
+                            <div class="modal__actions">
+                                <button type="button" id="identificar-outro-btn" class="btn btn--ghost">Identificar outro cliente</button>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- ==========================================================
+                     2. Adicionar pontos ao cliente identificado
+                     ========================================================== -->
+                <section class="dash-section">
+                    <h2 class="dash-section__title">2. Adicionar pontos</h2>
+
+                    <div class="operacao-panel admin-form--narrow">
+                        <p id="adicionar-pontos-vazio" class="dash-section__placeholder">
+                            Identifique um cliente acima para liberar esta ação.
+                        </p>
+
+                        <!-- usuario_id vem sempre de clienteIdentificado.id
+                             (definido só pela resposta de GET /usuarios/qr/:qr_token
+                             ou /usuarios/buscar-cliente) — nunca existe um campo
+                             para digitar um ID aqui. -->
+                        <div id="adicionar-pontos-card" hidden>
+                            <div class="receipt-row">
+                                <span class="receipt-row__label">Cliente selecionado</span>
+                                <span class="receipt-row__value" id="adicionar-pontos-cliente-nome"></span>
+                            </div>
+
+                            <form id="form-adicionar-pontos" class="modal-form" novalidate>
+                                <div class="field">
+                                    <label for="pontos-empresa-input">Empresa</label>
+                                    <select id="pontos-empresa-input" name="empresa_id" required>
+                                        <option value="" disabled selected>Selecione a empresa</option>
+                                    </select>
+                                </div>
+                                <div class="field">
+                                    <label for="pontos-quantidade-input">Quantidade de pontos</label>
+                                    <input type="number" id="pontos-quantidade-input" name="quantidade" min="1" step="1" inputmode="numeric" required>
+                                </div>
+                                <div class="field">
+                                    <label for="pontos-descricao-input">Descrição (opcional)</label>
+                                    <input type="text" id="pontos-descricao-input" name="descricao" placeholder="Ex: Serviço realizado">
+                                </div>
+
+                                <div
+                                    id="adicionar-pontos-mensagem"
+                                    class="form-message"
+                                    role="status"
+                                    aria-live="polite"
+                                    tabindex="-1"
+                                    hidden
+                                ></div>
+
+                                <button type="submit" class="btn btn--primary btn--block" id="adicionar-pontos-btn">
+                                    <span class="btn__spinner" aria-hidden="true"></span>
+                                    <span class="btn__label">Adicionar pontos</span>
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </section>
+                </div>
+
+                <div id="tab-validar-painel" class="tab-panel" role="tabpanel" aria-labelledby="tab-validar-btn" hidden>
+                <!-- ==========================================================
+                     3. Validar resgate (mesmo POST /resgates/validar do painel
+                     admin — só o código digitado por enquanto, sem câmera
+                     nesta tela para manter a página simples).
+                     ========================================================== -->
+                <section class="dash-section">
+                    <h2 class="dash-section__title">3. Validar resgate</h2>
+
+                    <div class="operacao-panel admin-form--narrow">
+                        <form id="form-validar" class="modal-form" novalidate>
+                            <div class="field">
+                                <label for="codigo-input">Código do resgate</label>
+                                <input
+                                    type="text"
+                                    id="codigo-input"
+                                    name="codigo"
+                                    placeholder="Ex: EQ32KY67"
+                                    autocapitalize="characters"
+                                    autocomplete="off"
+                                    spellcheck="false"
+                                    required
+                                >
+                            </div>
+
+                            <div
+                                id="validar-mensagem"
+                                class="form-message"
+                                role="status"
+                                aria-live="polite"
+                                tabindex="-1"
+                                hidden
+                            ></div>
+
+                            <button type="submit" class="btn btn--primary btn--block" id="validar-btn">
+                                <span class="btn__spinner" aria-hidden="true"></span>
+                                <span class="btn__label">Validar resgate</span>
+                            </button>
+                        </form>
+
+                        <div id="resgate-detalhes" class="admin-result-card" hidden>
+                            <div class="receipt-row">
+                                <span class="receipt-row__label">Recompensa</span>
+                                <span class="receipt-row__value" id="resgate-recompensa"></span>
+                            </div>
+
+                            <div class="receipt-row">
+                                <span class="receipt-row__label">Pontos</span>
+                                <span class="receipt-row__value" id="resgate-pontos"></span>
+                            </div>
+
+                            <div class="receipt-row">
+                                <span class="receipt-row__label">Código</span>
+                                <span class="modal__codigo" id="resgate-codigo"></span>
+                            </div>
+
+                            <div class="receipt-row">
+                                <span class="receipt-row__label">Status</span>
+                                <span class="status-badge status-badge--aprovado">Utilizado</span>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Modal: leitura de QR Code do cliente pela câmera. Mesmo padrão
+         técnico do scanner de admin-identificar-cliente.js: getUserMedia,
+         câmera traseira, jsQR, para o stream ao fechar ou ao detectar um
+         código. -->
+    <div id="modal-scanner-overlay" class="modal-overlay" hidden>
+        <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-scanner-title">
+            <h2 id="modal-scanner-title" class="modal__title">Ler QR do Cliente</h2>
+
+            <div class="scanner-preview">
+                <video id="scanner-video" playsinline muted></video>
+            </div>
+            <canvas id="scanner-canvas" hidden></canvas>
+
+            <p class="modal__note">Aponte a câmera para o QR Code do cliente.</p>
+
+            <div class="modal__actions">
+                <button type="button" id="scanner-fechar" class="btn btn--ghost">Fechar câmera</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+    <script src="assets/js/api.js"></script>
+    <script src="assets/js/auth.js"></script>
+    <script src="assets/js/ui.js"></script>
+    <script src="assets/js/funcionario.js"></script>
+</body>
+</html>

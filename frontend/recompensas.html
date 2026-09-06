@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Movement | Recompensas</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@600;700;800;900&display=swap" rel="stylesheet">
+
+    <link rel="stylesheet" href="assets/css/tokens.css">
+    <link rel="stylesheet" href="assets/css/base.css">
+    <link rel="stylesheet" href="assets/css/components.css">
+    <link rel="stylesheet" href="assets/css/dashboard.css">
+</head>
+<body>
+    <div class="app-shell">
+        <header class="dash-header">
+            <span class="dash-header__brand">MOVEMENT</span>
+
+            <div class="dash-header__user">
+                <button type="button" id="nav-menu-btn" class="nav-menu-btn" aria-haspopup="true" aria-expanded="false" aria-controls="main-nav">
+                    <span aria-hidden="true">☰</span> Menu
+                </button>
+                <span id="user-greeting" class="dash-header__greeting">Olá!</span>
+                <button type="button" id="logout-btn" class="link-btn">Sair</button>
+            </div>
+        </header>
+
+        <nav class="bottom-nav" id="main-nav" aria-label="Navegação principal">
+            <a href="dashboard.html" class="bottom-nav__item">Início</a>
+            <a href="historico.html" class="bottom-nav__item">Histórico</a>
+            <a href="recompensas.html" class="bottom-nav__item is-active" aria-current="page">Recompensas</a>
+            <a href="meus-resgates.html" class="bottom-nav__item">Meus Resgates</a>
+            <span class="bottom-nav__item is-disabled" aria-disabled="true" title="Em breve">Perfil</span>
+        </nav>
+
+        <main class="dash-main">
+            <section class="dash-section">
+                <div class="balance-hero">
+                    <span class="balance-hero__label">Seu saldo</span>
+                    <span id="balance-chip-value" class="balance-hero__value">--</span>
+                    <span class="balance-hero__hint">pontos disponíveis para resgate</span>
+                </div>
+            </section>
+
+            <section class="dash-section">
+                <h1 id="rewards-title" class="dash-section__title" tabindex="-1">Recompensas disponíveis</h1>
+
+                <!-- Preenchido dinamicamente por recompensas.js a partir das
+                     empresas ATIVAS retornadas por GET /empresas — nenhuma
+                     empresa fixa aqui. -->
+                <div id="rewards-filters" class="filter-chips" role="group" aria-label="Filtrar recompensas por empresa"></div>
+
+                <div class="rewards-search">
+                    <svg class="rewards-search__icon" width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                        <circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"></circle>
+                        <line x1="16.65" y1="16.65" x2="21" y2="21" stroke="currentColor" stroke-width="2" stroke-linecap="round"></line>
+                    </svg>
+                    <input
+                        type="search"
+                        id="rewards-search-input"
+                        class="search-input"
+                        placeholder="Pesquisar recompensa..."
+                        aria-label="Pesquisar recompensa"
+                        autocomplete="off"
+                    >
+                    <button type="button" id="rewards-search-clear" class="rewards-search__clear" aria-label="Limpar pesquisa" hidden>✕</button>
+                </div>
+
+                <div id="rewards-list" class="rewards-grid rewards-grid--v2" aria-live="polite">
+                    <p class="dash-section__placeholder">Carregando...</p>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <div id="modal-overlay" class="modal-overlay" hidden>
+        <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+            <h2 id="modal-title" class="modal__title">Confirmar resgate</h2>
+            <p id="modal-reward-name" class="modal__reward-name"></p>
+            <p id="modal-reward-points" class="modal__reward-points"></p>
+            <p id="modal-note" class="modal__note"></p>
+            <p id="modal-error" class="modal__error" hidden></p>
+            <div class="modal__actions">
+                <button type="button" id="modal-cancel" class="btn btn--ghost">Cancelar</button>
+                <button type="button" id="modal-confirm" class="btn btn--primary">
+                    <span class="btn__spinner" aria-hidden="true"></span>
+                    <span class="btn__label">Confirmar resgate</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: detalhes da recompensa (descrição completa) -->
+    <div id="modal-detalhes-overlay" class="modal-overlay" hidden>
+        <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-detalhes-title">
+            <h2 id="modal-detalhes-title" class="modal__title"></h2>
+            <p id="modal-detalhes-descricao" class="modal__body-text"></p>
+            <div class="modal__actions">
+                <button type="button" id="modal-detalhes-fechar" class="btn btn--primary">Fechar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: resgate realizado (código de reserva + QR Code) -->
+    <div id="modal-sucesso-overlay" class="modal-overlay" hidden>
+        <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-sucesso-title">
+            <h2 id="modal-sucesso-title" class="modal__title">Resgate realizado!</h2>
+
+            <div id="modal-sucesso-qrcode" class="qrcode-container" aria-hidden="true"></div>
+
+            <div class="receipt-row">
+                <span class="receipt-row__label">Recompensa</span>
+                <span id="modal-sucesso-recompensa" class="receipt-row__value"></span>
+            </div>
+            <div class="receipt-row">
+                <span class="receipt-row__label">Pontos utilizados</span>
+                <span id="modal-sucesso-pontos" class="receipt-row__value"></span>
+            </div>
+            <div id="modal-sucesso-empresa-row" class="receipt-row" hidden>
+                <span class="receipt-row__label">Empresa</span>
+                <span id="modal-sucesso-empresa" class="receipt-row__value"></span>
+            </div>
+            <div class="receipt-row">
+                <span class="receipt-row__label">Código de reserva</span>
+                <span id="modal-sucesso-codigo" class="modal__codigo"></span>
+            </div>
+            <div class="receipt-row">
+                <span class="receipt-row__label">Status</span>
+                <span class="receipt-row__value">Aguardando utilização</span>
+            </div>
+
+            <p id="modal-sucesso-nota" class="modal__note"></p>
+
+            <div class="modal__actions">
+                <a href="meus-resgates.html" class="btn btn--ghost">Ver meus resgates</a>
+                <button type="button" id="modal-sucesso-fechar" class="btn btn--primary">Fechar</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="assets/js/api.js"></script>
+    <script src="assets/js/auth.js"></script>
+    <script src="assets/js/ui.js"></script>
+    <script src="assets/js/recompensas.js"></script>
+</body>
+</html>

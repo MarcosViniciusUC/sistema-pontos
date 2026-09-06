@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Movement | Validar resgate (admin)</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@600;700;800;900&display=swap" rel="stylesheet">
+
+    <link rel="stylesheet" href="assets/css/tokens.css">
+    <link rel="stylesheet" href="assets/css/base.css">
+    <link rel="stylesheet" href="assets/css/components.css">
+    <link rel="stylesheet" href="assets/css/admin.css">
+</head>
+<body>
+    <div class="admin-shell">
+        <header class="dash-header">
+            <span class="dash-header__brand">MOVEMENT ADMIN</span>
+
+            <div class="dash-header__user">
+                <button type="button" id="nav-menu-btn" class="nav-menu-btn" aria-haspopup="true" aria-expanded="false" aria-controls="main-nav">
+                    <span aria-hidden="true">☰</span> Menu
+                </button>
+                <span id="user-greeting" class="dash-header__greeting">Olá!</span>
+                <button type="button" id="logout-btn" class="link-btn">Sair</button>
+            </div>
+        </header>
+
+        <div class="admin-body">
+            <nav class="admin-nav" id="main-nav" aria-label="Navegação administrativa">
+                <a href="admin.html" class="admin-nav__item">Dashboard</a>
+                <a href="admin-clientes.html" class="admin-nav__item">Clientes</a>
+                <a href="admin-recompensas.html" class="admin-nav__item">Recompensas</a>
+                <a href="admin-empresas.html" class="admin-nav__item">Empresas</a>
+                <a href="admin-resgates.html" class="admin-nav__item">Resgates</a>
+                <a href="admin-validar.html" class="admin-nav__item is-active" aria-current="page">Validar</a>
+                <a href="admin-identificar-cliente.html" class="admin-nav__item">Identificar</a>
+            </nav>
+
+            <main class="admin-main">
+                <h1 class="admin-page-title">Validar resgate</h1>
+
+                <!-- Campo único de código: pode ser digitado manualmente ou
+                     preenchido pelo scanner de QR Code abaixo — as duas vias
+                     enviam para o mesmo POST /resgates/validar. -->
+                <form id="form-validar" class="modal-form admin-form--narrow" novalidate>
+                    <div class="field">
+                        <label for="codigo-input">Código do resgate</label>
+                        <input
+                            type="text"
+                            id="codigo-input"
+                            name="codigo"
+                            placeholder="Ex: EQ32KY67"
+                            autocapitalize="characters"
+                            autocomplete="off"
+                            spellcheck="false"
+                            required
+                        >
+                    </div>
+
+                    <button type="button" id="abrir-scanner-btn" class="btn btn--ghost btn--block">
+                        Ler QR Code
+                    </button>
+
+                    <div
+                        id="resultado-mensagem"
+                        class="form-message"
+                        role="status"
+                        aria-live="polite"
+                        tabindex="-1"
+                        hidden
+                    ></div>
+
+                    <button type="submit" class="btn btn--primary btn--block" id="validar-btn">
+                        <span class="btn__spinner" aria-hidden="true"></span>
+                        <span class="btn__label">Validar resgate</span>
+                    </button>
+                </form>
+
+                <div id="resultado-detalhes" class="admin-result-card" hidden>
+                    <h2 class="admin-result-card__title">Resgate validado</h2>
+
+                    <div class="receipt-row">
+                        <span class="receipt-row__label">Recompensa</span>
+                        <span class="receipt-row__value" id="resultado-recompensa"></span>
+                    </div>
+
+                    <div class="receipt-row">
+                        <span class="receipt-row__label">Pontos</span>
+                        <span class="receipt-row__value" id="resultado-pontos"></span>
+                    </div>
+
+                    <div class="receipt-row">
+                        <span class="receipt-row__label">Código</span>
+                        <span class="modal__codigo" id="resultado-codigo"></span>
+                    </div>
+
+                    <div class="receipt-row">
+                        <span class="receipt-row__label">Status</span>
+                        <span class="status-badge status-badge--aprovado">Utilizado</span>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Modal: leitura de QR Code pela câmera. O código lido só preenche o
+         campo já existente e aciona a mesma validação do formulário manual
+         (ver executarValidacao em admin-validar.js) — não existe uma
+         segunda lógica de validação para o QR. -->
+    <div id="modal-scanner-overlay" class="modal-overlay" hidden>
+        <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-scanner-title">
+            <h2 id="modal-scanner-title" class="modal__title">Ler QR Code</h2>
+
+            <div class="scanner-preview">
+                <video id="scanner-video" playsinline muted></video>
+            </div>
+            <canvas id="scanner-canvas" hidden></canvas>
+
+            <p class="modal__note">Aponte a câmera para o QR Code do resgate.</p>
+
+            <div class="modal__actions">
+                <button type="button" id="scanner-fechar" class="btn btn--ghost">Fechar câmera</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+    <script src="assets/js/api.js"></script>
+    <script src="assets/js/auth.js"></script>
+    <script src="assets/js/ui.js"></script>
+    <script src="assets/js/admin-validar.js"></script>
+</body>
+</html>

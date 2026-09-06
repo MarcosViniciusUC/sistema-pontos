@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Movement | Criar conta</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@600;700;800&display=swap" rel="stylesheet">
+
+    <link rel="stylesheet" href="assets/css/tokens.css">
+    <link rel="stylesheet" href="assets/css/base.css">
+    <link rel="stylesheet" href="assets/css/components.css">
+</head>
+<body>
+    <main class="auth-screen">
+        <div class="auth-card">
+            <div class="brand">
+                <!-- Logo real da Movement: quando o arquivo estiver disponível,
+                     trocar por <img class="brand__mark" src="assets/img/logo.svg" alt="Movement"> -->
+                <span class="brand__mark" aria-hidden="true"></span>
+                <div class="brand__lockup">
+                    <h1 class="brand__name">MOVEMENT</h1>
+                    <p class="brand__tagline">Crie sua conta e comece a pontuar.</p>
+                </div>
+            </div>
+
+            <form id="cadastro-form" class="auth-form" novalidate>
+                <div class="field">
+                    <label for="nome">Nome</label>
+                    <input
+                        type="text"
+                        id="nome"
+                        name="nome"
+                        autocomplete="name"
+                        placeholder="Seu nome completo"
+                        required
+                    >
+                </div>
+
+                <div class="field">
+                    <label for="email">Email</label>
+                    <input
+                        type="email"
+                        id="email"
+                        name="email"
+                        autocomplete="email"
+                        placeholder="voce@email.com"
+                        required
+                    >
+                </div>
+
+                <div class="field">
+                    <label for="telefone">Telefone</label>
+                    <input
+                        type="tel"
+                        id="telefone"
+                        name="telefone"
+                        autocomplete="tel"
+                        placeholder="Opcional"
+                    >
+                </div>
+
+                <div class="field">
+                    <label for="senha">Senha</label>
+                    <input
+                        type="password"
+                        id="senha"
+                        name="senha"
+                        autocomplete="new-password"
+                        placeholder="Mínimo de 6 caracteres"
+                        required
+                    >
+                </div>
+
+                <div class="field">
+                    <label for="confirmar-senha">Confirmar senha</label>
+                    <input
+                        type="password"
+                        id="confirmar-senha"
+                        name="confirmar_senha"
+                        autocomplete="new-password"
+                        placeholder="Repita a senha"
+                        required
+                    >
+                </div>
+
+                <div
+                    id="form-message"
+                    class="form-message"
+                    role="alert"
+                    aria-live="polite"
+                    hidden
+                ></div>
+
+                <button type="submit" class="btn btn--primary btn--block" id="submit-btn">
+                    <span class="btn__spinner" aria-hidden="true"></span>
+                    <span class="btn__label">Criar conta</span>
+                </button>
+            </form>
+
+            <p class="auth-form__footer">Já tem uma conta? <a href="index.html">Entrar</a></p>
+        </div>
+    </main>
+
+    <script src="assets/js/api.js"></script>
+    <script src="assets/js/auth.js"></script>
+    <script src="assets/js/cadastro.js"></script>
+</body>
+</html>

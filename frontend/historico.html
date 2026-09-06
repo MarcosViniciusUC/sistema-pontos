@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Movement | Histórico</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@600;700;800;900&display=swap" rel="stylesheet">
+
+    <link rel="stylesheet" href="assets/css/tokens.css">
+    <link rel="stylesheet" href="assets/css/base.css">
+    <link rel="stylesheet" href="assets/css/components.css">
+    <link rel="stylesheet" href="assets/css/dashboard.css">
+</head>
+<body>
+    <div class="app-shell">
+        <header class="dash-header">
+            <span class="dash-header__brand">MOVEMENT</span>
+
+            <div class="dash-header__user">
+                <button type="button" id="nav-menu-btn" class="nav-menu-btn" aria-haspopup="true" aria-expanded="false" aria-controls="main-nav">
+                    <span aria-hidden="true">☰</span> Menu
+                </button>
+                <span id="user-greeting" class="dash-header__greeting">Olá!</span>
+                <button type="button" id="logout-btn" class="link-btn">Sair</button>
+            </div>
+        </header>
+
+        <nav class="bottom-nav" id="main-nav" aria-label="Navegação principal">
+            <a href="dashboard.html" class="bottom-nav__item">Início</a>
+            <a href="historico.html" class="bottom-nav__item is-active" aria-current="page">Histórico</a>
+            <a href="recompensas.html" class="bottom-nav__item">Recompensas</a>
+            <a href="meus-resgates.html" class="bottom-nav__item">Meus Resgates</a>
+            <span class="bottom-nav__item is-disabled" aria-disabled="true" title="Em breve">Perfil</span>
+        </nav>
+
+        <main class="dash-main">
+            <section class="dash-section">
+                <h1 class="dash-section__title">Histórico de pontos</h1>
+                <ul id="history-list" class="history-list" aria-live="polite">
+                    <li class="dash-section__placeholder">Carregando...</li>
+                </ul>
+            </section>
+        </main>
+    </div>
+
+    <script src="assets/js/api.js"></script>
+    <script src="assets/js/auth.js"></script>
+    <script src="assets/js/ui.js"></script>
+    <script src="assets/js/historico.js"></script>
+</body>
+</html>

@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Movement | Empresas (admin)</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@600;700;800;900&display=swap" rel="stylesheet">
+
+    <link rel="stylesheet" href="assets/css/tokens.css">
+    <link rel="stylesheet" href="assets/css/base.css">
+    <link rel="stylesheet" href="assets/css/components.css">
+    <link rel="stylesheet" href="assets/css/admin.css">
+</head>
+<body>
+    <div class="admin-shell">
+        <header class="dash-header">
+            <span class="dash-header__brand">MOVEMENT ADMIN</span>
+
+            <div class="dash-header__user">
+                <button type="button" id="nav-menu-btn" class="nav-menu-btn" aria-haspopup="true" aria-expanded="false" aria-controls="main-nav">
+                    <span aria-hidden="true">☰</span> Menu
+                </button>
+                <span id="user-greeting" class="dash-header__greeting">Olá!</span>
+                <button type="button" id="logout-btn" class="link-btn">Sair</button>
+            </div>
+        </header>
+
+        <div class="admin-body">
+            <nav class="admin-nav" id="main-nav" aria-label="Navegação administrativa">
+                <a href="admin.html" class="admin-nav__item">Dashboard</a>
+                <a href="admin-clientes.html" class="admin-nav__item">Clientes</a>
+                <a href="admin-recompensas.html" class="admin-nav__item">Recompensas</a>
+                <a href="admin-empresas.html" class="admin-nav__item is-active" aria-current="page">Empresas</a>
+                <a href="admin-resgates.html" class="admin-nav__item">Resgates</a>
+                <a href="admin-validar.html" class="admin-nav__item">Validar</a>
+                <a href="admin-identificar-cliente.html" class="admin-nav__item">Identificar</a>
+            </nav>
+
+            <main class="admin-main">
+                <h1 class="admin-page-title">Empresas</h1>
+
+                <div id="page-message" class="form-message" role="status" aria-live="polite" tabindex="-1" hidden></div>
+
+                <div class="admin-toolbar">
+                    <p class="field-hint">
+                        Empresas desativadas somem dos seletores de novo lançamento/recompensa, mas o histórico que já aponta para elas continua intacto.
+                    </p>
+                    <button type="button" id="nova-empresa-btn" class="btn btn--primary">Nova empresa</button>
+                </div>
+
+                <div id="empresas-container" aria-live="polite">
+                    <p class="dash-section__placeholder">Carregando...</p>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Modal: criar/editar empresa -->
+    <div id="modal-empresa-overlay" class="modal-overlay" hidden>
+        <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-empresa-title">
+            <h2 id="modal-empresa-title" class="modal__title">Nova empresa</h2>
+
+            <form id="form-empresa" class="modal-form" novalidate>
+                <div class="field">
+                    <label for="empresa-nome">Nome</label>
+                    <input type="text" id="empresa-nome" name="nome" placeholder="Ex: Barbearia" required>
+                </div>
+                <div class="field">
+                    <label for="empresa-slug">Slug (gerado automaticamente)</label>
+                    <input type="text" id="empresa-slug" name="slug" placeholder="Ex: barbearia" required>
+                    <p class="field-hint">Preenchido a partir do nome. Só edite aqui se quiser um identificador diferente.</p>
+                </div>
+
+                <p id="modal-empresa-error" class="modal__error" hidden></p>
+
+                <div class="modal__actions">
+                    <button type="button" id="modal-empresa-cancelar" class="btn btn--ghost">Cancelar</button>
+                    <button type="submit" id="modal-empresa-confirmar" class="btn btn--primary">
+                        <span class="btn__spinner" aria-hidden="true"></span>
+                        <span class="btn__label">Salvar</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal: confirmar desativação -->
+    <div id="modal-desativar-overlay" class="modal-overlay" hidden>
+        <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-desativar-title">
+            <h2 id="modal-desativar-title" class="modal__title">Desativar empresa</h2>
+            <p id="modal-desativar-nome" class="modal__reward-name"></p>
+            <p class="modal__note">
+                A empresa deixa de aparecer para novos lançamentos de pontos e novas recompensas. Recompensas, movimentações e resgates que já apontam para ela continuam intactos.
+            </p>
+
+            <p id="modal-desativar-error" class="modal__error" hidden></p>
+
+            <div class="modal__actions">
+                <button type="button" id="modal-desativar-cancelar" class="btn btn--ghost">Cancelar</button>
+                <button type="button" id="modal-desativar-confirmar" class="btn btn--primary">
+                    <span class="btn__spinner" aria-hidden="true"></span>
+                    <span class="btn__label">Desativar</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: confirmar ativação -->
+    <div id="modal-ativar-overlay" class="modal-overlay" hidden>
+        <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-ativar-title">
+            <h2 id="modal-ativar-title" class="modal__title">Ativar empresa</h2>
+            <p id="modal-ativar-nome" class="modal__reward-name"></p>
+            <p class="modal__note">
+                A empresa volta a aparecer nos seletores de novo lançamento de pontos e nova recompensa.
+            </p>
+
+            <p id="modal-ativar-error" class="modal__error" hidden></p>
+
+            <div class="modal__actions">
+                <button type="button" id="modal-ativar-cancelar" class="btn btn--ghost">Cancelar</button>
+                <button type="button" id="modal-ativar-confirmar" class="btn btn--primary">
+                    <span class="btn__spinner" aria-hidden="true"></span>
+                    <span class="btn__label">Ativar</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="assets/js/api.js"></script>
+    <script src="assets/js/auth.js"></script>
+    <script src="assets/js/ui.js"></script>
+    <script src="assets/js/admin-empresas.js"></script>
+</body>
+</html>

@@ -1,0 +1,592 @@
+.admin-shell {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+}
+
+.admin-body {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+/* ==========================================================================
+   Navegação admin — mobile-first: por padrão é um painel recolhido (some
+   por trás do botão "☰ Menu" no cabeçalho, ver components.css/ui.js),
+   aberto com a classe .is-open. A partir de 768px (ver media query mais
+   abaixo) volta a ser a sidebar sempre visível de sempre.
+   ========================================================================== */
+
+.admin-nav {
+    display: none;
+    flex-direction: column;
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: var(--black-soft);
+    border-top: 1px solid var(--line);
+    z-index: 10;
+}
+
+.admin-nav.is-open {
+    display: flex;
+}
+
+.admin-nav__item {
+    text-align: left;
+    padding: var(--space-4);
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    color: var(--gray);
+    text-decoration: none;
+    cursor: pointer;
+    background: none;
+    border: none;
+    border-left: 2px solid transparent;
+    font-family: inherit;
+}
+
+.admin-nav__item.is-active {
+    color: var(--red);
+    border-left-color: var(--red);
+    background: rgba(227, 6, 19, 0.08);
+}
+
+/* ==========================================================================
+   Conteúdo
+   ========================================================================== */
+
+.admin-main {
+    flex: 1;
+    width: 100%;
+    padding: var(--space-5) var(--space-4) calc(64px + var(--space-6));
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-6);
+}
+
+/* ==========================================================================
+   Abas (tela do funcionário) — mesma linguagem visual de .admin-nav__item
+   (rótulo + sublinhado ativo), só que como botões trocando conteúdo na
+   mesma página, não links entre páginas.
+
+   Mobile-first (mesmo padrão de .admin-nav acima): por padrão vira um botão
+   "☰ Menu" que abre a lista como dropdown; a partir de 768px volta a ser a
+   barra de abas sempre visível (comportamento desktop preservado).
+   ========================================================================== */
+
+.tabs-nav {
+    position: relative;
+}
+
+.tabs-menu-btn {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    width: fit-content;
+    padding: var(--space-2) var(--space-3);
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--gray-light);
+    background: var(--black-soft);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    font-family: inherit;
+}
+
+.tabs {
+    display: none;
+    flex-direction: column;
+    position: absolute;
+    top: calc(100% + var(--space-2));
+    left: 0;
+    z-index: 20;
+    min-width: 200px;
+    background: var(--black-soft);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+}
+
+.tabs.is-open {
+    display: flex;
+}
+
+.tabs__item {
+    text-align: left;
+    padding: var(--space-3) var(--space-4);
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    color: var(--gray);
+    background: none;
+    border: none;
+    border-left: 2px solid transparent;
+    cursor: pointer;
+    font-family: inherit;
+    white-space: nowrap;
+}
+
+.tabs__item.is-active {
+    color: var(--red);
+    border-left-color: var(--red);
+    background: rgba(227, 6, 19, 0.08);
+}
+
+/* Ícones só no menu mobile (ver exemplo visual pedido) — o rótulo do botão
+   continua o mesmo texto em qualquer tamanho de tela, sem duplicar elementos. */
+#tab-pontos-btn::before {
+    content: "➕ ";
+}
+
+#tab-validar-btn::before {
+    content: "✓ ";
+}
+
+@media (min-width: 768px) {
+    .tabs-menu-btn {
+        display: none;
+    }
+
+    .tabs {
+        display: flex;
+        flex-direction: row;
+        position: static;
+        min-width: 0;
+        background: none;
+        border: none;
+        border-bottom: 1px solid var(--line);
+        border-radius: 0;
+        overflow: visible;
+    }
+
+    .tabs__item {
+        flex: 1;
+        text-align: center;
+        padding: var(--space-3) var(--space-2);
+        border-left: none;
+        border-bottom: 2px solid transparent;
+        white-space: normal;
+    }
+
+    .tabs__item.is-active {
+        border-left-color: transparent;
+        border-bottom-color: var(--red);
+        background: none;
+    }
+
+    #tab-pontos-btn::before,
+    #tab-validar-btn::before {
+        content: none;
+    }
+}
+
+.tab-panel {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-6);
+}
+
+/* Mesmo motivo de .modal-overlay[hidden]/.form-message[hidden] em
+   components.css: .tab-panel define display:flex, que tem a mesma
+   especificidade do [hidden] do navegador — sem esta regra, a aba escondida
+   continuaria visível. */
+.tab-panel[hidden] {
+    display: none;
+}
+
+.admin-page-title {
+    font-size: 22px;
+    color: var(--white);
+}
+
+/* ==========================================================================
+   Cards de indicadores (dashboard admin)
+   ========================================================================== */
+
+.kpi-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: var(--space-3);
+}
+
+.kpi-card {
+    display: block;
+    background: var(--black-soft);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: var(--space-5);
+    text-decoration: none;
+    transition: border-color var(--transition-fast);
+}
+
+a.kpi-card:hover {
+    border-color: var(--line-strong);
+}
+
+.kpi-card--muted {
+    opacity: 0.6;
+}
+
+.kpi-card__label {
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--gray);
+    margin-bottom: var(--space-2);
+}
+
+.kpi-card__value {
+    font-family: var(--font-display);
+    font-size: 40px;
+    font-weight: 800;
+    color: var(--white);
+    font-variant-numeric: tabular-nums;
+    line-height: 1;
+}
+
+.kpi-card__note {
+    font-size: 12px;
+    color: var(--gray);
+    margin-top: var(--space-2);
+    line-height: 1.4;
+}
+
+/* ==========================================================================
+   Origem dos pontos (dashboard admin)
+   ========================================================================== */
+
+.origem-panel {
+    background: var(--black-soft);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-md);
+    padding: var(--space-5);
+}
+
+.origem-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+}
+
+.origem-item__header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--space-3);
+    margin-bottom: var(--space-2);
+}
+
+.origem-item__label {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--white);
+}
+
+.origem-item__valor {
+    font-family: var(--font-display);
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--gray-light);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+.origem-item__barra {
+    height: 8px;
+    background: var(--black);
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    overflow: hidden;
+}
+
+.origem-item__preenchimento {
+    height: 100%;
+    background: var(--red);
+    border-radius: 999px;
+}
+
+/* ==========================================================================
+   Barra de ferramentas (busca + ação principal)
+   ========================================================================== */
+
+.admin-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-3);
+    align-items: center;
+    justify-content: space-between;
+}
+
+.search-input {
+    background: var(--black);
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius-md);
+    color: var(--white);
+    font-size: 14px;
+    padding: 10px 14px;
+    width: 100%;
+    max-width: 320px;
+    flex: 1;
+    min-width: 180px;
+}
+
+.search-input::placeholder {
+    color: var(--gray);
+}
+
+.search-input:focus-visible {
+    border-color: var(--red);
+    outline: 2px solid var(--red);
+    outline-offset: 2px;
+}
+
+/* ==========================================================================
+   Tabela de dados
+   ========================================================================== */
+
+.table-wrap {
+    overflow-x: auto;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+}
+
+.data-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+}
+
+.data-table th,
+.data-table td {
+    padding: var(--space-3) var(--space-4);
+    text-align: left;
+    white-space: nowrap;
+}
+
+.data-table td.wrap {
+    white-space: normal;
+    min-width: 180px;
+}
+
+.data-table td.num,
+.data-table th.num {
+    text-align: right;
+}
+
+.cliente-pontos {
+    font-family: var(--font-display);
+    font-weight: 700;
+    color: var(--white);
+    font-variant-numeric: tabular-nums;
+}
+
+.data-table thead th {
+    background: var(--black-soft);
+    color: var(--gray);
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    font-weight: 600;
+    border-bottom: 1px solid var(--line);
+}
+
+.data-table tbody tr {
+    border-bottom: 1px solid var(--line);
+}
+
+.data-table tbody tr:last-child {
+    border-bottom: none;
+}
+
+.data-table tbody tr:hover {
+    background: rgba(255, 255, 255, 0.03);
+}
+
+.data-table td {
+    color: var(--white);
+}
+
+.data-table td.muted {
+    color: var(--gray);
+}
+
+.row-actions {
+    display: flex;
+    gap: var(--space-2);
+    flex-wrap: wrap;
+}
+
+.row-actions .btn {
+    /* Mobile-first: área de toque confortável (~46-48px de altura).
+       Fica compacto de novo a partir do desktop (ver breakpoint 768px). */
+    padding: var(--space-4);
+    font-size: 12px;
+    letter-spacing: 0.03em;
+}
+
+/* ==========================================================================
+   Formulários dentro de modal
+   ========================================================================== */
+
+.modal-form {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+}
+
+.checkbox-field {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    font-size: 14px;
+    color: var(--gray-light);
+    cursor: pointer;
+}
+
+.checkbox-field input {
+    width: 16px;
+    height: 16px;
+    accent-color: var(--red);
+}
+
+.field-hint {
+    font-size: 12px;
+    color: var(--gray);
+}
+
+/* ==========================================================================
+   Validar resgate (formulário fora de modal)
+   ========================================================================== */
+
+.admin-form--narrow {
+    max-width: 420px;
+}
+
+.admin-result-card {
+    max-width: 420px;
+    background: var(--black-soft);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-md);
+    padding: var(--space-4);
+}
+
+.admin-result-card__title {
+    font-size: 16px;
+    color: var(--white);
+    margin-bottom: var(--space-4);
+}
+
+/* ==========================================================================
+   Painel de operação (tela do funcionário) — mesmo visual de
+   .admin-result-card/.origem-panel, mas sem max-width próprio (o limite de
+   largura vem de combinar com .admin-form--narrow no HTML) e com os filhos
+   diretos já espaçados verticalmente.
+   ========================================================================== */
+
+.operacao-panel {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+    background: var(--black-soft);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-md);
+    padding: var(--space-5);
+}
+
+#adicionar-pontos-card {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+}
+
+.scanner-preview {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    background: var(--black);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    margin-bottom: var(--space-4);
+}
+
+.scanner-preview video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+/* ==========================================================================
+   Responsivo
+   ========================================================================== */
+
+@media (min-width: 768px) {
+    .dash-header {
+        padding: var(--space-4) var(--space-6);
+    }
+
+    .admin-body {
+        flex-direction: row;
+    }
+
+    .admin-nav {
+        display: flex;
+        position: static;
+        flex-direction: column;
+        align-items: stretch;
+        width: 220px;
+        flex-shrink: 0;
+        border-top: none;
+        border-right: 1px solid var(--line);
+        background: var(--black-soft);
+        padding: var(--space-5) var(--space-3);
+        gap: var(--space-1);
+    }
+
+    .admin-nav__item {
+        flex: none;
+        text-align: left;
+        padding: var(--space-3) var(--space-3);
+        font-size: 12px;
+        border-top: none;
+        border-left: 3px solid transparent;
+        border-radius: var(--radius-sm);
+    }
+
+    .admin-nav__item.is-active {
+        border-top-color: transparent;
+        border-left-color: var(--red);
+        background: rgba(227, 6, 19, 0.08);
+    }
+
+    .admin-main {
+        padding: var(--space-7) var(--space-6) var(--space-7);
+        max-width: 1100px;
+        margin: 0 auto;
+        width: 100%;
+    }
+
+    .kpi-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .row-actions .btn {
+        /* Desktop usa mouse — volta ao tamanho compacto original. */
+        padding: 7px 14px;
+    }
+}
+
+@media (min-width: 1024px) {
+    .kpi-grid {
+        /* 6 cards no dashboard: 3 colunas fecha em 2 linhas parelhas
+           (3+3). Com 4 colunas sobrava uma linha final de só 2 cards,
+           deixando um vão vazio visível à direita. */
+        grid-template-columns: repeat(3, 1fr);
+    }
+}

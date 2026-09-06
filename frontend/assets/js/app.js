@@ -1,0 +1,105 @@
+/**
+ * Lógica da tela de login.
+ */
+(function () {
+    // Mesmo mapeamento de window.UI.paginaInicialPorTipo (ui.js) — duplicado
+    // aqui porque a tela de login não carrega ui.js (não usa nada mais de
+    // lá) e não vale a pena criar essa dependência só por esta função.
+    function paginaInicialPorTipo() {
+        const tipo = window.Auth.obterTipoUsuario();
+
+        if (tipo === "admin") {
+            return "admin.html";
+        }
+
+        if (tipo === "funcionario") {
+            return "funcionario.html";
+        }
+
+        return "dashboard.html";
+    }
+
+    if (window.Auth.possuiSessao() && !window.Auth.tokenExpirado(window.Auth.obterToken())) {
+        window.location.href = paginaInicialPorTipo();
+        return;
+    }
+
+    const form = document.getElementById("login-form");
+    const emailInput = document.getElementById("email");
+    const senhaInput = document.getElementById("senha");
+    const submitBtn = document.getElementById("submit-btn");
+    const submitLabel = submitBtn.querySelector(".btn__label");
+    const messageBox = document.getElementById("form-message");
+
+    function mostrarMensagem(texto, tipo) {
+        const icone = tipo === "erro" ? "!" : "✓";
+
+        messageBox.innerHTML = "";
+
+        const spanIcone = document.createElement("span");
+        spanIcone.className = "form-message__icon";
+        spanIcone.setAttribute("aria-hidden", "true");
+        spanIcone.textContent = icone;
+
+        const spanTexto = document.createElement("span");
+        spanTexto.textContent = texto;
+
+        messageBox.appendChild(spanIcone);
+        messageBox.appendChild(spanTexto);
+        messageBox.className = "form-message form-message--" + tipo;
+        messageBox.hidden = false;
+    }
+
+    function esconderMensagem() {
+        messageBox.hidden = true;
+        messageBox.textContent = "";
+    }
+
+    function definirCarregando(carregando) {
+        submitBtn.disabled = carregando;
+        submitBtn.classList.toggle("is-loading", carregando);
+        submitLabel.textContent = carregando ? "Entrando..." : "Entrar";
+    }
+
+    form.addEventListener("submit", async function (evento) {
+        evento.preventDefault();
+        esconderMensagem();
+
+        const email = emailInput.value.trim();
+        const senha = senhaInput.value;
+
+        if (!email || !senha) {
+            mostrarMensagem("Preencha email e senha para continuar.", "erro");
+            return;
+        }
+
+        definirCarregando(true);
+
+        try {
+            const resposta = await window.api("/login", {
+                method: "POST",
+                body: { email, senha }
+            });
+
+            const payload = window.Auth.decodificarToken(resposta.token);
+            window.Auth.salvarSessao(resposta.token, payload ? payload.tipo : null);
+            window.Auth.salvarEmail(email);
+
+            mostrarMensagem("Login realizado com sucesso.", "sucesso");
+
+            window.setTimeout(function () {
+                window.location.href = paginaInicialPorTipo();
+            }, 500);
+
+            return;
+
+        } catch (erro) {
+            const mensagem = erro instanceof window.ApiError
+                ? erro.message
+                : "Não foi possível conectar ao servidor. Tente novamente.";
+
+            mostrarMensagem(mensagem, "erro");
+            definirCarregando(false);
+        }
+    });
+})();

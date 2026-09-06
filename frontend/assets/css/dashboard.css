@@ -1,0 +1,683 @@
+.app-shell {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+}
+
+/* ==========================================================================
+   Navegação principal — mobile-first: por padrão é um painel recolhido
+   (some por trás do botão "☰ Menu" no cabeçalho, ver components.css/ui.js),
+   aberto com a classe .is-open. A partir de 768px (ver media query mais
+   abaixo) volta a ser a barra sempre visível de sempre.
+   ========================================================================== */
+
+.bottom-nav {
+    display: none;
+    flex-direction: column;
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: var(--black-soft);
+    border-top: 1px solid var(--line);
+    z-index: 10;
+}
+
+.bottom-nav.is-open {
+    display: flex;
+}
+
+.bottom-nav__item {
+    text-align: left;
+    padding: var(--space-4);
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    color: var(--gray);
+    text-decoration: none;
+    border-left: 2px solid transparent;
+}
+
+.bottom-nav__item.is-active {
+    color: var(--red);
+    border-left-color: var(--red);
+    background: rgba(227, 6, 19, 0.08);
+}
+
+.bottom-nav__item.is-disabled {
+    color: var(--line-strong);
+    cursor: default;
+}
+
+/* ==========================================================================
+   Conteúdo
+   ========================================================================== */
+
+.dash-main {
+    flex: 1;
+    width: 100%;
+    max-width: var(--content-max-width);
+    margin: 0 auto;
+    padding: var(--space-5) var(--space-4) calc(64px + var(--space-6));
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-6);
+}
+
+/* Card de saldo */
+
+.balance-card {
+    position: relative;
+    overflow: hidden;
+    background: var(--black-soft);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: var(--space-6) var(--space-5);
+    text-align: center;
+}
+
+.balance-card::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 48px;
+    height: 48px;
+    background: var(--red);
+    clip-path: polygon(100% 0, 100% 100%, 0 0);
+    border-top-right-radius: var(--radius);
+}
+
+.balance-card__label {
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--gray);
+    margin-bottom: var(--space-2);
+}
+
+.balance-card__value {
+    font-family: var(--font-display);
+    font-size: 56px;
+    font-weight: 900;
+    line-height: 1;
+    color: var(--white);
+    font-variant-numeric: tabular-nums;
+}
+
+.balance-card__error {
+    margin-top: var(--space-3);
+    font-size: 13px;
+    color: var(--red-bright);
+}
+
+/* Histórico */
+
+.history-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    list-style: none;
+}
+
+.history-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+    padding: var(--space-4);
+    background: var(--black-soft);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-md);
+}
+
+.history-item__descricao {
+    font-size: 14px;
+    color: var(--white);
+    margin-bottom: 2px;
+}
+
+.history-item__data {
+    font-size: 12px;
+    color: var(--gray);
+}
+
+.history-item__quantidade {
+    flex-shrink: 0;
+    font-family: var(--font-display);
+    font-size: 18px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+}
+
+.history-item__quantidade--entrada {
+    color: var(--white);
+}
+
+.history-item__quantidade--saida {
+    color: var(--gray);
+}
+
+/* Hero de saldo (tela de recompensas) — bloco de destaque no topo, pensado
+   para comunicar "meus benefícios disponíveis agora", não um card de
+   dashboard administrativo. */
+
+.balance-hero {
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    background: linear-gradient(155deg, var(--black-soft) 0%, #1a1010 55%, var(--black) 100%);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    padding: var(--space-6) var(--space-5);
+}
+
+/* Brilho sutil de marca no canto — decorativo, sem competir com o número */
+.balance-hero::after {
+    content: "";
+    position: absolute;
+    top: -40%;
+    right: -20%;
+    width: 220px;
+    height: 220px;
+    background: radial-gradient(circle, rgba(227, 6, 19, 0.16) 0%, rgba(227, 6, 19, 0) 70%);
+    pointer-events: none;
+}
+
+.balance-hero__label {
+    position: relative;
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--gray-light);
+    margin-bottom: var(--space-2);
+}
+
+.balance-hero__value {
+    position: relative;
+    font-family: var(--font-display);
+    font-size: 44px;
+    font-weight: 900;
+    line-height: 1;
+    color: var(--red-bright);
+    font-variant-numeric: tabular-nums;
+}
+
+.balance-hero__hint {
+    position: relative;
+    margin-top: var(--space-2);
+    font-size: 13px;
+    color: var(--gray);
+}
+
+/* Recompensas */
+
+/* Filtro por empresa: chips roláveis horizontalmente — pensado pra mobile
+   primeiro (cabe em qualquer largura, toque confortável, sem quebrar linha)
+   e continua funcionando igual no desktop, só com mais chips visíveis de
+   uma vez. Populado inteiramente via JS a partir das empresas presentes nas
+   recompensas carregadas — nenhuma empresa fixa aqui. */
+.filter-chips {
+    display: flex;
+    gap: var(--space-2);
+    overflow-x: auto;
+    padding-bottom: 2px;
+    margin: 0 calc(var(--space-4) * -1);
+    padding-left: var(--space-4);
+    padding-right: var(--space-4);
+}
+
+.filter-chip {
+    flex: none;
+    padding: var(--space-2) var(--space-4);
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--gray-light);
+    background: var(--black-soft);
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    cursor: pointer;
+    font-family: inherit;
+    white-space: nowrap;
+}
+
+.filter-chip.is-active {
+    color: var(--white);
+    background: var(--red);
+    border-color: var(--red);
+}
+
+/* Pesquisa por nome/descrição — mesmo visual de .search-input já usado nas
+   telas administrativas (definido lá em admin.css; aqui é uma cópia pequena
+   e independente, já que esta página não carrega admin.css). */
+.search-input {
+    background: var(--black);
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius-md);
+    color: var(--white);
+    font-size: 14px;
+    padding: 10px 14px;
+    width: 100%;
+}
+
+.search-input::placeholder {
+    color: var(--gray);
+}
+
+.search-input:focus-visible {
+    border-color: var(--red);
+    outline: 2px solid var(--red);
+    outline-offset: 2px;
+}
+
+.rewards-search {
+    position: relative;
+}
+
+.rewards-search .search-input {
+    padding-left: 40px;
+    padding-right: 40px;
+}
+
+.rewards-search__icon {
+    position: absolute;
+    top: 50%;
+    left: 12px;
+    transform: translateY(-50%);
+    color: var(--gray);
+    pointer-events: none;
+}
+
+.rewards-search__clear {
+    position: absolute;
+    top: 50%;
+    right: 6px;
+    transform: translateY(-50%);
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: none;
+    border: none;
+    border-radius: 50%;
+    color: var(--gray);
+    font-size: 14px;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.rewards-search__clear:hover {
+    color: var(--red-bright);
+}
+
+.rewards-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: var(--space-3);
+}
+
+.reward-card {
+    background: var(--black-soft);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-md);
+    padding: var(--space-4);
+}
+
+/* Recompensa que o saldo atual não alcança — mais discreta, sem usar
+   opacity (evita o mesmo problema de contraste já corrigido nos badges
+   de status do admin: opacity mistura a cor com o fundo). */
+.reward-card--indisponivel {
+    background: var(--black);
+    border-color: var(--line);
+}
+
+.reward-card--indisponivel .reward-card__nome,
+.reward-card--indisponivel .reward-card__pontos {
+    color: var(--gray);
+}
+
+.reward-card__nome {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--white);
+    margin-bottom: var(--space-1);
+}
+
+.reward-card__empresa {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--gray-light);
+    background: var(--black);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-sm);
+    padding: 2px var(--space-2);
+    margin-bottom: var(--space-2);
+}
+
+.reward-card__pontos {
+    font-family: var(--font-display);
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    color: var(--red-bright);
+}
+
+.reward-card__action {
+    margin-top: var(--space-3);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+}
+
+.reward-card__falta {
+    font-size: 12px;
+    color: var(--gray);
+}
+
+.reward-card__buttons {
+    display: flex;
+    gap: var(--space-2);
+    flex-wrap: wrap;
+}
+
+.reward-card__btn {
+    flex: 1 1 auto;
+    padding: 10px var(--space-4);
+    font-size: 14px;
+}
+
+/* ==========================================================================
+   Card de recompensa "rico" (tela de Recompensas) — modificador aplicado
+   junto de .reward-card / .reward-card--indisponivel (mantidos como estão,
+   ainda usados pelo card simples da Início/dashboard.js). Tudo aqui é
+   escopado com .reward-card--v2 para não afetar aquele card mais simples.
+   ========================================================================== */
+
+.rewards-grid--v2 {
+    gap: var(--space-4);
+}
+
+.rewards-grid--v2 .dash-section__placeholder {
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: var(--space-7) var(--space-4);
+    border: 1px dashed var(--line);
+    border-radius: var(--radius-lg);
+}
+
+.reward-card--v2 {
+    padding: 0;
+    overflow: hidden;
+    border-radius: var(--radius-lg);
+    display: flex;
+    flex-direction: column;
+    transition: border-color var(--transition-fast);
+}
+
+.reward-card--v2:hover {
+    border-color: var(--line-strong);
+}
+
+/* Imagem 16:9 — o backend ainda não tem campo de imagem por recompensa,
+   então este é um placeholder puramente visual (gradiente + monograma),
+   sem nenhuma URL externa. Trocar por uma <img> real no futuro é só
+   substituir o conteúdo deste bloco por um <img> dentro do mesmo container. */
+.reward-card__media {
+    position: relative;
+    aspect-ratio: 16 / 9;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+
+.reward-card__monogram {
+    font-family: var(--font-display);
+    font-weight: 800;
+    font-size: 64px;
+    color: rgba(255, 255, 255, 0.14);
+    letter-spacing: 0.02em;
+}
+
+.reward-card__media[data-variant="0"] { background: linear-gradient(135deg, #262a2e, #0c0e10); }
+.reward-card__media[data-variant="1"] { background: linear-gradient(135deg, #2a2320, #100c0a); }
+.reward-card__media[data-variant="2"] { background: linear-gradient(135deg, #1f2426, #0a0d0e); }
+.reward-card__media[data-variant="3"] { background: linear-gradient(135deg, #262024, #0d0a0c); }
+.reward-card__media[data-variant="4"] { background: linear-gradient(135deg, #21252b, #0b0d10); }
+
+.reward-card--v2.reward-card--indisponivel .reward-card__media {
+    filter: grayscale(70%) brightness(0.55);
+}
+
+.reward-card--v2.reward-card--indisponivel .reward-card__monogram {
+    color: rgba(255, 255, 255, 0.08);
+}
+
+.reward-card__body {
+    padding: var(--space-4) var(--space-4) var(--space-5);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+}
+
+.reward-card__badge {
+    align-self: flex-start;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--gray-light);
+    background: var(--black);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-sm);
+    padding: 3px var(--space-2);
+}
+
+.reward-card__title {
+    font-size: 18px;
+    font-weight: 700;
+    line-height: 1.25;
+    color: var(--white);
+}
+
+.reward-card--v2.reward-card--indisponivel .reward-card__title {
+    color: var(--gray-light);
+}
+
+.reward-card__desc {
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--gray);
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.reward-card__details {
+    align-self: flex-start;
+    background: none;
+    border: none;
+    padding: 0;
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--gray-light);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    cursor: pointer;
+}
+
+.reward-card__details:hover {
+    color: var(--red-bright);
+}
+
+.reward-card__footer {
+    margin-top: var(--space-2);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+}
+
+.reward-card__points {
+    font-family: var(--font-display);
+    font-size: 17px;
+    font-weight: 800;
+    color: var(--red-bright);
+    white-space: nowrap;
+}
+
+.reward-card--v2.reward-card--indisponivel .reward-card__points {
+    color: var(--gray-light);
+}
+
+.reward-card__cta {
+    padding: 10px var(--space-5);
+    font-size: 13px;
+}
+
+.reward-card__missing {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: var(--red-bright);
+    background: rgba(227, 6, 19, 0.08);
+    border: 1px solid var(--red-dark);
+    border-radius: 999px;
+    padding: 6px var(--space-3);
+    white-space: nowrap;
+}
+
+/* Meus Resgates */
+
+.resgates-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    list-style: none;
+}
+
+.resgate-item {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    padding: var(--space-4);
+    background: var(--black-soft);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-md);
+}
+
+.resgate-item__header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: var(--space-3);
+}
+
+.resgate-item__nome {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--white);
+    margin-bottom: 2px;
+}
+
+.resgate-item__meta {
+    font-size: 12px;
+    color: var(--gray);
+}
+
+.resgate-item__codigo {
+    font-family: var(--font-display);
+    font-size: 14px;
+    letter-spacing: 0.06em;
+    color: var(--gray-light);
+}
+
+.resgate-item__action {
+    margin-top: var(--space-1);
+}
+
+/* ==========================================================================
+   Conteúdo específico da modal de confirmação de resgate
+   (o esqueleto genérico da modal — overlay/título/ações — vive em components.css)
+   ========================================================================== */
+
+.modal__reward-points {
+    font-family: var(--font-display);
+    font-size: 22px;
+    font-weight: 800;
+    color: var(--red-bright);
+    margin-bottom: var(--space-4);
+}
+
+.modal__body-text {
+    font-size: 14px;
+    line-height: 1.5;
+    color: var(--gray-light);
+    margin-bottom: var(--space-2);
+}
+
+/* ==========================================================================
+   Responsivo
+   ========================================================================== */
+
+@media (min-width: 768px) {
+    .dash-header {
+        padding: var(--space-4) var(--space-6);
+    }
+
+    .bottom-nav {
+        display: flex;
+        flex-direction: row;
+        position: static;
+        max-width: var(--content-max-width);
+        margin: 0 auto;
+        width: 100%;
+        border-top: none;
+        border-bottom: 1px solid var(--line);
+        background: transparent;
+    }
+
+    .bottom-nav__item {
+        flex: none;
+        text-align: center;
+        padding: var(--space-3) var(--space-5);
+        border-left: none;
+        border-top: 2px solid transparent;
+        font-size: 12px;
+    }
+
+    .bottom-nav__item.is-active {
+        border-left-color: transparent;
+        border-top-color: var(--red);
+        background: none;
+    }
+
+    .dash-main {
+        padding: var(--space-7) var(--space-6) var(--space-7);
+    }
+
+    .balance-card__value {
+        font-size: 72px;
+    }
+
+    .rewards-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (min-width: 1024px) {
+    .rewards-grid {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}

@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Movement | Resgates (admin)</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@600;700;800;900&display=swap" rel="stylesheet">
+
+    <link rel="stylesheet" href="assets/css/tokens.css">
+    <link rel="stylesheet" href="assets/css/base.css">
+    <link rel="stylesheet" href="assets/css/components.css">
+    <link rel="stylesheet" href="assets/css/admin.css">
+</head>
+<body>
+    <div class="admin-shell">
+        <header class="dash-header">
+            <span class="dash-header__brand">MOVEMENT ADMIN</span>
+
+            <div class="dash-header__user">
+                <button type="button" id="nav-menu-btn" class="nav-menu-btn" aria-haspopup="true" aria-expanded="false" aria-controls="main-nav">
+                    <span aria-hidden="true">☰</span> Menu
+                </button>
+                <span id="user-greeting" class="dash-header__greeting">Olá!</span>
+                <button type="button" id="logout-btn" class="link-btn">Sair</button>
+            </div>
+        </header>
+
+        <div class="admin-body">
+            <nav class="admin-nav" id="main-nav" aria-label="Navegação administrativa">
+                <a href="admin.html" class="admin-nav__item">Dashboard</a>
+                <a href="admin-clientes.html" class="admin-nav__item">Clientes</a>
+                <a href="admin-recompensas.html" class="admin-nav__item">Recompensas</a>
+                <a href="admin-empresas.html" class="admin-nav__item">Empresas</a>
+                <a href="admin-resgates.html" class="admin-nav__item is-active" aria-current="page">Resgates</a>
+                <a href="admin-validar.html" class="admin-nav__item">Validar</a>
+                <a href="admin-identificar-cliente.html" class="admin-nav__item">Identificar</a>
+            </nav>
+
+            <main class="admin-main">
+                <h1 class="admin-page-title">Resgates</h1>
+
+                <div id="resgates-container" aria-live="polite">
+                    <p class="dash-section__placeholder">Carregando...</p>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script src="assets/js/api.js"></script>
+    <script src="assets/js/auth.js"></script>
+    <script src="assets/js/ui.js"></script>
+    <script src="assets/js/admin-resgates.js"></script>
+</body>
+</html>

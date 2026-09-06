@@ -1,0 +1,42 @@
+:root {
+    /* Marca */
+    --black: #0B0D0F;
+    --black-soft: #15181C;
+    --white: #FFFFFF;
+    --gray: #A7A7A7;
+    --gray-light: #E8E8E8;
+    --red: #E30613;
+    --red-dark: #B80510;
+    --red-bright: #FF3B3B;
+
+    /* Derivados de suporte (linhas/bordas sutis sobre fundo escuro) */
+    --line: rgba(255, 255, 255, 0.08);
+    --line-strong: rgba(255, 255, 255, 0.16);
+    --overlay: rgba(11, 13, 15, 0.6);
+
+    /* Tipografia */
+    --font-display: "Barlow Condensed", sans-serif;
+    --font-body: "Barlow", sans-serif;
+
+    /* Espaçamento */
+    --space-1: 4px;
+    --space-2: 8px;
+    --space-3: 12px;
+    --space-4: 16px;
+    --space-5: 24px;
+    --space-6: 32px;
+    --space-7: 48px;
+    --space-8: 64px;
+
+    /* Formas */
+    --radius-sm: 4px;
+    --radius-md: 6px;
+    --radius: 8px;
+    --radius-lg: 20px;
+
+    /* Layout */
+    --content-max-width: 720px;
+
+    /* Movimento */
+    --transition-fast: 120ms ease;
+}

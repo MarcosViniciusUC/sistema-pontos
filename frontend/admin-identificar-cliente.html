@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Movement | Identificar Cliente (admin)</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@600;700;800;900&display=swap" rel="stylesheet">
+
+    <link rel="stylesheet" href="assets/css/tokens.css">
+    <link rel="stylesheet" href="assets/css/base.css">
+    <link rel="stylesheet" href="assets/css/components.css">
+    <link rel="stylesheet" href="assets/css/admin.css">
+</head>
+<body>
+    <div class="admin-shell">
+        <header class="dash-header">
+            <span class="dash-header__brand">MOVEMENT ADMIN</span>
+
+            <div class="dash-header__user">
+                <button type="button" id="nav-menu-btn" class="nav-menu-btn" aria-haspopup="true" aria-expanded="false" aria-controls="main-nav">
+                    <span aria-hidden="true">☰</span> Menu
+                </button>
+                <span id="user-greeting" class="dash-header__greeting">Olá!</span>
+                <button type="button" id="logout-btn" class="link-btn">Sair</button>
+            </div>
+        </header>
+
+        <div class="admin-body">
+            <nav class="admin-nav" id="main-nav" aria-label="Navegação administrativa">
+                <a href="admin.html" class="admin-nav__item">Dashboard</a>
+                <a href="admin-clientes.html" class="admin-nav__item">Clientes</a>
+                <a href="admin-recompensas.html" class="admin-nav__item">Recompensas</a>
+                <a href="admin-empresas.html" class="admin-nav__item">Empresas</a>
+                <a href="admin-resgates.html" class="admin-nav__item">Resgates</a>
+                <a href="admin-validar.html" class="admin-nav__item">Validar</a>
+                <a href="admin-identificar-cliente.html" class="admin-nav__item is-active" aria-current="page">Identificar</a>
+            </nav>
+
+            <main class="admin-main">
+                <h1 class="admin-page-title">Identificar Cliente</h1>
+
+                <!-- Duas formas de identificar o mesmo cliente: ler o QR
+                     individual dele (câmera) ou buscar por nome/email. As
+                     duas só preenchem o mesmo resultado, chamando a mesma
+                     função (identificarCliente) contra GET /usuarios/qr/:qr_token. -->
+                <button type="button" id="abrir-scanner-btn" class="btn btn--ghost btn--block admin-form--narrow">
+                    Ler QR do Cliente
+                </button>
+
+                <div class="admin-toolbar">
+                    <input
+                        type="search"
+                        id="busca-cliente-input"
+                        class="search-input"
+                        placeholder="Ou busque o cliente por nome ou email..."
+                        aria-label="Buscar cliente por nome ou email"
+                        autocomplete="off"
+                    >
+                </div>
+
+                <div id="busca-resultados-container"></div>
+
+                <div
+                    id="resultado-mensagem"
+                    class="form-message"
+                    role="status"
+                    aria-live="polite"
+                    tabindex="-1"
+                    hidden
+                ></div>
+
+                <div id="resultado-cliente" class="admin-result-card" hidden>
+                    <h2 class="admin-result-card__title">Cliente identificado</h2>
+
+                    <div class="receipt-row">
+                        <span class="receipt-row__label">Nome</span>
+                        <span class="receipt-row__value" id="resultado-nome"></span>
+                    </div>
+
+                    <div class="receipt-row">
+                        <span class="receipt-row__label">Email</span>
+                        <span class="receipt-row__value" id="resultado-email"></span>
+                    </div>
+
+                    <div class="receipt-row">
+                        <span class="receipt-row__label">Telefone</span>
+                        <span class="receipt-row__value" id="resultado-telefone"></span>
+                    </div>
+
+                    <div class="receipt-row">
+                        <span class="receipt-row__label">Saldo atual</span>
+                        <span class="receipt-row__value" id="resultado-saldo"></span>
+                    </div>
+
+                    <div class="modal__actions">
+                        <button type="button" id="identificar-outro-btn" class="btn btn--ghost">Identificar outro cliente</button>
+                    </div>
+                </div>
+
+                <!-- usuario_id vem sempre de clienteIdentificado.id (definido
+                     só pela resposta de GET /usuarios/qr/:qr_token) — nunca
+                     existe um campo para digitar um ID aqui. -->
+                <div id="adicionar-pontos-card" class="admin-result-card" hidden>
+                    <h2 class="admin-result-card__title">Adicionar pontos</h2>
+
+                    <form id="form-adicionar-pontos" class="modal-form" novalidate>
+                        <div class="field">
+                            <label for="pontos-empresa-input">Empresa</label>
+                            <select id="pontos-empresa-input" name="empresa_id" required>
+                                <option value="" disabled selected>Selecione a empresa</option>
+                            </select>
+                        </div>
+                        <div class="field">
+                            <label for="pontos-quantidade-input">Quantidade de pontos</label>
+                            <input type="number" id="pontos-quantidade-input" name="quantidade" min="1" step="1" inputmode="numeric" required>
+                        </div>
+                        <div class="field">
+                            <label for="pontos-descricao-input">Motivo / descrição</label>
+                            <input type="text" id="pontos-descricao-input" name="descricao" placeholder="Ex: Serviço realizado">
+                        </div>
+
+                        <button type="submit" class="btn btn--primary btn--block" id="adicionar-pontos-btn">
+                            <span class="btn__spinner" aria-hidden="true"></span>
+                            <span class="btn__label">Adicionar pontos</span>
+                        </button>
+                    </form>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Modal: leitura de QR Code do cliente pela câmera. Mesmo padrão
+         técnico do scanner de resgate (admin-validar.js): getUserMedia,
+         câmera traseira, jsQR, para o stream ao fechar ou ao detectar um
+         código. Aqui o texto lido só é usado para consultar
+         GET /usuarios/qr/:qr_token — nenhuma lógica de pontos roda aqui. -->
+    <div id="modal-scanner-overlay" class="modal-overlay" hidden>
+        <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-scanner-title">
+            <h2 id="modal-scanner-title" class="modal__title">Ler QR do Cliente</h2>
+
+            <div class="scanner-preview">
+                <video id="scanner-video" playsinline muted></video>
+            </div>
+            <canvas id="scanner-canvas" hidden></canvas>
+
+            <p class="modal__note">Aponte a câmera para o QR Code do cliente.</p>
+
+            <div class="modal__actions">
+                <button type="button" id="scanner-fechar" class="btn btn--ghost">Fechar câmera</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+    <script src="assets/js/api.js"></script>
+    <script src="assets/js/auth.js"></script>
+    <script src="assets/js/ui.js"></script>
+    <script src="assets/js/admin-identificar-cliente.js"></script>
+</body>
+</html>

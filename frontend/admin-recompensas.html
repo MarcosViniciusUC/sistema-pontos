@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Movement | Recompensas (admin)</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@600;700;800;900&display=swap" rel="stylesheet">
+
+    <link rel="stylesheet" href="assets/css/tokens.css">
+    <link rel="stylesheet" href="assets/css/base.css">
+    <link rel="stylesheet" href="assets/css/components.css">
+    <link rel="stylesheet" href="assets/css/admin.css">
+</head>
+<body>
+    <div class="admin-shell">
+        <header class="dash-header">
+            <span class="dash-header__brand">MOVEMENT ADMIN</span>
+
+            <div class="dash-header__user">
+                <button type="button" id="nav-menu-btn" class="nav-menu-btn" aria-haspopup="true" aria-expanded="false" aria-controls="main-nav">
+                    <span aria-hidden="true">☰</span> Menu
+                </button>
+                <span id="user-greeting" class="dash-header__greeting">Olá!</span>
+                <button type="button" id="logout-btn" class="link-btn">Sair</button>
+            </div>
+        </header>
+
+        <div class="admin-body">
+            <nav class="admin-nav" id="main-nav" aria-label="Navegação administrativa">
+                <a href="admin.html" class="admin-nav__item">Dashboard</a>
+                <a href="admin-clientes.html" class="admin-nav__item">Clientes</a>
+                <a href="admin-recompensas.html" class="admin-nav__item is-active" aria-current="page">Recompensas</a>
+                <a href="admin-empresas.html" class="admin-nav__item">Empresas</a>
+                <a href="admin-resgates.html" class="admin-nav__item">Resgates</a>
+                <a href="admin-validar.html" class="admin-nav__item">Validar</a>
+                <a href="admin-identificar-cliente.html" class="admin-nav__item">Identificar</a>
+            </nav>
+
+            <main class="admin-main">
+                <h1 class="admin-page-title">Recompensas</h1>
+
+                <div id="page-message" class="form-message" role="status" aria-live="polite" tabindex="-1" hidden></div>
+
+                <div class="admin-toolbar">
+                    <p class="field-hint">
+                        Recompensas desativadas somem do catálogo dos clientes, mas continuam aqui para reativar quando quiser.
+                    </p>
+                    <button type="button" id="nova-recompensa-btn" class="btn btn--primary">Nova recompensa</button>
+                </div>
+
+                <div id="recompensas-container" aria-live="polite">
+                    <p class="dash-section__placeholder">Carregando...</p>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Modal: criar/editar recompensa -->
+    <div id="modal-recompensa-overlay" class="modal-overlay" hidden>
+        <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-recompensa-title">
+            <h2 id="modal-recompensa-title" class="modal__title">Nova recompensa</h2>
+
+            <form id="form-recompensa" class="modal-form" novalidate>
+                <div class="field">
+                    <label for="recompensa-nome">Nome</label>
+                    <input type="text" id="recompensa-nome" name="nome" required>
+                </div>
+                <div class="field">
+                    <label for="recompensa-descricao">Descrição</label>
+                    <input type="text" id="recompensa-descricao" name="descricao" placeholder="Opcional">
+                </div>
+                <div class="field">
+                    <label for="recompensa-pontos">Pontos necessários</label>
+                    <input type="number" id="recompensa-pontos" name="pontos_necessarios" min="1" step="1" inputmode="numeric" required>
+                </div>
+                <div class="field">
+                    <label for="recompensa-empresa">Empresa</label>
+                    <select id="recompensa-empresa" name="empresa_id" required>
+                        <option value="" disabled selected>Selecione a empresa</option>
+                    </select>
+                </div>
+
+                <p id="modal-recompensa-error" class="modal__error" hidden></p>
+
+                <div class="modal__actions">
+                    <button type="button" id="modal-recompensa-cancelar" class="btn btn--ghost">Cancelar</button>
+                    <button type="submit" id="modal-recompensa-confirmar" class="btn btn--primary">
+                        <span class="btn__spinner" aria-hidden="true"></span>
+                        <span class="btn__label">Salvar</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal: confirmar desativação -->
+    <div id="modal-desativar-overlay" class="modal-overlay" hidden>
+        <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-desativar-title">
+            <h2 id="modal-desativar-title" class="modal__title">Desativar recompensa</h2>
+            <p id="modal-desativar-nome" class="modal__reward-name"></p>
+            <p class="modal__note">
+                A recompensa deixará de aparecer para os clientes. Ela continua no sistema e pode ser reativada depois.
+            </p>
+
+            <p id="modal-desativar-error" class="modal__error" hidden></p>
+
+            <div class="modal__actions">
+                <button type="button" id="modal-desativar-cancelar" class="btn btn--ghost">Cancelar</button>
+                <button type="button" id="modal-desativar-confirmar" class="btn btn--primary">
+                    <span class="btn__spinner" aria-hidden="true"></span>
+                    <span class="btn__label">Desativar</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: confirmar reativação -->
+    <div id="modal-reativar-overlay" class="modal-overlay" hidden>
+        <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-reativar-title">
+            <h2 id="modal-reativar-title" class="modal__title">Reativar recompensa</h2>
+            <p id="modal-reativar-nome" class="modal__reward-name"></p>
+            <p class="modal__note">
+                A recompensa volta a aparecer no catálogo dos clientes.
+            </p>
+
+            <p id="modal-reativar-error" class="modal__error" hidden></p>
+
+            <div class="modal__actions">
+                <button type="button" id="modal-reativar-cancelar" class="btn btn--ghost">Cancelar</button>
+                <button type="button" id="modal-reativar-confirmar" class="btn btn--primary">
+                    <span class="btn__spinner" aria-hidden="true"></span>
+                    <span class="btn__label">Reativar</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="assets/js/api.js"></script>
+    <script src="assets/js/auth.js"></script>
+    <script src="assets/js/ui.js"></script>
+    <script src="assets/js/admin-recompensas.js"></script>
+</body>
+</html>
