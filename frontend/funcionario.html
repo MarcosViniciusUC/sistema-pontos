@@ -7,7 +7,7 @@
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@600;700;800;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@600;700;800;900&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
 
     <link rel="stylesheet" href="assets/css/tokens.css">
     <link rel="stylesheet" href="assets/css/base.css">
@@ -15,7 +15,7 @@
     <link rel="stylesheet" href="assets/css/admin.css">
 </head>
 <body>
-    <div class="admin-shell">
+    <div class="admin-shell funcionario-page">
         <header class="dash-header">
             <span class="dash-header__brand">MOVEMENT</span>
 
@@ -35,15 +35,24 @@
                      aba (ver funcionario.js). No celular (ver admin.css), a
                      mesma .tabs vira um dropdown aberto pelo botão "Menu" —
                      os dois botões de aba são os mesmos nos dois tamanhos
-                     de tela, nada é duplicado. -->
+                     de tela, nada é duplicado. Fase 6: os dois botões viram
+                     visualmente um controle segmentado ("o que eu faço
+                     agora?"), mas continuam os mesmos elementos/ids/eventos
+                     de sempre. -->
                 <div class="tabs-nav">
                     <button type="button" id="tabs-menu-btn" class="tabs-menu-btn" aria-haspopup="true" aria-expanded="false" aria-controls="tabs-menu">
                         <span aria-hidden="true">☰</span> Menu
                     </button>
 
                     <div class="tabs" id="tabs-menu" role="tablist" aria-label="Áreas do funcionário">
-                        <button type="button" id="tab-pontos-btn" class="tabs__item is-active" role="tab" aria-selected="true" aria-controls="tab-pontos-painel">Adicionar Pontos</button>
-                        <button type="button" id="tab-validar-btn" class="tabs__item" role="tab" aria-selected="false" aria-controls="tab-validar-painel" tabindex="-1">Validação de Resgate</button>
+                        <button type="button" id="tab-pontos-btn" class="tabs__item is-active" role="tab" aria-selected="true" aria-controls="tab-pontos-painel">
+                            <svg class="tabs__icon" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3v18M4 8h16M4 16h16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+                            Atender cliente
+                        </button>
+                        <button type="button" id="tab-validar-btn" class="tabs__item" role="tab" aria-selected="false" aria-controls="tab-validar-painel" tabindex="-1">
+                            <svg class="tabs__icon" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 8a2 2 0 0 1 0 4 2 2 0 0 1 0 4h16a2 2 0 0 1 0-4 2 2 0 0 1 0-4H4z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M9 12l2 2 4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                            Validar resgate
+                        </button>
                     </div>
                 </div>
 
@@ -52,19 +61,25 @@
                      1. Identificar cliente (QR ou busca por nome/email)
                      ========================================================== -->
                 <section class="dash-section">
-                    <h2 class="dash-section__title">1. Identificar cliente</h2>
+                    <h2 class="dash-section__title funcionario-step">
+                        <span class="funcionario-step__num" aria-hidden="true">1</span>
+                        Identificar cliente
+                    </h2>
 
                     <div class="operacao-panel admin-form--narrow">
-                        <button type="button" id="abrir-scanner-btn" class="btn btn--ghost btn--block">
-                            Ler QR do Cliente
+                        <button type="button" id="abrir-scanner-btn" class="btn btn--primary btn--block funcionario-scan-btn">
+                            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="3" y="3" width="7" height="7" stroke="currentColor" stroke-width="2"/><rect x="14" y="3" width="7" height="7" stroke="currentColor" stroke-width="2"/><rect x="3" y="14" width="7" height="7" stroke="currentColor" stroke-width="2"/><rect x="14" y="14" width="3" height="3" fill="currentColor"/><rect x="18" y="18" width="3" height="3" fill="currentColor"/></svg>
+                            Ler QR do cliente
                         </button>
+
+                        <div class="funcionario-divider"><span>ou</span></div>
 
                         <div class="admin-toolbar">
                             <input
                                 type="search"
                                 id="busca-cliente-input"
                                 class="search-input"
-                                placeholder="Ou busque por nome ou email..."
+                                placeholder="Buscar por nome ou email..."
                                 aria-label="Buscar cliente por nome ou email"
                                 autocomplete="off"
                             >
@@ -82,25 +97,26 @@
                         ></div>
 
                         <!-- Não mostra email/qr_token/senha/JWT — só o que o
-                             funcionário precisa pra atender o cliente. -->
-                        <div id="resultado-cliente" class="admin-result-card" hidden>
-                            <div class="receipt-row">
-                                <span class="receipt-row__label">Cliente</span>
-                                <span class="receipt-row__value" id="resultado-nome"></span>
-                            </div>
-
-                            <div class="receipt-row">
-                                <span class="receipt-row__label">Telefone</span>
-                                <span class="receipt-row__value" id="resultado-telefone"></span>
-                            </div>
-
-                            <div class="receipt-row">
-                                <span class="receipt-row__label">Saldo</span>
-                                <span class="receipt-row__value" id="resultado-saldo"></span>
+                             funcionário precisa pra atender o cliente.
+                             Reestruturado na Fase 6 (mesmos ids de sempre,
+                             novo agrupamento visual): saldo em destaque
+                             separado do nome/telefone, é a informação que
+                             mais importa pra decidir o que fazer a seguir. -->
+                        <div id="resultado-cliente" class="admin-result-card funcionario-client-card" hidden>
+                            <div class="funcionario-client-card__header">
+                                <div class="funcionario-client-card__info">
+                                    <p class="funcionario-client-card__label">Cliente identificado</p>
+                                    <p class="funcionario-client-card__nome" id="resultado-nome"></p>
+                                    <p class="funcionario-client-card__telefone" id="resultado-telefone"></p>
+                                </div>
+                                <div class="funcionario-client-card__saldo">
+                                    <span class="funcionario-client-card__saldo-label">Saldo</span>
+                                    <span class="funcionario-client-card__saldo-valor" id="resultado-saldo"></span>
+                                </div>
                             </div>
 
                             <div class="modal__actions">
-                                <button type="button" id="identificar-outro-btn" class="btn btn--ghost">Identificar outro cliente</button>
+                                <button type="button" id="identificar-outro-btn" class="btn btn--ghost btn--block">Identificar outro cliente</button>
                             </div>
                         </div>
                     </div>
@@ -110,10 +126,13 @@
                      2. Adicionar pontos ao cliente identificado
                      ========================================================== -->
                 <section class="dash-section">
-                    <h2 class="dash-section__title">2. Adicionar pontos</h2>
+                    <h2 class="dash-section__title funcionario-step">
+                        <span class="funcionario-step__num" aria-hidden="true">2</span>
+                        Adicionar pontos
+                    </h2>
 
                     <div class="operacao-panel admin-form--narrow">
-                        <p id="adicionar-pontos-vazio" class="dash-section__placeholder">
+                        <p id="adicionar-pontos-vazio" class="funcionario-empty">
                             Identifique um cliente acima para liberar esta ação.
                         </p>
 
@@ -122,21 +141,22 @@
                              ou /usuarios/buscar-cliente) — nunca existe um campo
                              para digitar um ID aqui. -->
                         <div id="adicionar-pontos-card" hidden>
-                            <div class="receipt-row">
-                                <span class="receipt-row__label">Cliente selecionado</span>
-                                <span class="receipt-row__value" id="adicionar-pontos-cliente-nome"></span>
-                            </div>
+                            <p class="funcionario-selected-for">
+                                Lançando pontos para <strong id="adicionar-pontos-cliente-nome"></strong>
+                            </p>
 
                             <form id="form-adicionar-pontos" class="modal-form" novalidate>
-                                <div class="field">
-                                    <label for="pontos-empresa-input">Empresa</label>
-                                    <select id="pontos-empresa-input" name="empresa_id" required>
-                                        <option value="" disabled selected>Selecione a empresa</option>
-                                    </select>
-                                </div>
-                                <div class="field">
-                                    <label for="pontos-quantidade-input">Quantidade de pontos</label>
-                                    <input type="number" id="pontos-quantidade-input" name="quantidade" min="1" step="1" inputmode="numeric" required>
+                                <div class="funcionario-form-row">
+                                    <div class="field">
+                                        <label for="pontos-quantidade-input">Quantidade de pontos</label>
+                                        <input type="number" id="pontos-quantidade-input" name="quantidade" min="1" step="1" inputmode="numeric" class="funcionario-qty-input" required>
+                                    </div>
+                                    <div class="field">
+                                        <label for="pontos-empresa-input">Empresa</label>
+                                        <select id="pontos-empresa-input" name="empresa_id" required>
+                                            <option value="" disabled selected>Selecione a empresa</option>
+                                        </select>
+                                    </div>
                                 </div>
                                 <div class="field">
                                     <label for="pontos-descricao-input">Descrição (opcional)</label>
@@ -165,11 +185,15 @@
                 <div id="tab-validar-painel" class="tab-panel" role="tabpanel" aria-labelledby="tab-validar-btn" hidden>
                 <!-- ==========================================================
                      3. Validar resgate (mesmo POST /resgates/validar do painel
-                     admin — só o código digitado por enquanto, sem câmera
-                     nesta tela para manter a página simples).
+                     admin). Código digitado manualmente ou lido pelo mesmo
+                     scanner de câmera usado para identificar cliente acima —
+                     as duas vias caem na mesma executarValidacaoResgate().
                      ========================================================== -->
                 <section class="dash-section">
-                    <h2 class="dash-section__title">3. Validar resgate</h2>
+                    <h2 class="dash-section__title funcionario-step">
+                        <span class="funcionario-step__num" aria-hidden="true">3</span>
+                        Validar resgate
+                    </h2>
 
                     <div class="operacao-panel admin-form--narrow">
                         <form id="form-validar" class="modal-form" novalidate>
@@ -179,13 +203,23 @@
                                     type="text"
                                     id="codigo-input"
                                     name="codigo"
-                                    placeholder="Ex: EQ32KY67"
+                                    placeholder="EX: EQ32KY67"
                                     autocapitalize="characters"
                                     autocomplete="off"
                                     spellcheck="false"
+                                    class="funcionario-codigo-input"
                                     required
                                 >
                             </div>
+
+                            <!-- Mesmo modal/câmera/jsQR do botão "Ler QR do
+                                 Cliente" acima (ver funcionario.js) — só
+                                 preenche #codigo-input e segue para a mesma
+                                 executarValidacaoResgate() do envio manual,
+                                 sem nenhuma lógica de validação própria. -->
+                            <button type="button" id="abrir-scanner-resgate-btn" class="btn btn--ghost btn--block">
+                                Ler QR Code
+                            </button>
 
                             <div
                                 id="validar-mensagem"
@@ -202,7 +236,21 @@
                             </button>
                         </form>
 
-                        <div id="resgate-detalhes" class="admin-result-card" hidden>
+                        <!-- Código conferido é a informação crítica desta tela —
+                             fica em destaque próprio, maior que o resto do
+                             recibo, para o funcionário comparar rápido com o
+                             que o cliente está mostrando. Mesmos ids de
+                             sempre, só reagrupados. -->
+                        <div id="resgate-detalhes" class="admin-result-card funcionario-resgate-card" hidden>
+                            <div class="funcionario-resgate-card__status">
+                                <span class="status-badge status-badge--aprovado">Utilizado</span>
+                            </div>
+
+                            <div class="funcionario-resgate-card__codigo-wrap">
+                                <span class="receipt-row__label">Código conferido</span>
+                                <span class="modal__codigo funcionario-resgate-card__codigo" id="resgate-codigo"></span>
+                            </div>
+
                             <div class="receipt-row">
                                 <span class="receipt-row__label">Recompensa</span>
                                 <span class="receipt-row__value" id="resgate-recompensa"></span>
@@ -211,16 +259,6 @@
                             <div class="receipt-row">
                                 <span class="receipt-row__label">Pontos</span>
                                 <span class="receipt-row__value" id="resgate-pontos"></span>
-                            </div>
-
-                            <div class="receipt-row">
-                                <span class="receipt-row__label">Código</span>
-                                <span class="modal__codigo" id="resgate-codigo"></span>
-                            </div>
-
-                            <div class="receipt-row">
-                                <span class="receipt-row__label">Status</span>
-                                <span class="status-badge status-badge--aprovado">Utilizado</span>
                             </div>
                         </div>
                     </div>
@@ -236,6 +274,9 @@
          código. -->
     <div id="modal-scanner-overlay" class="modal-overlay" hidden>
         <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-scanner-title">
+            <!-- Título e nota são atualizados por JS conforme o botão que
+                 abriu o scanner (Ler QR do Cliente x Ler QR Code do
+                 resgate) — mesmo modal e mesma câmera pros dois casos. -->
             <h2 id="modal-scanner-title" class="modal__title">Ler QR do Cliente</h2>
 
             <div class="scanner-preview">
@@ -243,7 +284,7 @@
             </div>
             <canvas id="scanner-canvas" hidden></canvas>
 
-            <p class="modal__note">Aponte a câmera para o QR Code do cliente.</p>
+            <p id="modal-scanner-nota" class="modal__note">Aponte a câmera para o QR Code do cliente.</p>
 
             <div class="modal__actions">
                 <button type="button" id="scanner-fechar" class="btn btn--ghost">Fechar câmera</button>

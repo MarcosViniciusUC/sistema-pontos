@@ -17,6 +17,26 @@
 
     const listaEl = document.getElementById("resgates-list");
 
+    // ==========================================================================
+    // Saldo no cabeçalho — função isolada, sem nenhuma relação com a lógica
+    // de resgates abaixo (não lê nem escreve nenhuma variável em comum, não
+    // afeta o carregamento/erro/status da lista). Mesmo endpoint (GET
+    // /pontos/saldo) e mesmo padrão de exibição já usados em
+    // dashboard.js/recompensas.js — dá contexto de "quanto eu ainda tenho"
+    // ao lado de "o que eu já resgatei".
+    // ==========================================================================
+
+    const balanceValueEl = document.getElementById("balance-chip-value");
+
+    async function carregarSaldo() {
+        try {
+            const dados = await window.api("/pontos/saldo");
+            balanceValueEl.textContent = window.UI.formatarNumero(dados.saldo);
+        } catch (erro) {
+            balanceValueEl.textContent = "--";
+        }
+    }
+
     const ROTULO_STATUS = {
         pendente_validacao: "Aguardando utilização",
         utilizado: "Utilizado",
@@ -99,15 +119,25 @@
         header.className = "resgate-item__header";
 
         const info = document.createElement("div");
+        info.className = "resgate-item__info";
 
         const nome = document.createElement("p");
         nome.className = "resgate-item__nome";
         nome.textContent = resgate.recompensa_nome;
         info.appendChild(nome);
 
+        // Pontos ganham elemento próprio (antes vinham concatenados na
+        // mesma frase de data/empresa) para poder ter destaque visual
+        // separado — mesmo dado, mesmo campo (resgate.pontos), só exibido
+        // em outro lugar do DOM.
+        const pontos = document.createElement("p");
+        pontos.className = "resgate-item__pontos";
+        pontos.textContent = window.UI.formatarNumero(resgate.pontos) + " pontos";
+        info.appendChild(pontos);
+
         const meta = document.createElement("p");
         meta.className = "resgate-item__meta";
-        meta.textContent = window.UI.formatarData(resgate.criado_em) + " • " + window.UI.formatarNumero(resgate.pontos) + " pontos"
+        meta.textContent = window.UI.formatarData(resgate.criado_em)
             + (resgate.empresa_nome ? " • " + resgate.empresa_nome : "");
         info.appendChild(meta);
 
@@ -165,4 +195,5 @@
     }
 
     carregarResgates();
+    carregarSaldo();
 })();

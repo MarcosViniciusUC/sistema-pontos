@@ -1,24 +1,73 @@
+/* ==========================================================================
+   Movement Design System — tokens
+   Fundação visual do produto: cores, tipografia, espaçamento, radius,
+   sombras, tamanhos e transições. Dark mode único (decisão de produto).
+
+   COMPATIBILIDADE: as variáveis na seção "Aliases legados" no fim deste
+   arquivo têm exatamente os mesmos NOMES e VALORES que o tokens.css
+   anterior. dashboard.css e admin.css ainda não foram redesenhados (isso
+   é FASE 4/8 do roadmap) e continuam consumindo esses nomes — removê-los
+   ou mudar seus valores quebraria visualmente telas que não fazem parte
+   desta fase. Todo CSS novo (base.css, components.css, navegação) usa a
+   escala nova abaixo.
+   ========================================================================== */
+
 :root {
-    /* Marca */
-    --black: #0B0D0F;
-    --black-soft: #15181C;
-    --white: #FFFFFF;
-    --gray: #A7A7A7;
-    --gray-light: #E8E8E8;
-    --red: #E30613;
-    --red-dark: #B80510;
-    --red-bright: #FF3B3B;
+    /* ---- Superfícies (profundidade em camadas) ---- */
+    --color-bg: #0B0D0F;
+    --color-bg-raised: #101316;
+    --color-surface-1: #15181C;
+    --color-surface-2: #1B1F24;
+    --color-surface-3: #22272D;
 
-    /* Derivados de suporte (linhas/bordas sutis sobre fundo escuro) */
-    --line: rgba(255, 255, 255, 0.08);
-    --line-strong: rgba(255, 255, 255, 0.16);
-    --overlay: rgba(11, 13, 15, 0.6);
+    /* ---- Bordas ---- */
+    --color-border: rgba(255, 255, 255, 0.08);
+    --color-border-strong: rgba(255, 255, 255, 0.16);
+    --color-border-hover: rgba(255, 255, 255, 0.26);
 
-    /* Tipografia */
+    /* ---- Textos ---- */
+    --color-text-primary: #F5F4F2;
+    --color-text-secondary: #A7A7A7;
+    --color-text-tertiary: #6E7176;
+    --color-text-on-accent: #FFFFFF;
+
+    /* ---- Marca ---- */
+    --color-red: #E30613;
+    --color-red-dark: #B80510;
+    --color-red-bright: #FF3B3B;
+    --color-red-glow: rgba(227, 6, 19, 0.35);
+    --color-red-surface: rgba(227, 6, 19, 0.08);
+    --color-red-surface-strong: rgba(227, 6, 19, 0.14);
+
+    /* ---- Estados semânticos ---- */
+    --color-success: #2FBF71;
+    --color-success-surface: rgba(47, 191, 113, 0.1);
+    --color-warning: #F5A623;
+    --color-warning-surface: rgba(245, 166, 35, 0.1);
+    --color-info: #4EA1F3;
+    --color-info-surface: rgba(78, 161, 243, 0.1);
+
+    --overlay: rgba(11, 13, 15, 0.72);
+
+    /* ---- Tipografia ---- */
     --font-display: "Barlow Condensed", sans-serif;
     --font-body: "Barlow", sans-serif;
+    --font-mono: "JetBrains Mono", monospace;
 
-    /* Espaçamento */
+    --text-2xs: 11px;
+    --text-xs: 12px;
+    --text-sm: 13px;
+    --text-base: 15px;
+    --text-md: 16px;
+    --text-lg: 18px;
+    --text-xl: 22px;
+    --text-2xl: 28px;
+    --text-3xl: 36px;
+    --text-4xl: 48px;
+    --text-5xl: 64px;
+
+    /* ---- Espaçamento (mesma progressão de antes + 1 passo novo) ---- */
+    --space-0: 0;
     --space-1: 4px;
     --space-2: 8px;
     --space-3: 12px;
@@ -27,16 +76,65 @@
     --space-6: 32px;
     --space-7: 48px;
     --space-8: 64px;
+    --space-9: 96px;
 
-    /* Formas */
+    /* ---- Border radius — escala numérica nova (não colide com os nomes
+       legados --radius-sm/--radius-md/--radius/--radius-lg abaixo) ---- */
+    --radius-1: 4px;
+    --radius-2: 8px;
+    --radius-3: 12px;
+    --radius-4: 16px;
+    --radius-5: 24px;
+    --radius-full: 999px;
+
+    /* ---- Sombras / elevação (não existiam antes) ---- */
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+    --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.45);
+    --shadow-lg: 0 24px 64px rgba(0, 0, 0, 0.55);
+    --shadow-glow: 0 8px 28px var(--color-red-glow);
+    --shadow-focus: 0 0 0 3px rgba(227, 6, 19, 0.35);
+
+    /* ---- Tamanhos ---- */
+    --size-touch: 44px;
+    --size-icon-sm: 16px;
+    --size-icon-md: 20px;
+    --size-icon-lg: 24px;
+    --size-header: 64px;
+    --size-bottom-nav: 64px;
+    --size-sidebar: 240px;
+    --size-content-max: 720px;
+    --size-content-max-wide: 840px;
+    --size-admin-max: 1100px;
+
+    /* ---- Transições ---- */
+    --duration-fast: 120ms;
+    --duration-base: 200ms;
+    --duration-slow: 360ms;
+    --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+    --ease-out: cubic-bezier(0, 0, 0.2, 1);
+
+    /* ==========================================================================
+       Aliases legados — mesmos nomes e valores do tokens.css anterior.
+       Consumidos hoje por dashboard.css e admin.css (fases futuras).
+       ========================================================================== */
+    --black: var(--color-bg);
+    --black-soft: var(--color-surface-1);
+    --white: var(--color-text-primary);
+    --gray: var(--color-text-secondary);
+    --gray-light: #E8E8E8;
+    --red: var(--color-red);
+    --red-dark: var(--color-red-dark);
+    --red-bright: var(--color-red-bright);
+
+    --line: var(--color-border);
+    --line-strong: var(--color-border-strong);
+
     --radius-sm: 4px;
     --radius-md: 6px;
     --radius: 8px;
     --radius-lg: 20px;
 
-    /* Layout */
-    --content-max-width: 720px;
+    --content-max-width: var(--size-content-max);
 
-    /* Movimento */
-    --transition-fast: 120ms ease;
+    --transition-fast: var(--duration-fast) ease;
 }

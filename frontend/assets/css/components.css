@@ -1,15 +1,27 @@
 /* ==========================================================================
+   Movement Design System — componentes globais
+   Toda regra aqui usa as classes/ids já consumidos pelo JavaScript existente
+   (ver assets/js/*.js) — nenhum seletor foi renomeado. Novos componentes
+   (badge genérico, alert, skeleton, empty-state) estão marcados como tal e
+   ainda não têm HTML/JS que os use — ficam prontos para as próximas fases.
+   ========================================================================== */
+
+/* ==========================================================================
    Tela de autenticação
    ========================================================================== */
 
 .auth-screen {
     min-height: 100vh;
+    min-height: 100dvh;
     display: flex;
     align-items: center;
     justify-content: center;
     padding: var(--space-5) var(--space-4);
     position: relative;
     overflow: hidden;
+    background:
+        radial-gradient(circle at 85% -10%, var(--color-red-glow) 0%, transparent 45%),
+        var(--color-bg);
 }
 
 /* Painel diagonal discreto no fundo */
@@ -20,12 +32,12 @@
     right: -15%;
     width: 55%;
     height: 140%;
-    background: var(--black-soft);
+    background: var(--color-surface-1);
     transform: skewX(-12deg);
     z-index: 0;
 }
 
-/* Segunda linha diagonal, bem mais fina e discreta — textura, não decoração */
+/* Segunda linha diagonal, bem mais fina — textura, não decoração */
 .auth-screen::after {
     content: "";
     position: absolute;
@@ -33,7 +45,7 @@
     left: -10%;
     width: 45%;
     height: 1px;
-    background: var(--line-strong);
+    background: var(--color-border-strong);
     transform: rotate(-12deg);
     z-index: 0;
 }
@@ -43,10 +55,11 @@
     z-index: 1;
     width: 100%;
     max-width: 440px;
-    background: var(--black-soft);
-    border: 1px solid var(--line);
-    border-radius: var(--radius);
+    background: var(--color-surface-1);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-4);
     padding: var(--space-6) var(--space-5) var(--space-5);
+    box-shadow: var(--shadow-lg);
 }
 
 /* Corte diagonal vermelho no canto do card — assinatura visual do sistema */
@@ -55,11 +68,11 @@
     position: absolute;
     top: 0;
     right: 0;
-    width: 48px;
-    height: 48px;
-    background: var(--red);
+    width: 52px;
+    height: 52px;
+    background: var(--color-red);
     clip-path: polygon(100% 0, 100% 100%, 0 0);
-    border-top-right-radius: var(--radius);
+    border-top-right-radius: var(--radius-4);
 }
 
 .brand {
@@ -69,15 +82,15 @@
     margin-bottom: var(--space-7);
 }
 
-/* Espaço reservado para o logo real da Movement (svg/png). Nenhum
-   símbolo é desenhado aqui de propósito — só a área que vai recebê-lo. */
+/* Espaço reservado para o logo real da Movement (svg/png). Nenhum símbolo é
+   desenhado aqui de propósito — só a área que vai recebê-lo. */
 .brand__mark {
     flex-shrink: 0;
     width: 48px;
     height: 48px;
-    background: var(--black);
-    border: 1px solid var(--line-strong);
-    border-radius: var(--radius-sm);
+    background: var(--color-bg);
+    border: 1px solid var(--color-border-strong);
+    border-radius: var(--radius-3);
 }
 
 .brand__lockup {
@@ -87,17 +100,17 @@
 }
 
 .brand__name {
-    font-size: 28px;
+    font-size: var(--text-2xl);
     font-weight: 800;
     letter-spacing: 0.03em;
-    color: var(--white);
+    color: var(--color-text-primary);
 }
 
 .brand__tagline {
     font-family: var(--font-body);
-    font-size: 13px;
+    font-size: var(--text-sm);
     line-height: 1.4;
-    color: var(--gray);
+    color: var(--color-text-secondary);
 }
 
 /* ==========================================================================
@@ -117,20 +130,22 @@
 }
 
 .field label {
-    font-size: 13px;
+    font-size: var(--text-sm);
     font-weight: 600;
-    color: var(--gray-light);
+    color: var(--color-text-secondary);
 }
 
 .field input,
 .field select {
-    background: var(--black);
-    border: 1px solid var(--line-strong);
-    border-radius: var(--radius-md);
-    color: var(--white);
-    font-size: 16px;
-    padding: 14px var(--space-4);
-    transition: border-color var(--transition-fast);
+    background: var(--color-bg);
+    border: 1px solid var(--color-border-strong);
+    border-radius: var(--radius-2);
+    color: var(--color-text-primary);
+    font-size: var(--text-md);
+    min-height: var(--size-touch);
+    padding: 12px var(--space-4);
+    transition: border-color var(--duration-fast) var(--ease-standard),
+        box-shadow var(--duration-fast) var(--ease-standard);
 }
 
 .field select {
@@ -138,27 +153,28 @@
 }
 
 .field input::placeholder {
-    color: var(--gray);
+    color: var(--color-text-tertiary);
 }
 
 .field input:hover,
 .field select:hover {
-    border-color: var(--gray);
+    border-color: var(--color-border-hover);
 }
 
 .field input:focus-visible,
 .field select:focus-visible {
-    border-color: var(--red);
-    outline: 2px solid var(--red);
+    border-color: var(--color-red);
+    outline: 2px solid var(--color-red);
     outline-offset: 2px;
+    box-shadow: var(--shadow-focus);
 }
 
 /* Link para trocar entre login e cadastro, abaixo do formulário. */
 .auth-form__footer {
     margin-top: var(--space-5);
     text-align: center;
-    font-size: 14px;
-    color: var(--gray-light);
+    font-size: var(--text-sm);
+    color: var(--color-text-secondary);
 }
 
 /* ==========================================================================
@@ -171,38 +187,95 @@
     justify-content: center;
     gap: var(--space-2);
     border: none;
-    border-radius: var(--radius-md);
+    border-radius: var(--radius-3);
     font-family: var(--font-display);
-    font-size: 18px;
+    font-size: var(--text-lg);
     font-weight: 700;
-    letter-spacing: 0.06em;
+    letter-spacing: 0.05em;
     text-transform: uppercase;
     text-decoration: none;
     cursor: pointer;
+    min-height: var(--size-touch);
     padding: var(--space-4) var(--space-5);
-    transition: background-color var(--transition-fast), transform var(--transition-fast), box-shadow var(--transition-fast);
+    transition: background-color var(--duration-fast) var(--ease-standard),
+        border-color var(--duration-fast) var(--ease-standard),
+        color var(--duration-fast) var(--ease-standard),
+        transform var(--duration-fast) var(--ease-standard),
+        box-shadow var(--duration-fast) var(--ease-standard);
+}
+
+.btn:active:not(:disabled) {
+    transform: scale(0.98);
 }
 
 .btn--primary {
-    background: var(--red);
-    color: var(--white);
+    background: var(--color-red);
+    color: var(--color-text-on-accent);
+    box-shadow: var(--shadow-glow);
 }
 
 .btn--primary:hover:not(:disabled) {
-    background: var(--red-dark);
+    background: var(--color-red-dark);
     transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(184, 5, 16, 0.35);
+    box-shadow: 0 10px 28px var(--color-red-glow);
 }
 
 .btn--ghost {
     background: transparent;
-    color: var(--gray-light);
-    border: 1px solid var(--line-strong);
+    color: var(--color-text-primary);
+    border: 1px solid var(--color-border-strong);
 }
 
 .btn--ghost:hover:not(:disabled) {
-    border-color: var(--red);
-    color: var(--white);
+    border-color: var(--color-red);
+    color: var(--color-red-bright);
+}
+
+/* Terciário — ação de menor peso, sem caixa alta (texto corrido). Novo:
+   ainda não usado em nenhuma tela, disponível para as próximas fases. */
+.btn--text {
+    background: none;
+    color: var(--color-text-secondary);
+    text-transform: none;
+    font-family: var(--font-body);
+    font-weight: 700;
+    letter-spacing: normal;
+    padding: var(--space-2) var(--space-1);
+    min-height: 0;
+}
+
+.btn--text:hover:not(:disabled) {
+    color: var(--color-red-bright);
+}
+
+/* Destrutivo — novo, ainda não usado (desativações hoje usam confirmação
+   via btn--primary dentro de um modal de aviso). Disponível para as
+   próximas fases. */
+.btn--danger {
+    background: transparent;
+    color: var(--color-red-bright);
+    border: 1px solid rgba(227, 6, 19, 0.4);
+}
+
+.btn--danger:hover:not(:disabled) {
+    background: var(--color-red-surface);
+    border-color: var(--color-red);
+}
+
+/* Botão só com ícone — novo, mesma altura/toque dos demais. */
+.btn--icon {
+    padding: 0;
+    width: var(--size-touch);
+    min-height: var(--size-touch);
+    border-radius: var(--radius-full);
+    background: var(--color-surface-2);
+    color: var(--color-text-primary);
+    border: 1px solid var(--color-border-strong);
+}
+
+.btn--icon:hover:not(:disabled) {
+    border-color: var(--color-red);
+    color: var(--color-red-bright);
 }
 
 .btn--block {
@@ -210,8 +283,10 @@
 }
 
 .btn:disabled {
-    opacity: 0.65;
+    opacity: 0.55;
     cursor: not-allowed;
+    box-shadow: none;
+    transform: none;
 }
 
 .btn.is-loading .btn__spinner {
@@ -223,7 +298,7 @@
     width: 15px;
     height: 15px;
     border: 2px solid rgba(255, 255, 255, 0.4);
-    border-top-color: var(--white);
+    border-top-color: currentColor;
     border-radius: 50%;
     animation: spin 700ms linear infinite;
 }
@@ -242,10 +317,11 @@
     display: flex;
     align-items: flex-start;
     gap: var(--space-2);
-    font-size: 14px;
-    padding: var(--space-3);
-    border-radius: var(--radius-md);
-    border: 1px solid var(--line-strong);
+    font-size: var(--text-sm);
+    line-height: 1.5;
+    padding: var(--space-3) var(--space-4);
+    border-radius: var(--radius-2);
+    border: 1px solid var(--color-border-strong);
 }
 
 /* Regra de autor (.form-message) tem prioridade sobre o estilo padrão do
@@ -261,23 +337,23 @@
 }
 
 .form-message--erro {
-    background: rgba(227, 6, 19, 0.08);
-    border-color: var(--red);
-    color: var(--gray-light);
+    background: var(--color-red-surface);
+    border-color: var(--color-red);
+    color: var(--color-text-primary);
 }
 
 .form-message--erro .form-message__icon {
-    color: var(--red-bright);
+    color: var(--color-red-bright);
 }
 
 .form-message--sucesso {
-    background: rgba(255, 255, 255, 0.04);
-    border-color: var(--line-strong);
-    color: var(--gray-light);
+    background: var(--color-success-surface);
+    border-color: var(--color-success);
+    color: var(--color-text-primary);
 }
 
 .form-message--sucesso .form-message__icon {
-    color: var(--white);
+    color: var(--color-success);
 }
 
 /* ==========================================================================
@@ -285,20 +361,27 @@
    ========================================================================== */
 
 .dash-header {
+    position: sticky;
+    top: 0;
+    z-index: 20;
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: var(--space-3);
-    padding: var(--space-4) var(--space-4);
-    border-bottom: 1px solid var(--line);
+    min-height: var(--size-header);
+    padding: var(--space-4);
+    background: rgba(11, 13, 15, 0.86);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--color-border);
 }
 
 .dash-header__brand {
     font-family: var(--font-display);
-    font-size: 20px;
+    font-size: var(--text-xl);
     font-weight: 800;
     letter-spacing: 0.03em;
-    color: var(--white);
+    color: var(--color-text-primary);
 }
 
 .dash-header__user {
@@ -308,8 +391,8 @@
 }
 
 .dash-header__greeting {
-    font-size: 13px;
-    color: var(--gray);
+    font-size: var(--text-sm);
+    color: var(--color-text-secondary);
     max-width: 160px;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -317,10 +400,12 @@
 }
 
 /* ==========================================================================
-   Botão "☰ Menu" — abre a navegação principal (.bottom-nav do cliente ou
-   .admin-nav do admin) como painel no celular. Compartilhado entre as duas
-   áreas porque o botão em si é idêntico; cada área continua estilizando seu
-   próprio painel (dashboard.css / admin.css). Separado de propósito de
+   Botão "☰ Menu" — abre a navegação como painel sobreposto quando não há
+   espaço para deixá-la sempre visível. No cliente (.app-shell) a navegação
+   agora é uma bottom bar sempre visível no mobile e uma sidebar sempre
+   visível no desktop — este botão não tem papel ali (ver regra que o
+   esconde em dashboard.css) e existe apenas para a área administrativa, que
+   tem itens demais para uma bottom bar. Separado de propósito de
    .tabs-menu-btn (admin.css), que é só para as abas internas do funcionário.
    ========================================================================== */
 
@@ -328,20 +413,22 @@
     display: flex;
     align-items: center;
     gap: var(--space-1);
-    padding: var(--space-2) var(--space-3);
-    font-size: 13px;
+    padding: var(--space-2) var(--space-4);
+    font-size: var(--text-sm);
     font-weight: 600;
-    color: var(--gray-light);
-    background: var(--black-soft);
-    border: 1px solid var(--line);
-    border-radius: var(--radius-sm);
+    color: var(--color-text-primary);
+    background: var(--color-surface-2);
+    border: 1px solid var(--color-border-strong);
+    border-radius: var(--radius-full);
     cursor: pointer;
     font-family: inherit;
+    transition: border-color var(--duration-fast) var(--ease-standard),
+        color var(--duration-fast) var(--ease-standard);
 }
 
 .nav-menu-btn[aria-expanded="true"] {
-    color: var(--red);
-    border-color: var(--red);
+    color: var(--color-red-bright);
+    border-color: var(--color-red);
 }
 
 @media (min-width: 768px) {
@@ -353,17 +440,17 @@
 .link-btn {
     background: none;
     border: none;
-    color: var(--gray-light);
+    color: var(--color-text-secondary);
     font-family: var(--font-body);
-    font-size: 14px;
+    font-size: var(--text-sm);
     font-weight: 600;
     cursor: pointer;
     padding: var(--space-1) 0;
-    transition: color var(--transition-fast);
+    transition: color var(--duration-fast) var(--ease-standard);
 }
 
 .link-btn:hover {
-    color: var(--red-bright);
+    color: var(--color-red-bright);
 }
 
 /* ==========================================================================
@@ -371,31 +458,66 @@
    ========================================================================== */
 
 .dash-section__title {
-    font-size: 15px;
-    font-weight: 600;
-    color: var(--white);
-    margin-bottom: var(--space-3);
+    font-family: var(--font-display);
+    font-size: var(--text-xl);
+    font-weight: 700;
+    letter-spacing: 0.01em;
+    color: var(--color-text-primary);
+    margin-bottom: var(--space-4);
 }
 
 .dash-section__placeholder {
-    font-size: 14px;
-    color: var(--gray);
+    font-size: var(--text-base);
+    color: var(--color-text-tertiary);
     padding: var(--space-4) 0;
 }
 
+/* Cabeçalho de seção com ação secundária ("Ver todas"/"Ver tudo") — par com
+   .dash-section__title, para quando a seção linka para uma tela dedicada
+   com a lista completa. Introduzido para a Início do cliente, reutilizável
+   em qualquer outra seção que precise do mesmo padrão. */
+.dash-section__header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--space-3);
+    margin-bottom: var(--space-4);
+}
+
+.dash-section__header .dash-section__title {
+    margin-bottom: 0;
+}
+
+.dash-section__link {
+    flex-shrink: 0;
+    font-size: var(--text-sm);
+    font-weight: 700;
+    color: var(--color-text-secondary);
+    text-decoration: none;
+    white-space: nowrap;
+    transition: color var(--duration-fast) var(--ease-standard);
+}
+
+.dash-section__link:hover {
+    color: var(--color-red-bright);
+}
+
 /* ==========================================================================
-   Esqueleto genérico de modal (compartilhado — conteúdo específico de cada
-   modal, como os dados de uma recompensa, fica no CSS de cada área)
+   Esqueleto genérico de modal — mobile-first como bottom sheet (a forma que
+   qualquer app real usa para confirmações e formulários curtos no celular);
+   a partir de 640px volta a ser um modal centralizado. O controlador em
+   ui.js (criarControladorModal) só manipula `hidden` e foco — é agnóstico a
+   essa apresentação, então nada em JS precisa mudar.
    ========================================================================== */
 
 .modal-overlay {
     position: fixed;
     inset: 0;
-    background: rgba(11, 13, 15, 0.75);
+    background: var(--overlay);
     display: flex;
-    align-items: center;
+    align-items: flex-end;
     justify-content: center;
-    padding: var(--space-4);
+    padding: 0;
     z-index: 100;
 }
 
@@ -404,35 +526,56 @@
 }
 
 .modal {
+    position: relative;
     width: 100%;
-    max-width: 360px;
-    background: var(--black-soft);
-    border: 1px solid var(--line-strong);
-    border-radius: var(--radius);
-    padding: var(--space-6) var(--space-5) var(--space-5);
+    max-width: 100%;
+    max-height: 88vh;
+    overflow-y: auto;
+    background: var(--color-surface-2);
+    border: 1px solid var(--color-border-strong);
+    border-bottom: none;
+    border-radius: var(--radius-5) var(--radius-5) 0 0;
+    padding: var(--space-5) var(--space-5) var(--space-6);
+    box-shadow: var(--shadow-lg);
+}
+
+/* Alça de arrastar — puramente decorativa, sinaliza "isto é uma folha que
+   desliza", sem nenhum comportamento de arrastar de fato. */
+.modal::before {
+    content: "";
+    position: sticky;
+    top: 0;
+    display: block;
+    width: 36px;
+    height: 4px;
+    margin: 0 auto var(--space-4);
+    background: var(--color-border-strong);
+    border-radius: var(--radius-full);
 }
 
 .modal--wide {
-    max-width: 480px;
+    max-width: 100%;
 }
 
 .modal__title {
-    font-size: 20px;
+    font-family: var(--font-display);
+    font-size: var(--text-xl);
+    font-weight: 700;
     margin-bottom: var(--space-4);
-    color: var(--white);
+    color: var(--color-text-primary);
 }
 
 .modal__reward-name {
-    font-size: 16px;
+    font-size: var(--text-md);
     font-weight: 600;
-    color: var(--white);
+    color: var(--color-text-primary);
     margin-bottom: var(--space-1);
 }
 
 .modal__note {
-    font-size: 13px;
+    font-size: var(--text-sm);
     line-height: 1.5;
-    color: var(--gray);
+    color: var(--color-text-secondary);
     margin-bottom: var(--space-4);
 }
 
@@ -444,41 +587,66 @@
 }
 
 .receipt-row__label {
-    font-size: 11px;
+    font-size: var(--text-2xs);
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.04em;
-    color: var(--gray);
+    color: var(--color-text-tertiary);
 }
 
 .receipt-row__value {
-    font-size: 15px;
+    font-size: var(--text-base);
     font-weight: 600;
-    color: var(--white);
+    color: var(--color-text-primary);
 }
 
 .modal__codigo {
     display: block;
-    font-family: var(--font-display);
-    font-size: 26px;
-    font-weight: 800;
-    letter-spacing: 0.1em;
-    color: var(--white);
+    font-family: var(--font-mono);
+    font-size: var(--text-xl);
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    color: var(--color-text-primary);
+    font-variant-numeric: tabular-nums;
 }
 
 .modal__error {
-    font-size: 13px;
-    color: var(--red-bright);
+    font-size: var(--text-sm);
+    color: var(--color-red-bright);
     margin-bottom: var(--space-3);
 }
 
 .modal__actions {
     display: flex;
     gap: var(--space-3);
+    margin-top: var(--space-2);
 }
 
 .modal__actions .btn {
     flex: 1;
+}
+
+@media (min-width: 640px) {
+    .modal-overlay {
+        align-items: center;
+        padding: var(--space-4);
+    }
+
+    .modal {
+        max-width: 360px;
+        max-height: 85vh;
+        border: 1px solid var(--color-border-strong);
+        border-radius: var(--radius-4);
+        padding: var(--space-6) var(--space-5) var(--space-5);
+    }
+
+    .modal::before {
+        content: none;
+    }
+
+    .modal--wide {
+        max-width: 480px;
+    }
 }
 
 /* ==========================================================================
@@ -488,34 +656,71 @@
 .status-badge {
     display: inline-flex;
     align-items: center;
-    padding: var(--space-1) 10px;
-    font-size: 11px;
+    padding: var(--space-1) var(--space-3);
+    font-size: var(--text-2xs);
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.04em;
-    border-radius: 999px;
-    border: 1px solid var(--line-strong);
-    color: var(--gray-light);
+    border-radius: var(--radius-full);
+    border: 1px solid var(--color-border-strong);
+    color: var(--color-text-primary);
     white-space: nowrap;
 }
 
 .status-badge--pendente {
-    border-color: var(--gray);
-    color: var(--gray-light);
+    border-color: var(--color-text-tertiary);
+    color: var(--color-text-secondary);
 }
 
 .status-badge--aprovado {
-    background: var(--red);
-    border-color: var(--red);
-    color: var(--white);
+    background: var(--color-red);
+    border-color: var(--color-red);
+    color: var(--color-text-on-accent);
+}
+
+.status-badge--recusado {
+    /* Cor sólida (não opacity) preserva o contraste WCAG AA já validado. */
+    color: var(--color-text-tertiary);
 }
 
 /* Área de QR Code gerado (qrcodejs) — usada no resgate do cliente e no QR
-   individual do cliente no painel admin. */
+   individual do cliente no painel admin. Moldura com "cantos de mira" na
+   cor de marca — reforça a identidade sem interferir no contraste que o
+   leitor de QR precisa (a área branca em volta do código continua intacta). */
 .qrcode-container {
+    position: relative;
     display: flex;
     justify-content: center;
-    margin: var(--space-2) 0 var(--space-4);
+    margin: var(--space-3) 0 var(--space-4);
+}
+
+.qrcode-container::before,
+.qrcode-container::after {
+    content: "";
+    position: absolute;
+    width: 22px;
+    height: 22px;
+    border: 3px solid var(--color-red);
+    pointer-events: none;
+}
+
+/* Offset calculado para a área branca real (QR de 160x160 + padding
+   --space-3 de 12px em cada lado = 184px — ver width/height em
+   recompensas.js, meus-resgates.js e admin-clientes.js). */
+.qrcode-container::before {
+    top: -6px;
+    left: calc(50% - 92px);
+    border-right: none;
+    border-bottom: none;
+    border-radius: var(--radius-2) 0 0 0;
+}
+
+.qrcode-container::after {
+    bottom: -6px;
+    right: calc(50% - 92px);
+    border-left: none;
+    border-top: none;
+    border-radius: 0 0 var(--radius-2) 0;
 }
 
 /* qrcodejs renderiza como <canvas>, <img> ou <table>, dependendo do
@@ -524,17 +729,224 @@
 .qrcode-container canvas,
 .qrcode-container img,
 .qrcode-container table {
-    background: var(--white);
+    background: var(--color-text-on-accent);
     padding: var(--space-3);
-    border-radius: var(--radius-sm);
+    border-radius: var(--radius-2);
+    position: relative;
+    z-index: 1;
 }
 
-.status-badge--recusado {
-    /* Antes usava opacity, que mistura a cor com o fundo e derruba o
-       contraste para ~4.26:1 (abaixo do mínimo WCAG AA de 4.5:1). Cor
-       sólida em --gray já rende ~7.4:1 sobre --black-soft, preservando o
-       mesmo efeito "esmaecido" em relação ao --gray-light do pendente. */
-    color: var(--gray);
+/* ==========================================================================
+   Navegação do app — base compartilhada entre a bottom nav do cliente
+   (.bottom-nav) e a sidebar do admin (.admin-nav). Posição, breakpoints e
+   larguras específicas ficam em dashboard.css/admin.css; aqui vive só a
+   linguagem visual comum (evita duplicar as mesmas regras nos dois
+   arquivos).
+   ========================================================================== */
+
+.bottom-nav,
+.admin-nav {
+    background: var(--color-surface-1);
+    border-color: var(--color-border);
+}
+
+.bottom-nav__item,
+.admin-nav__item {
+    display: flex;
+    align-items: center;
+    font-family: var(--font-body);
+    font-weight: 600;
+    color: var(--color-text-tertiary);
+    text-decoration: none;
+    background: none;
+    border: none;
+    cursor: pointer;
+    transition: color var(--duration-fast) var(--ease-standard),
+        background-color var(--duration-fast) var(--ease-standard),
+        border-color var(--duration-fast) var(--ease-standard);
+}
+
+.bottom-nav__icon,
+.admin-nav__icon {
+    flex-shrink: 0;
+    width: var(--size-icon-md);
+    height: var(--size-icon-md);
+}
+
+.bottom-nav__label,
+.admin-nav__label {
+    font-size: var(--text-2xs);
+    font-weight: 700;
+    letter-spacing: 0.01em;
+}
+
+.bottom-nav__item.is-active,
+.admin-nav__item.is-active {
+    color: var(--color-red-bright);
+}
+
+.bottom-nav__item.is-disabled,
+.admin-nav__item.is-disabled {
+    color: var(--color-border-strong);
+    cursor: default;
+}
+
+/* ==========================================================================
+   Busca — usada nas telas administrativas e no catálogo de recompensas do
+   cliente. Antes duplicada quase por completo em dashboard.css e admin.css;
+   agora vive só aqui. admin.css mantém apenas a largura específica do
+   toolbar (ver comentário lá).
+   ========================================================================== */
+
+.search-input {
+    background: var(--color-bg);
+    border: 1px solid var(--color-border-strong);
+    border-radius: var(--radius-2);
+    color: var(--color-text-primary);
+    font-size: var(--text-base);
+    min-height: var(--size-touch);
+    padding: 10px var(--space-4);
+    width: 100%;
+    transition: border-color var(--duration-fast) var(--ease-standard),
+        box-shadow var(--duration-fast) var(--ease-standard);
+}
+
+.search-input::placeholder {
+    color: var(--color-text-tertiary);
+}
+
+.search-input:focus-visible {
+    border-color: var(--color-red);
+    outline: 2px solid var(--color-red);
+    outline-offset: 2px;
+    box-shadow: var(--shadow-focus);
+}
+
+/* ==========================================================================
+   Novos componentes — prontos para as próximas fases (ainda sem HTML/JS
+   que os utilize nesta etapa).
+   ========================================================================== */
+
+/* Badge genérico — para além dos status de resgate (.status-badge), usos
+   como categoria de empresa ou destaque de pontos em cards. */
+.badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px var(--space-3);
+    font-size: var(--text-2xs);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    border-radius: var(--radius-full);
+    border: 1px solid var(--color-border-strong);
+    color: var(--color-text-secondary);
+    white-space: nowrap;
+}
+
+.badge--brand {
+    background: var(--color-red-surface);
+    border-color: var(--color-red-dark);
+    color: var(--color-red-bright);
+}
+
+.badge--info {
+    border-color: rgba(78, 161, 243, 0.5);
+    color: var(--color-info);
+}
+
+.badge--square {
+    border-radius: var(--radius-1);
+}
+
+/* Alertas de página — diferente de .form-message (que vive dentro de um
+   formulário específico): usados para avisos de contexto mais amplo. */
+.alert {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-3);
+    padding: var(--space-4);
+    border-radius: var(--radius-3);
+    border: 1px solid var(--color-border-strong);
+    background: var(--color-surface-1);
+    font-size: var(--text-sm);
+    color: var(--color-text-primary);
+}
+
+.alert--success {
+    background: var(--color-success-surface);
+    border-color: var(--color-success);
+}
+
+.alert--error {
+    background: var(--color-red-surface);
+    border-color: var(--color-red);
+}
+
+.alert--warning {
+    background: var(--color-warning-surface);
+    border-color: var(--color-warning);
+}
+
+.alert--info {
+    background: var(--color-info-surface);
+    border-color: var(--color-info);
+}
+
+/* Skeleton — substitui os textos "Carregando..." quando as telas forem
+   redesenhadas nas próximas fases. */
+.skeleton {
+    background: linear-gradient(90deg, var(--color-surface-1) 25%, var(--color-surface-2) 37%, var(--color-surface-1) 63%);
+    background-size: 400% 100%;
+    animation: skeleton-shimmer 1.6s ease-in-out infinite;
+    border-radius: var(--radius-2);
+    color: transparent;
+}
+
+.skeleton--text {
+    display: inline-block;
+    height: 1em;
+    border-radius: var(--radius-1);
+}
+
+@keyframes skeleton-shimmer {
+    0% { background-position: 100% 0; }
+    100% { background-position: 0 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .skeleton {
+        animation: none;
+    }
+}
+
+/* Estado vazio — ilustração simples (ícone via SVG inline no HTML da
+   página) + mensagem + ação opcional. */
+.empty-state {
+    text-align: center;
+    padding: var(--space-7) var(--space-5);
+    border: 1px dashed var(--color-border-strong);
+    border-radius: var(--radius-4);
+}
+
+.empty-state__icon {
+    width: 40px;
+    height: 40px;
+    margin: 0 auto var(--space-3);
+    color: var(--color-text-tertiary);
+}
+
+.empty-state__title {
+    font-size: var(--text-base);
+    font-weight: 700;
+    color: var(--color-text-primary);
+    margin-bottom: var(--space-1);
+}
+
+.empty-state__text {
+    font-size: var(--text-sm);
+    color: var(--color-text-secondary);
+    margin-bottom: var(--space-4);
 }
 
 /* ==========================================================================

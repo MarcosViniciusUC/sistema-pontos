@@ -11,10 +11,12 @@
 }
 
 /* ==========================================================================
-   Navegação admin — mobile-first: por padrão é um painel recolhido (some
-   por trás do botão "☰ Menu" no cabeçalho, ver components.css/ui.js),
-   aberto com a classe .is-open. A partir de 768px (ver media query mais
-   abaixo) volta a ser a sidebar sempre visível de sempre.
+   Navegação admin — 7 destinos, itens demais para uma bottom bar
+   confortável, então continua atrás do botão "☰ Menu" no mobile — mas
+   agora como uma folha elegante (cantos arredondados, sombra, ícone por
+   item), não uma lista plana. A partir de 768px vira a sidebar sempre
+   visível (ver bloco responsivo mais abaixo). A linguagem visual comum com
+   a bottom nav do cliente (.bottom-nav) vive em components.css.
    ========================================================================== */
 
 .admin-nav {
@@ -24,9 +26,13 @@
     left: 0;
     right: 0;
     bottom: 0;
-    background: var(--black-soft);
-    border-top: 1px solid var(--line);
-    z-index: 10;
+    z-index: 30;
+    max-height: 75vh;
+    overflow-y: auto;
+    border-top: 1px solid var(--color-border-strong);
+    border-radius: var(--radius-5) var(--radius-5) 0 0;
+    box-shadow: var(--shadow-lg);
+    padding: var(--space-3) var(--space-3) calc(var(--space-3) + env(safe-area-inset-bottom));
 }
 
 .admin-nav.is-open {
@@ -34,24 +40,33 @@
 }
 
 .admin-nav__item {
+    gap: var(--space-3);
     text-align: left;
-    padding: var(--space-4);
-    font-size: 14px;
-    font-weight: 600;
-    letter-spacing: 0.02em;
-    color: var(--gray);
-    text-decoration: none;
-    cursor: pointer;
-    background: none;
-    border: none;
-    border-left: 2px solid transparent;
-    font-family: inherit;
+    padding: var(--space-3) var(--space-4);
+    font-size: var(--text-sm);
+    border-radius: var(--radius-3);
 }
 
 .admin-nav__item.is-active {
-    color: var(--red);
-    border-left-color: var(--red);
-    background: rgba(227, 6, 19, 0.08);
+    background: var(--color-red-surface);
+}
+
+/* Rótulo de grupo — puramente visual (não é um link, JS não sabe que ele
+   existe), separa Visão geral / Gestão / Operações dentro da mesma <nav>
+   sem mudar nada do que configurarMenuPrincipal (ui.js) já faz com o
+   elemento inteiro. */
+.admin-nav__group-label {
+    display: block;
+    padding: var(--space-4) var(--space-4) var(--space-1);
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--color-text-tertiary);
+}
+
+.admin-nav__group-label:first-child {
+    padding-top: 0;
 }
 
 /* ==========================================================================
@@ -61,6 +76,7 @@
 .admin-main {
     flex: 1;
     width: 100%;
+    min-width: 0;
     padding: var(--space-5) var(--space-4) calc(64px + var(--space-6));
     display: flex;
     flex-direction: column;
@@ -77,110 +93,70 @@
    barra de abas sempre visível (comportamento desktop preservado).
    ========================================================================== */
 
+/* Fase 6: só 2 abas, então viram um controle segmentado sempre visível —
+   nunca escondido atrás do "☰ Menu" (o botão continua no DOM porque
+   funcionario.js liga o listener nele sem checar se existe algo pra
+   abrir; só fica sem função visual, igual ao .nav-menu-btn do cliente
+   desde a Fase 1). ".tabs"/"is-open" continuam existindo como classes —
+   só deixaram de controlar visibilidade, já que as abas agora estão
+   sempre visíveis. */
+
 .tabs-nav {
     position: relative;
 }
 
 .tabs-menu-btn {
-    display: flex;
-    align-items: center;
-    gap: var(--space-2);
-    width: fit-content;
-    padding: var(--space-2) var(--space-3);
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--gray-light);
-    background: var(--black-soft);
-    border: 1px solid var(--line);
-    border-radius: var(--radius-sm);
-    cursor: pointer;
-    font-family: inherit;
+    display: none;
 }
 
 .tabs {
-    display: none;
-    flex-direction: column;
-    position: absolute;
-    top: calc(100% + var(--space-2));
-    left: 0;
-    z-index: 20;
-    min-width: 200px;
+    display: flex;
+    flex-direction: row;
     background: var(--black-soft);
     border: 1px solid var(--line);
-    border-radius: var(--radius-sm);
-    overflow: hidden;
-}
-
-.tabs.is-open {
-    display: flex;
+    border-radius: var(--radius-md);
+    padding: 4px;
+    gap: 4px;
 }
 
 .tabs__item {
-    text-align: left;
-    padding: var(--space-3) var(--space-4);
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-2);
+    text-align: center;
+    padding: var(--space-3);
+    min-height: var(--size-touch);
     font-size: 13px;
-    font-weight: 600;
+    font-weight: 700;
     letter-spacing: 0.02em;
-    color: var(--gray);
+    color: var(--gray-light);
     background: none;
     border: none;
-    border-left: 2px solid transparent;
+    border-radius: var(--radius-sm);
     cursor: pointer;
     font-family: inherit;
-    white-space: nowrap;
+    white-space: normal;
+    transition: background-color var(--duration-fast) var(--ease-standard),
+        color var(--duration-fast) var(--ease-standard);
+}
+
+.tabs__icon {
+    width: var(--size-icon-sm);
+    height: var(--size-icon-sm);
+    flex-shrink: 0;
 }
 
 .tabs__item.is-active {
-    color: var(--red);
-    border-left-color: var(--red);
-    background: rgba(227, 6, 19, 0.08);
+    color: var(--color-text-on-accent);
+    background: var(--red);
 }
 
-/* Ícones só no menu mobile (ver exemplo visual pedido) — o rótulo do botão
-   continua o mesmo texto em qualquer tamanho de tela, sem duplicar elementos. */
-#tab-pontos-btn::before {
-    content: "➕ ";
-}
-
-#tab-validar-btn::before {
-    content: "✓ ";
-}
-
-@media (min-width: 768px) {
-    .tabs-menu-btn {
-        display: none;
-    }
-
-    .tabs {
-        display: flex;
-        flex-direction: row;
-        position: static;
-        min-width: 0;
-        background: none;
-        border: none;
-        border-bottom: 1px solid var(--line);
-        border-radius: 0;
-        overflow: visible;
-    }
-
+@media (min-width: 640px) {
     .tabs__item {
-        flex: 1;
-        text-align: center;
-        padding: var(--space-3) var(--space-2);
-        border-left: none;
-        border-bottom: 2px solid transparent;
-        white-space: normal;
-    }
-
-    .tabs__item.is-active {
-        border-left-color: transparent;
-        border-bottom-color: var(--red);
-        background: none;
-    }
-
-    #tab-pontos-btn::before,
-    #tab-validar-btn::before {
-        content: none;
+        font-size: 14px;
+        padding: var(--space-3) var(--space-5);
     }
 }
 
@@ -199,7 +175,9 @@
 }
 
 .admin-page-title {
-    font-size: 22px;
+    font-family: var(--font-display);
+    font-size: var(--text-2xl);
+    font-weight: 700;
     color: var(--white);
 }
 
@@ -288,7 +266,6 @@ a.kpi-card:hover {
 }
 
 .origem-item__valor {
-    font-family: var(--font-display);
     font-size: 14px;
     font-weight: 700;
     color: var(--gray-light);
@@ -322,27 +299,13 @@ a.kpi-card:hover {
     justify-content: space-between;
 }
 
+/* Base visual de .search-input vive em components.css (compartilhada com a
+   busca de recompensas do cliente) — aqui só a largura específica do
+   toolbar administrativo. */
 .search-input {
-    background: var(--black);
-    border: 1px solid var(--line-strong);
-    border-radius: var(--radius-md);
-    color: var(--white);
-    font-size: 14px;
-    padding: 10px 14px;
-    width: 100%;
     max-width: 320px;
     flex: 1;
     min-width: 180px;
-}
-
-.search-input::placeholder {
-    color: var(--gray);
-}
-
-.search-input:focus-visible {
-    border-color: var(--red);
-    outline: 2px solid var(--red);
-    outline-offset: 2px;
 }
 
 /* ==========================================================================
@@ -379,7 +342,6 @@ a.kpi-card:hover {
 }
 
 .cliente-pontos {
-    font-family: var(--font-display);
     font-weight: 700;
     color: var(--white);
     font-variant-numeric: tabular-nums;
@@ -504,6 +466,17 @@ a.kpi-card:hover {
     gap: var(--space-4);
 }
 
+/* Bug pré-existente exposto pela Fase 6 (não introduzido por ela): um
+   seletor de id tem especificidade maior que o [hidden] do navegador, então
+   a regra acima sempre vencia e o formulário aparecia mesmo com
+   adicionarPontosCardEl.hidden = true (funcionario.js/
+   admin-identificar-cliente.js, ambos inalterados). Mesmo padrão de
+   correção já usado em .tab-panel[hidden]/.modal-overlay[hidden] logo
+   acima neste arquivo. */
+#adicionar-pontos-card[hidden] {
+    display: none;
+}
+
 .scanner-preview {
     position: relative;
     width: 100%;
@@ -520,6 +493,539 @@ a.kpi-card:hover {
     height: 100%;
     object-fit: cover;
     display: block;
+}
+
+/* ==========================================================================
+   Fase 6 — Área do Funcionário. Quase todos os ids desta página também
+   existem em admin-identificar-cliente.html/admin-validar.html (mesmo
+   padrão, duplicado de propósito — ver comentário em funcionario.js), por
+   isso tudo aqui é escopado por .funcionario-page (classe adicionada só em
+   funcionario.html) — nada deste bloco pode vazar pro admin.
+   ========================================================================== */
+
+.funcionario-page .admin-main {
+    gap: var(--space-5);
+}
+
+/* Passo numerado — reaproveita .dash-section__title (mantém o tamanho de
+   fonte/hierarquia já definidos ali), só adiciona o selo com o número. */
+.funcionario-step {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+}
+
+.funcionario-step__num {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 28px;
+    height: 28px;
+    border-radius: var(--radius-full);
+    background: var(--color-surface-2);
+    border: 1px solid var(--color-border-strong);
+    font-family: var(--font-mono);
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--color-text-secondary);
+}
+
+/* Divisor "ou" entre o botão de QR (ação mais rápida) e a busca manual
+   (alternativa). */
+.funcionario-divider {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    color: var(--color-text-tertiary);
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.funcionario-divider::before,
+.funcionario-divider::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: var(--color-border);
+}
+
+.funcionario-scan-btn svg {
+    width: 20px;
+    height: 20px;
+}
+
+/* ==========================================================================
+   Resultados de busca de cliente — o mesmo <table class="data-table"> que
+   o admin usa em listagens continua sendo gerado por funcionario.js (não
+   alterado); no mobile ele deixa de parecer planilha e vira uma lista de
+   cartões simples de tocar. A partir de 640px volta a ser tabela normal,
+   já com espaço de sobra pras 3 colunas.
+   ========================================================================== */
+
+.funcionario-page #busca-resultados-container .table-wrap {
+    border: none;
+}
+
+.funcionario-page #busca-resultados-container .data-table,
+.funcionario-page #busca-resultados-container .data-table tbody,
+.funcionario-page #busca-resultados-container .data-table tr,
+.funcionario-page #busca-resultados-container .data-table td {
+    display: block;
+    width: 100%;
+}
+
+.funcionario-page #busca-resultados-container .data-table thead {
+    display: none;
+}
+
+.funcionario-page #busca-resultados-container .data-table tr {
+    padding: var(--space-3) var(--space-4);
+    margin-bottom: var(--space-2);
+    background: var(--color-surface-1);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-3);
+}
+
+.funcionario-page #busca-resultados-container .data-table tr:last-child {
+    margin-bottom: 0;
+}
+
+.funcionario-page #busca-resultados-container .data-table td {
+    padding: 2px 0;
+    white-space: normal;
+    color: var(--white);
+}
+
+.funcionario-page #busca-resultados-container .data-table td:first-child {
+    font-weight: 700;
+    font-size: var(--text-base);
+}
+
+.funcionario-page #busca-resultados-container .data-table td:nth-child(2) {
+    font-size: var(--text-xs);
+    color: var(--color-text-tertiary);
+    margin-bottom: var(--space-2);
+}
+
+.funcionario-page #busca-resultados-container .data-table td:last-child .btn {
+    width: 100%;
+    min-height: var(--size-touch);
+}
+
+@media (min-width: 640px) {
+    .funcionario-page #busca-resultados-container .table-wrap {
+        border: 1px solid var(--color-border);
+    }
+
+    .funcionario-page #busca-resultados-container .data-table {
+        display: table;
+    }
+
+    .funcionario-page #busca-resultados-container .data-table thead {
+        display: table-header-group;
+    }
+
+    .funcionario-page #busca-resultados-container .data-table tbody {
+        display: table-row-group;
+    }
+
+    .funcionario-page #busca-resultados-container .data-table tr {
+        display: table-row;
+        padding: 0;
+        margin-bottom: 0;
+        background: none;
+        border: none;
+        border-bottom: 1px solid var(--color-border);
+        border-radius: 0;
+    }
+
+    .funcionario-page #busca-resultados-container .data-table tr:last-child {
+        border-bottom: none;
+    }
+
+    .funcionario-page #busca-resultados-container .data-table td {
+        display: table-cell;
+        padding: var(--space-3) var(--space-4);
+    }
+
+    .funcionario-page #busca-resultados-container .data-table td:last-child .btn {
+        width: auto;
+        min-height: auto;
+    }
+}
+
+/* ==========================================================================
+   Cliente identificado — o saldo é a informação que mais importa pra
+   decidir o próximo passo, por isso ganha destaque numérico separado do
+   nome/telefone, em vez de mais uma linha de recibo igual às outras.
+   ========================================================================== */
+
+.funcionario-page .funcionario-client-card {
+    padding: var(--space-4);
+}
+
+.funcionario-client-card__header {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    margin-bottom: var(--space-4);
+    padding-bottom: var(--space-4);
+    border-bottom: 1px solid var(--color-border);
+}
+
+.funcionario-client-card__label {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--color-text-tertiary);
+    margin-bottom: 4px;
+}
+
+.funcionario-client-card__nome {
+    font-size: var(--text-lg);
+    font-weight: 700;
+    color: var(--white);
+}
+
+.funcionario-client-card__telefone {
+    font-size: var(--text-sm);
+    color: var(--color-text-secondary);
+    margin-top: 2px;
+}
+
+.funcionario-client-card__saldo-label {
+    display: block;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--color-text-tertiary);
+    margin-bottom: 2px;
+}
+
+.funcionario-client-card__saldo-valor {
+    display: block;
+    font-family: var(--font-mono);
+    font-size: var(--text-xl);
+    font-weight: 700;
+    color: var(--red-bright);
+    font-variant-numeric: tabular-nums;
+}
+
+@media (min-width: 480px) {
+    .funcionario-client-card__header {
+        flex-direction: row;
+        align-items: flex-start;
+        justify-content: space-between;
+    }
+
+    .funcionario-client-card__saldo {
+        flex-shrink: 0;
+        text-align: right;
+    }
+}
+
+/* ==========================================================================
+   Adicionar pontos — estado vazio (sem cliente identificado ainda) e
+   formulário. Quantidade é o número mais importante da tela: fonte mono
+   grande, fácil de conferir de relance antes de confirmar.
+   ========================================================================== */
+
+.funcionario-page .funcionario-empty {
+    font-size: var(--text-sm);
+    color: var(--color-text-tertiary);
+    text-align: center;
+    padding: var(--space-5) var(--space-4);
+    border: 1px dashed var(--color-border);
+    border-radius: var(--radius-3);
+}
+
+.funcionario-selected-for {
+    font-size: var(--text-sm);
+    color: var(--color-text-secondary);
+}
+
+.funcionario-selected-for strong {
+    color: var(--white);
+    font-weight: 700;
+}
+
+.funcionario-form-row {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: var(--space-4);
+}
+
+/* Sem min-width:0 aqui, os campos (item do grid) voltam a crescer pro
+   tamanho "natural" do conteúdo em vez do tamanho da coluna — mesma causa
+   do estouro corrigido no .app-shell da tela de Recompensas (Fase 3), agora
+   no nível do item, não do container. */
+.funcionario-form-row .field {
+    min-width: 0;
+}
+
+@media (min-width: 480px) {
+    .funcionario-form-row {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+
+.funcionario-page .funcionario-qty-input {
+    font-family: var(--font-mono);
+    font-size: 28px;
+    font-weight: 700;
+    text-align: center;
+}
+
+/* ==========================================================================
+   Validar resgate — o código já digitado/lido fica grande e centralizado
+   pra conferência rápida; o card de resultado repete o código em destaque
+   máximo, é a informação que o funcionário confere com o cliente.
+   ========================================================================== */
+
+.funcionario-page .funcionario-codigo-input {
+    font-family: var(--font-mono);
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-align: center;
+    text-transform: uppercase;
+}
+
+.funcionario-page .funcionario-resgate-card {
+    padding: var(--space-5);
+    text-align: center;
+}
+
+.funcionario-resgate-card__status {
+    margin-bottom: var(--space-4);
+}
+
+.funcionario-resgate-card__codigo-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-1);
+    padding: var(--space-4);
+    margin-bottom: var(--space-4);
+    background: var(--color-bg);
+    border: 1px solid var(--color-border-strong);
+    border-radius: var(--radius-3);
+}
+
+.funcionario-resgate-card__codigo {
+    font-size: 32px;
+}
+
+.funcionario-page .funcionario-resgate-card .receipt-row {
+    text-align: left;
+}
+
+@media (min-width: 480px) {
+    .funcionario-page .admin-form--narrow {
+        max-width: 480px;
+    }
+}
+
+/* ==========================================================================
+   FASE 7 — Admin. Tudo neste bloco (exceto onde indicado) é genérico às 7
+   telas de admin, mas explicitamente NÃO se aplica a funcionario.html
+   (:not(.funcionario-page)), já que ela compartilha .data-table e vários
+   ids com admin-identificar-cliente.html/admin-validar.html.
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   Dashboard — hierarquia dos KPIs: os 4 que já eram <a> (link pra tela
+   relacionada, decidido em admin.js) ganham uma seta; os 2 que já eram
+   <div> (só informativos: Pontos concedidos/utilizados) permanecem estáticos.
+   Nenhuma classe nova — a diferença de tag já existia em criarKpiCard().
+   -------------------------------------------------------------------------- */
+
+a.kpi-card {
+    position: relative;
+}
+
+a.kpi-card::after {
+    content: "→";
+    position: absolute;
+    top: var(--space-5);
+    right: var(--space-5);
+    color: var(--color-text-tertiary);
+    transition: color var(--duration-fast) var(--ease-standard), transform var(--duration-fast) var(--ease-standard);
+}
+
+a.kpi-card:hover::after {
+    color: var(--color-red-bright);
+    transform: translateX(2px);
+}
+
+.origem-item__valor,
+.cliente-pontos {
+    font-family: var(--font-mono);
+}
+
+/* --------------------------------------------------------------------------
+   Tabelas — mecânica genérica de card no mobile (thead escondido, tr vira
+   card). O layout de CADA coluna é definido depois, escopado pelo id único
+   do container (#clientes-container, #empresas-container etc.) — nenhum
+   HTML gerado por JS foi alterado, só a apresentação via CSS Grid.
+   -------------------------------------------------------------------------- */
+
+@media (max-width: 767px) {
+    .admin-shell:not(.funcionario-page) .table-wrap {
+        border: none;
+        overflow: visible;
+    }
+
+    .admin-shell:not(.funcionario-page) .data-table {
+        display: block;
+    }
+
+    .admin-shell:not(.funcionario-page) .data-table thead {
+        display: none;
+    }
+
+    .admin-shell:not(.funcionario-page) .data-table tbody {
+        display: block;
+    }
+
+    .admin-shell:not(.funcionario-page) .data-table tr {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        column-gap: var(--space-3);
+        row-gap: 4px;
+        align-items: start;
+        padding: var(--space-4);
+        margin-bottom: var(--space-3);
+        background: var(--color-surface-1);
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius-3);
+    }
+
+    .admin-shell:not(.funcionario-page) .data-table tbody tr:last-child {
+        margin-bottom: 0;
+        border-bottom: 1px solid var(--color-border);
+    }
+
+    .admin-shell:not(.funcionario-page) .data-table td {
+        display: block;
+        padding: 0;
+        white-space: normal;
+        border: none;
+    }
+
+    /* ---- #clientes-container: Nome, Email, Telefone, Pontos, Cadastro, Ações ---- */
+    #clientes-container .data-table td:nth-child(1) { grid-column: 1; grid-row: 1; font-weight: 700; font-size: var(--text-base); color: var(--white); }
+    #clientes-container .data-table td:nth-child(4) { grid-column: 2; grid-row: 1; text-align: right; font-size: var(--text-lg); }
+    #clientes-container .data-table td:nth-child(2) { grid-column: 1 / -1; grid-row: 2; color: var(--color-text-secondary); font-size: var(--text-sm); }
+    #clientes-container .data-table td:nth-child(3) { grid-column: 1; grid-row: 3; }
+    #clientes-container .data-table td:nth-child(5) { grid-column: 2; grid-row: 3; text-align: right; }
+    #clientes-container .data-table td:nth-child(3),
+    #clientes-container .data-table td:nth-child(5) { font-size: var(--text-xs); color: var(--color-text-tertiary); }
+    #clientes-container .data-table td:nth-child(6) { grid-column: 1 / -1; grid-row: 4; margin-top: var(--space-2); }
+
+    /* ---- #empresas-container: Nome, Slug, Status, Ações ---- */
+    #empresas-container .data-table td:nth-child(1) { grid-column: 1; grid-row: 1; font-weight: 700; font-size: var(--text-base); color: var(--white); }
+    #empresas-container .data-table td:nth-child(3) { grid-column: 2; grid-row: 1; text-align: right; }
+    #empresas-container .data-table td:nth-child(2) { grid-column: 1 / -1; grid-row: 2; font-family: var(--font-mono); font-size: var(--text-xs); color: var(--color-text-tertiary); }
+    #empresas-container .data-table td:nth-child(4) { grid-column: 1 / -1; grid-row: 3; margin-top: var(--space-2); }
+
+    /* ---- #recompensas-container: Nome, Empresa, Descrição, Pontos, Status, Ações ---- */
+    #recompensas-container .data-table td:nth-child(1) { grid-column: 1; grid-row: 1; font-weight: 700; font-size: var(--text-base); color: var(--white); }
+    #recompensas-container .data-table td:nth-child(5) { grid-column: 2; grid-row: 1; text-align: right; }
+    #recompensas-container .data-table td:nth-child(2) { grid-column: 1 / -1; grid-row: 2; font-size: var(--text-xs); color: var(--color-text-tertiary); text-transform: uppercase; letter-spacing: 0.04em; }
+    #recompensas-container .data-table td:nth-child(3) { grid-column: 1 / -1; grid-row: 3; font-size: var(--text-sm); color: var(--color-text-secondary); }
+    #recompensas-container .data-table td:nth-child(4) { grid-column: 1; grid-row: 4; font-family: var(--font-mono); font-weight: 700; color: var(--red-bright); font-size: var(--text-lg); margin-top: var(--space-1); }
+    #recompensas-container .data-table td:nth-child(6) { grid-column: 1 / -1; grid-row: 5; margin-top: var(--space-2); }
+
+    /* ---- #resgates-container: Cliente, Recompensa, Empresa, Pontos, Código, Status, Data ---- */
+    #resgates-container .data-table td:nth-child(2) { grid-column: 1; grid-row: 1; font-weight: 700; font-size: var(--text-base); color: var(--white); }
+    #resgates-container .data-table td:nth-child(6) { grid-column: 2; grid-row: 1; text-align: right; }
+    #resgates-container .data-table td:nth-child(1) { grid-column: 1; grid-row: 2; font-size: var(--text-sm); color: var(--color-text-secondary); }
+    #resgates-container .data-table td:nth-child(3) { grid-column: 2; grid-row: 2; text-align: right; font-size: var(--text-xs); color: var(--color-text-tertiary); }
+    #resgates-container .data-table td:nth-child(4) { grid-column: 1; grid-row: 3; font-family: var(--font-mono); font-weight: 700; color: var(--red-bright); font-size: var(--text-lg); }
+    #resgates-container .data-table td:nth-child(5) { grid-column: 2; grid-row: 3; text-align: right; font-family: var(--font-mono); font-size: var(--text-sm); color: var(--color-text-secondary); }
+    #resgates-container .data-table td:nth-child(7) { grid-column: 1 / -1; grid-row: 4; font-size: var(--text-xs); color: var(--color-text-tertiary); margin-top: var(--space-1); }
+
+    /* ---- #ultimos-resgates-container (dashboard): Cliente, Recompensa, Pontos, Status, Data ---- */
+    #ultimos-resgates-container .data-table td:nth-child(2) { grid-column: 1; grid-row: 1; font-weight: 700; font-size: var(--text-base); color: var(--white); }
+    #ultimos-resgates-container .data-table td:nth-child(4) { grid-column: 2; grid-row: 1; text-align: right; }
+    #ultimos-resgates-container .data-table td:nth-child(1) { grid-column: 1; grid-row: 2; font-size: var(--text-sm); color: var(--color-text-secondary); }
+    #ultimos-resgates-container .data-table td:nth-child(3) { grid-column: 1; grid-row: 3; font-family: var(--font-mono); font-weight: 700; color: var(--red-bright); font-size: var(--text-lg); }
+    #ultimos-resgates-container .data-table td:nth-child(5) { grid-column: 2; grid-row: 3; text-align: right; font-size: var(--text-xs); color: var(--color-text-tertiary); }
+
+    /* ---- #busca-resultados-container (Identificar Cliente, admin): Nome, Email, Ação ---- */
+    .admin-identificar-page #busca-resultados-container .data-table td:nth-child(1) { grid-column: 1; grid-row: 1; font-weight: 700; font-size: var(--text-base); color: var(--white); }
+    .admin-identificar-page #busca-resultados-container .data-table td:nth-child(2) { grid-column: 1 / -1; grid-row: 2; font-size: var(--text-sm); color: var(--color-text-tertiary); }
+    .admin-identificar-page #busca-resultados-container .data-table td:nth-child(3) { grid-column: 1 / -1; grid-row: 3; margin-top: var(--space-2); }
+    .admin-identificar-page #busca-resultados-container .data-table td:nth-child(3) .btn { width: 100%; }
+}
+
+/* --------------------------------------------------------------------------
+   Ações em linha — botões com espaço de sobra pra tocar, tanto na tabela
+   quanto nos cards de mobile.
+   -------------------------------------------------------------------------- */
+
+.admin-shell:not(.funcionario-page) .row-actions .btn {
+    min-height: var(--size-touch);
+}
+
+/* --------------------------------------------------------------------------
+   Validar (admin) — CÓDIGO → BUSCAR → RESULTADO → STATUS → AÇÃO, sem
+   distrações: nada de sidebar de conteúdo largo competindo com o
+   formulário; o código validado vira a informação mais visível da tela.
+   -------------------------------------------------------------------------- */
+
+.admin-validar-page .admin-main {
+    align-items: center;
+}
+
+.admin-validar-page .admin-page-title,
+.admin-validar-page #form-validar,
+.admin-validar-page #resultado-detalhes {
+    width: 100%;
+    max-width: 420px;
+}
+
+.admin-validar-page #codigo-input {
+    font-family: var(--font-mono);
+    font-size: 20px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-align: center;
+    text-transform: uppercase;
+}
+
+.admin-validar-page #resultado-detalhes {
+    text-align: center;
+}
+
+.admin-validar-page #resultado-detalhes .receipt-row {
+    text-align: left;
+}
+
+.admin-validar-page .modal__codigo {
+    font-size: 28px;
+}
+
+/* --------------------------------------------------------------------------
+   Identificar Cliente (admin) — mesma estrutura de admin-identificar-
+   cliente.js de sempre, só com o visual padrão do Admin (não o operacional
+   do funcionário, que fica isolado em .funcionario-page).
+   -------------------------------------------------------------------------- */
+
+.admin-identificar-page .admin-result-card {
+    max-width: 480px;
+}
+
+.admin-identificar-page .admin-result-card .receipt-row:has(#resultado-saldo) .receipt-row__value {
+    font-family: var(--font-mono);
+    font-size: var(--text-lg);
+    color: var(--red-bright);
 }
 
 /* ==========================================================================
@@ -540,10 +1046,14 @@ a.kpi-card:hover {
         position: static;
         flex-direction: column;
         align-items: stretch;
-        width: 220px;
+        width: var(--size-sidebar);
+        max-height: none;
+        overflow-y: visible;
         flex-shrink: 0;
         border-top: none;
         border-right: 1px solid var(--line);
+        border-radius: 0;
+        box-shadow: none;
         background: var(--black-soft);
         padding: var(--space-5) var(--space-3);
         gap: var(--space-1);
@@ -551,23 +1061,22 @@ a.kpi-card:hover {
 
     .admin-nav__item {
         flex: none;
+        gap: var(--space-3);
         text-align: left;
-        padding: var(--space-3) var(--space-3);
-        font-size: 12px;
+        padding: var(--space-3);
         border-top: none;
         border-left: 3px solid transparent;
-        border-radius: var(--radius-sm);
+        border-radius: var(--radius-3);
+        font-size: 13px;
     }
 
     .admin-nav__item.is-active {
-        border-top-color: transparent;
         border-left-color: var(--red);
-        background: rgba(227, 6, 19, 0.08);
     }
 
     .admin-main {
         padding: var(--space-7) var(--space-6) var(--space-7);
-        max-width: 1100px;
+        max-width: var(--size-admin-max);
         margin: 0 auto;
         width: 100%;
     }

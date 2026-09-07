@@ -4,49 +4,53 @@
     min-height: 100vh;
 }
 
+/* Bottom bar do cliente é sempre visível (mobile e desktop) — o hambúrguer
+   compartilhado (.nav-menu-btn, ver components.css) não tem papel aqui.
+   Fica reservado para a área administrativa, que tem itens demais para
+   caber numa bottom bar. */
+.app-shell .nav-menu-btn {
+    display: none;
+}
+
 /* ==========================================================================
-   Navegação principal — mobile-first: por padrão é um painel recolhido
-   (some por trás do botão "☰ Menu" no cabeçalho, ver components.css/ui.js),
-   aberto com a classe .is-open. A partir de 768px (ver media query mais
-   abaixo) volta a ser a barra sempre visível de sempre.
+   Navegação principal — mobile-first: barra fixa no rodapé, sempre visível,
+   com ícone + rótulo por item (nunca escondida atrás de um menu, já que 5
+   itens cabem confortavelmente numa bottom bar). A partir de 768px vira uma
+   sidebar fixa à esquerda (ver .app-shell no bloco responsivo mais abaixo).
    ========================================================================== */
 
 .bottom-nav {
-    display: none;
-    flex-direction: column;
     position: fixed;
     left: 0;
     right: 0;
     bottom: 0;
-    background: var(--black-soft);
-    border-top: 1px solid var(--line);
-    z-index: 10;
-}
-
-.bottom-nav.is-open {
+    z-index: 30;
     display: flex;
+    flex-direction: row;
+    border-top: 1px solid var(--color-border);
+    box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.35);
+    padding-bottom: env(safe-area-inset-bottom);
 }
 
 .bottom-nav__item {
-    text-align: left;
-    padding: var(--space-4);
-    font-size: 14px;
-    font-weight: 600;
-    letter-spacing: 0.02em;
-    color: var(--gray);
-    text-decoration: none;
-    border-left: 2px solid transparent;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    padding: 10px 4px 8px;
+    text-align: center;
+    border-top: 2px solid transparent;
 }
 
 .bottom-nav__item.is-active {
-    color: var(--red);
-    border-left-color: var(--red);
-    background: rgba(227, 6, 19, 0.08);
+    border-top-color: var(--color-red);
+    background: var(--color-red-surface);
 }
 
 .bottom-nav__item.is-disabled {
-    color: var(--line-strong);
-    cursor: default;
+    border-top-color: transparent;
 }
 
 /* ==========================================================================
@@ -58,105 +62,405 @@
     width: 100%;
     max-width: var(--content-max-width);
     margin: 0 auto;
-    padding: var(--space-5) var(--space-4) calc(64px + var(--space-6));
+    padding: var(--space-5) var(--space-4) calc(var(--size-bottom-nav) + env(safe-area-inset-bottom) + var(--space-6));
     display: flex;
     flex-direction: column;
     gap: var(--space-6);
 }
 
-/* Card de saldo */
+/* ==========================================================================
+   Card de saldo — o dado mais importante da Início, por isso é o único
+   bloco da tela com hierarquia própria (gradiente + glow), não só borda de
+   1px como o resto dos cards. O valor usa a fonte mono do design system
+   (reservada para saldo/pontos/códigos — ver tokens.css) em vez da display
+   condensada usada nos títulos, pra reforçar que é um número que se lê com
+   precisão, não um rótulo.
+   ========================================================================== */
 
 .balance-card {
     position: relative;
     overflow: hidden;
-    background: var(--black-soft);
-    border: 1px solid var(--line);
-    border-radius: var(--radius);
-    padding: var(--space-6) var(--space-5);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    background: linear-gradient(160deg, var(--color-surface-2) 0%, #1a0f10 55%, var(--color-bg) 100%);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-5);
+    padding: var(--space-7) var(--space-5) var(--space-6);
     text-align: center;
+    box-shadow: var(--shadow-md);
 }
 
-.balance-card::before {
-    content: "";
+.balance-card__glow {
     position: absolute;
-    top: 0;
-    right: 0;
-    width: 48px;
-    height: 48px;
-    background: var(--red);
-    clip-path: polygon(100% 0, 100% 100%, 0 0);
-    border-top-right-radius: var(--radius);
+    top: -45%;
+    right: -25%;
+    width: 280px;
+    height: 280px;
+    background: radial-gradient(circle, var(--color-red-glow) 0%, transparent 70%);
+    pointer-events: none;
 }
 
 .balance-card__label {
-    font-size: 13px;
-    font-weight: 600;
-    letter-spacing: 0.06em;
+    position: relative;
+    font-size: var(--text-sm);
+    font-weight: 700;
+    letter-spacing: 0.08em;
     text-transform: uppercase;
-    color: var(--gray);
+    color: var(--color-text-secondary);
     margin-bottom: var(--space-2);
 }
 
 .balance-card__value {
-    font-family: var(--font-display);
-    font-size: 56px;
-    font-weight: 900;
+    position: relative;
+    font-family: var(--font-mono);
+    font-size: clamp(48px, 12vw, 64px);
+    font-weight: 700;
     line-height: 1;
-    color: var(--white);
+    color: var(--color-text-on-accent);
     font-variant-numeric: tabular-nums;
 }
 
-.balance-card__error {
+.balance-card__context {
+    position: relative;
     margin-top: var(--space-3);
-    font-size: 13px;
-    color: var(--red-bright);
+    font-size: var(--text-sm);
+    color: var(--color-text-secondary);
+    max-width: 280px;
 }
 
-/* Histórico */
+.balance-card__error {
+    position: relative;
+    margin-top: var(--space-3);
+    font-size: var(--text-sm);
+    color: var(--color-red-bright);
+}
+
+.balance-card__cta {
+    position: relative;
+    margin-top: var(--space-5);
+}
+
+/* ==========================================================================
+   Ações rápidas — atalhos para as três telas que já existem (Recompensas,
+   Meus Resgates, Histórico). Três colunas cabem confortavelmente mesmo em
+   telas de 360-390px sem precisar de scroll horizontal.
+   ========================================================================== */
+
+.quick-actions {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--space-3);
+}
+
+.quick-action {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-2);
+    min-height: var(--size-touch);
+    padding: var(--space-4) var(--space-2);
+    background: var(--color-surface-1);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-3);
+    text-decoration: none;
+    color: var(--color-text-secondary);
+    text-align: center;
+    transition: border-color var(--duration-fast) var(--ease-standard),
+        color var(--duration-fast) var(--ease-standard),
+        background-color var(--duration-fast) var(--ease-standard),
+        transform var(--duration-fast) var(--ease-standard);
+}
+
+.quick-action:hover {
+    border-color: var(--color-red);
+    color: var(--color-text-primary);
+    background: var(--color-red-surface);
+    transform: translateY(-2px);
+}
+
+.quick-action:active {
+    transform: translateY(0) scale(0.98);
+}
+
+.quick-action__icon {
+    width: var(--size-icon-lg);
+    height: var(--size-icon-lg);
+    color: var(--color-red-bright);
+}
+
+.quick-action__label {
+    font-size: var(--text-2xs);
+    font-weight: 700;
+    letter-spacing: 0.01em;
+}
+
+/* ==========================================================================
+   Atividade recente — versão para a Início, mais rica que o item genérico
+   de historico.js (window.UI.criarItemHistorico, que continua igual):
+   ícone circular diferenciando crédito/débito à primeira vista, sem
+   depender só da cor do número.
+   ========================================================================== */
+
+.activity-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    list-style: none;
+}
+
+.activity-item {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    padding: var(--space-3) var(--space-4);
+    background: var(--color-surface-1);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-3);
+    transition: border-color var(--duration-fast) var(--ease-standard);
+}
+
+.activity-item:hover {
+    border-color: var(--color-border-strong);
+}
+
+.activity-item__icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 36px;
+    height: 36px;
+    border-radius: var(--radius-full);
+}
+
+.activity-item__icon svg {
+    width: var(--size-icon-sm);
+    height: var(--size-icon-sm);
+}
+
+.activity-item__icon--entrada {
+    background: var(--color-success-surface);
+    color: var(--color-success);
+}
+
+.activity-item__icon--saida {
+    background: var(--color-surface-3);
+    color: var(--color-text-tertiary);
+}
+
+.activity-item__info {
+    flex: 1;
+    min-width: 0;
+}
+
+.activity-item__descricao {
+    font-size: var(--text-base);
+    color: var(--color-text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.activity-item__data {
+    font-size: var(--text-xs);
+    color: var(--color-text-tertiary);
+    margin-top: 2px;
+}
+
+.activity-item__quantidade {
+    flex-shrink: 0;
+    font-family: var(--font-mono);
+    font-size: var(--text-md);
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+}
+
+.activity-item__quantidade--entrada {
+    color: var(--color-text-primary);
+}
+
+.activity-item__quantidade--saida {
+    color: var(--color-text-tertiary);
+}
+
+/* Skeleton do carregamento inicial — mesma altura aproximada do item real. */
+.activity-item-skeleton {
+    height: 60px;
+    border-radius: var(--radius-3);
+}
+
+/* ==========================================================================
+   Histórico (historico.html) — item gerado por window.UI.criarItemHistorico
+   (ui.js, não alterado nesta fase: .history-item > div é a única forma de
+   estilizar o bloco de descrição/data, já que ele não recebe uma classe
+   própria ali). Cabeçalhos de grupo (.history-group-header) vêm de
+   historico.js, que passou a inserir um antes de cada mudança de data —
+   ver comentário lá; a lista continua sendo exatamente o que a API
+   devolve, só com uma marcação visual a mais entre os itens.
+   ========================================================================== */
 
 .history-list {
     display: flex;
     flex-direction: column;
-    gap: var(--space-1);
+    gap: var(--space-2);
     list-style: none;
+}
+
+.history-group-header {
+    margin-top: var(--space-3);
+    padding: 0 var(--space-1);
+    font-size: var(--text-xs);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--color-text-tertiary);
+}
+
+.history-group-header:first-child {
+    margin-top: 0;
 }
 
 .history-item {
     display: flex;
     align-items: center;
-    justify-content: space-between;
     gap: var(--space-3);
     padding: var(--space-4);
-    background: var(--black-soft);
-    border: 1px solid var(--line);
-    border-radius: var(--radius-md);
+    background: var(--color-surface-1);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-3);
+    transition: border-color var(--duration-fast) var(--ease-standard);
+}
+
+.history-item:hover {
+    border-color: var(--color-border-strong);
+}
+
+/* Selo circular de crédito/débito — reforço visual puramente decorativo.
+   A diferenciação que realmente importa (texto, sinal +/-, cor) já vem de
+   .history-item__quantidade--entrada/--saida logo abaixo; isto só evita
+   que a tela dependa só da cor pra transmitir a mesma informação. Depende
+   de qual modificador já existe no span (definido em ui.js, não alterado),
+   nunca duplica a decisão de "é entrada ou saída". */
+.history-item::before {
+    content: "";
+    flex-shrink: 0;
+    width: 36px;
+    height: 36px;
+    border-radius: var(--radius-full);
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: 14px 14px;
+}
+
+.history-item:has(.history-item__quantidade--entrada)::before {
+    background-color: var(--color-success-surface);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none'%3E%3Cpath d='M12 19V5M5 12l7-7 7 7' stroke='%232FBF71' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+}
+
+.history-item:has(.history-item__quantidade--saida)::before {
+    background-color: var(--color-surface-3);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none'%3E%3Cpath d='M12 5v14M5 12l7 7 7-7' stroke='%236E7176' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+}
+
+.history-item > div {
+    flex: 1;
+    min-width: 0;
 }
 
 .history-item__descricao {
-    font-size: 14px;
+    font-size: var(--text-base);
     color: var(--white);
-    margin-bottom: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .history-item__data {
-    font-size: 12px;
-    color: var(--gray);
+    font-size: var(--text-xs);
+    color: var(--color-text-tertiary);
+    margin-top: 2px;
 }
 
 .history-item__quantidade {
     flex-shrink: 0;
-    font-family: var(--font-display);
-    font-size: 18px;
+    font-family: var(--font-mono);
+    font-size: var(--text-lg);
     font-weight: 700;
     font-variant-numeric: tabular-nums;
+    white-space: nowrap;
 }
 
 .history-item__quantidade--entrada {
-    color: var(--white);
+    color: var(--color-text-primary);
 }
 
 .history-item__quantidade--saida {
-    color: var(--gray);
+    color: var(--color-text-tertiary);
+}
+
+/* Skeleton do carregamento inicial. */
+.history-item-skeleton {
+    height: 68px;
+    border-radius: var(--radius-3);
+}
+
+/* Estado vazio/erro ("Você ainda não tem movimentações."/mensagem de erro,
+   via window.UI.definirPlaceholder) — mesma moldura tracejada elegante já
+   usada nas outras telas do cliente. */
+.history-list .dash-section__placeholder {
+    text-align: center;
+    padding: var(--space-8) var(--space-4);
+    border: 1px dashed var(--line);
+    border-radius: var(--radius-lg);
+}
+
+/* ==========================================================================
+   Cabeçalho da tela de Recompensas — título + descrição de contexto ao
+   lado do saldo (no desktop; empilhado no mobile). Substitui o antigo
+   título solto ("Recompensas disponíveis") + hero de saldo desconectado
+   por uma introdução única e coesa à página.
+   ========================================================================== */
+
+.rewards-intro {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-5);
+}
+
+.rewards-intro__title {
+    font-family: var(--font-display);
+    font-size: var(--text-3xl);
+    font-weight: 800;
+    letter-spacing: 0.01em;
+    color: var(--color-text-primary);
+}
+
+.rewards-intro__subtitle {
+    margin-top: var(--space-2);
+    font-size: var(--text-base);
+    line-height: 1.5;
+    color: var(--color-text-secondary);
+    max-width: 46ch;
+}
+
+/* Lado a lado só a partir de 1024px: com a sidebar de 240px já ocupando
+   espaço, 768px (tablet) ainda não sobra largura confortável para o texto
+   e os 300px fixos do card de saldo dividirem uma linha só — ver medição
+   real feita via Playwright durante a Fase 3. Continua empilhado (título
+   em cima, saldo embaixo, ambos em largura total) no tablet. */
+@media (min-width: 1024px) {
+    .rewards-intro {
+        flex-direction: row;
+        align-items: center;
+        justify-content: space-between;
+        gap: var(--space-7);
+    }
+
+    .rewards-intro .balance-hero {
+        flex: 0 0 300px;
+    }
 }
 
 /* Hero de saldo (tela de recompensas) — bloco de destaque no topo, pensado
@@ -213,7 +517,18 @@
     color: var(--gray);
 }
 
-/* Recompensas */
+/* ==========================================================================
+   Descoberta — busca + filtro por empresa. Pensada pra parecer parte da
+   experiência de explorar recompensas, não um formulário administrativo:
+   busca em formato pílula, chips logo abaixo (refinar depois de já ter
+   procurado é o fluxo mais comum).
+   ========================================================================== */
+
+.rewards-discovery {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+}
 
 /* Filtro por empresa: chips roláveis horizontalmente — pensado pra mobile
    primeiro (cabe em qualquer largura, toque confortável, sem quebrar linha)
@@ -232,6 +547,7 @@
 
 .filter-chip {
     flex: none;
+    min-height: var(--size-touch);
     padding: var(--space-2) var(--space-4);
     font-size: 13px;
     font-weight: 600;
@@ -242,6 +558,12 @@
     cursor: pointer;
     font-family: inherit;
     white-space: nowrap;
+    transition: border-color var(--duration-fast) var(--ease-standard),
+        background-color var(--duration-fast) var(--ease-standard);
+}
+
+.filter-chip:hover {
+    border-color: var(--color-border-hover);
 }
 
 .filter-chip.is-active {
@@ -250,42 +572,52 @@
     border-color: var(--red);
 }
 
-/* Pesquisa por nome/descrição — mesmo visual de .search-input já usado nas
-   telas administrativas (definido lá em admin.css; aqui é uma cópia pequena
-   e independente, já que esta página não carrega admin.css). */
-.search-input {
-    background: var(--black);
-    border: 1px solid var(--line-strong);
-    border-radius: var(--radius-md);
-    color: var(--white);
-    font-size: 14px;
-    padding: 10px 14px;
-    width: 100%;
+/* Skeleton dos chips durante o carregamento inicial — mesmo container
+   (.filter-chips), substituído assim que GET /empresas responde
+   (renderizarFiltros já limpa o container antes de montar os chips reais). */
+.filter-chip-skeleton {
+    flex: none;
+    width: 92px;
+    height: var(--size-touch);
+    border-radius: 999px;
 }
 
-.search-input::placeholder {
-    color: var(--gray);
-}
-
-.search-input:focus-visible {
-    border-color: var(--red);
-    outline: 2px solid var(--red);
-    outline-offset: 2px;
-}
-
+/* Pesquisa por nome/descrição — usa a base de .search-input definida em
+   components.css (compartilhada com as telas administrativas), com um
+   tratamento mais "barra de busca de app" do que campo de formulário:
+   pílula cheia, sem o recesso escuro do input padrão. */
 .rewards-search {
     position: relative;
 }
 
 .rewards-search .search-input {
-    padding-left: 40px;
-    padding-right: 40px;
+    padding-left: 44px;
+    padding-right: 44px;
+    border-radius: var(--radius-full);
+    background: var(--color-surface-1);
+    border-color: var(--color-border);
+}
+
+.rewards-search .search-input:hover {
+    border-color: var(--color-border-hover);
+}
+
+.rewards-search .search-input:focus-visible {
+    background: var(--color-bg);
+}
+
+/* O botão de limpar customizado (#rewards-search-clear, com o próprio
+   estado hidden/visível controlado por recompensas.js) já cobre essa
+   função — sem isto, o Chrome/Edge mostravam o "x" nativo de
+   input[type=search] duplicado por cima dele. */
+.rewards-search .search-input::-webkit-search-cancel-button {
+    display: none;
 }
 
 .rewards-search__icon {
     position: absolute;
     top: 50%;
-    left: 12px;
+    left: 16px;
     transform: translateY(-50%);
     color: var(--gray);
     pointer-events: none;
@@ -294,7 +626,7 @@
 .rewards-search__clear {
     position: absolute;
     top: 50%;
-    right: 6px;
+    right: 10px;
     transform: translateY(-50%);
     width: 28px;
     height: 28px;
@@ -335,73 +667,21 @@
     border-color: var(--line);
 }
 
-.reward-card--indisponivel .reward-card__nome,
-.reward-card--indisponivel .reward-card__pontos {
-    color: var(--gray);
-}
-
-.reward-card__nome {
-    font-size: 16px;
-    font-weight: 600;
-    color: var(--white);
-    margin-bottom: var(--space-1);
-}
-
-.reward-card__empresa {
-    display: inline-block;
-    font-size: 11px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-    color: var(--gray-light);
-    background: var(--black);
-    border: 1px solid var(--line);
-    border-radius: var(--radius-sm);
-    padding: 2px var(--space-2);
-    margin-bottom: var(--space-2);
-}
-
-.reward-card__pontos {
-    font-family: var(--font-display);
-    font-size: 15px;
-    font-weight: 700;
-    letter-spacing: 0.02em;
-    color: var(--red-bright);
-}
-
-.reward-card__action {
-    margin-top: var(--space-3);
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-2);
-}
-
 .reward-card__falta {
     font-size: 12px;
     color: var(--gray);
 }
 
-.reward-card__buttons {
-    display: flex;
-    gap: var(--space-2);
-    flex-wrap: wrap;
-}
-
-.reward-card__btn {
-    flex: 1 1 auto;
-    padding: 10px var(--space-4);
-    font-size: 14px;
-}
-
 /* ==========================================================================
-   Card de recompensa "rico" (tela de Recompensas) — modificador aplicado
-   junto de .reward-card / .reward-card--indisponivel (mantidos como estão,
-   ainda usados pelo card simples da Início/dashboard.js). Tudo aqui é
-   escopado com .reward-card--v2 para não afetar aquele card mais simples.
+   Card de recompensa "rico" — usado tanto pelo catálogo (Recompensas) quanto
+   pelos destaques da Início (dashboard.js gera o mesmo HTML, sem o botão
+   "Ver detalhes" e sem abrir modal de resgate — o CTA sempre linka para
+   recompensas.html). Modificador aplicado junto de .reward-card /
+   .reward-card--indisponivel (base compartilhada, definida acima).
    ========================================================================== */
 
 .rewards-grid--v2 {
-    gap: var(--space-4);
+    gap: var(--space-5);
 }
 
 .rewards-grid--v2 .dash-section__placeholder {
@@ -412,26 +692,104 @@
     border-radius: var(--radius-lg);
 }
 
+/* ==========================================================================
+   Recompensas em destaque (Início) — trilho horizontal com scroll-snap no
+   mobile (mostra uma "espiada" do próximo card, convida a arrastar) e vira
+   grade a partir do tablet, quando já sobra largura pra mostrar tudo de
+   uma vez sem precisar rolar. Reaproveita .reward-card--v2 inteiro; só o
+   container muda entre esta seção e o catálogo (.rewards-grid--v2).
+   ========================================================================== */
+
+.rewards-rail {
+    display: flex;
+    gap: var(--space-4);
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+    margin: 0 calc(var(--space-4) * -1);
+    padding: 2px var(--space-4) var(--space-2);
+}
+
+.rewards-rail .reward-card--v2 {
+    flex: 0 0 76%;
+    scroll-snap-align: start;
+    box-shadow: var(--shadow-sm);
+    transition: transform var(--duration-base) var(--ease-standard),
+        box-shadow var(--duration-base) var(--ease-standard),
+        border-color var(--duration-fast) var(--ease-standard);
+}
+
+/* Hover/sombra do card já vêm da regra base .reward-card--v2:hover (evoluída
+   na Fase 3 para todo o sistema); nada específico do rail precisa mais
+   duplicar isso aqui. O wrap do rodapé (pontos + CTA/"faltam X pontos")
+   também virou regra base, pelo mesmo motivo. */
+
+.rewards-rail .dash-section__placeholder {
+    flex: 1 1 100%;
+    text-align: center;
+    padding: var(--space-7) var(--space-4);
+    border: 1px dashed var(--line);
+    border-radius: var(--radius-lg);
+    scroll-snap-align: none;
+}
+
+/* Skeleton do carregamento inicial — mesmas proporções do card real
+   (.reward-card--v2), substituído assim que os dados chegam (JS já limpa
+   o container antes de montar os cards de verdade). */
+.reward-card-skeleton {
+    flex: 0 0 76%;
+    aspect-ratio: 3 / 4;
+    border-radius: var(--radius-4);
+}
+
+@media (min-width: 480px) and (max-width: 767px) {
+    .reward-card-skeleton {
+        flex-basis: 62%;
+    }
+}
+
+@media (min-width: 768px) {
+    .reward-card-skeleton {
+        flex: initial;
+        aspect-ratio: auto;
+        height: 280px;
+    }
+}
+
 .reward-card--v2 {
     padding: 0;
     overflow: hidden;
     border-radius: var(--radius-lg);
     display: flex;
     flex-direction: column;
-    transition: border-color var(--transition-fast);
+    box-shadow: var(--shadow-sm);
+    transition: border-color var(--duration-fast) var(--ease-standard),
+        transform var(--duration-base) var(--ease-standard),
+        box-shadow var(--duration-base) var(--ease-standard);
 }
 
+/* Hover no desktop (lift + sombra — convida a explorar) e feedback de
+   toque no mobile (leve encolhida ao tocar diretamente no card, fora dos
+   botões internos, que já têm o próprio :active herdado de .btn). */
 .reward-card--v2:hover {
     border-color: var(--line-strong);
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-md);
 }
 
-/* Imagem 16:9 — o backend ainda não tem campo de imagem por recompensa,
-   então este é um placeholder puramente visual (gradiente + monograma),
-   sem nenhuma URL externa. Trocar por uma <img> real no futuro é só
-   substituir o conteúdo deste bloco por um <img> dentro do mesmo container. */
+.reward-card--v2:active {
+    transform: translateY(-1px) scale(0.99);
+}
+
+/* Imagem — o backend ainda não tem campo de imagem por recompensa, então
+   este é um placeholder puramente visual (gradiente + monograma), sem
+   nenhuma URL externa. Trocar por uma <img> real no futuro é só substituir
+   o conteúdo deste bloco por um <img> dentro do mesmo container. Proporção
+   4:3 (em vez de 16:9) para a imagem ocupar mais peso visual no card — é o
+   elemento que deve chamar atenção primeiro. */
 .reward-card__media {
     position: relative;
-    aspect-ratio: 16 / 9;
+    aspect-ratio: 4 / 3;
     width: 100%;
     display: flex;
     align-items: center;
@@ -462,27 +820,39 @@
 }
 
 .reward-card__body {
-    padding: var(--space-4) var(--space-4) var(--space-5);
+    flex: 1;
+    padding: var(--space-5) var(--space-4) var(--space-5);
     display: flex;
     flex-direction: column;
     gap: var(--space-2);
 }
 
+/* Legenda do parceiro — deliberadamente discreta (sem caixa/borda) para não
+   competir com o nome da recompensa logo abaixo, que é o elemento que
+   precisa saltar aos olhos primeiro. */
 .reward-card__badge {
     align-self: flex-start;
-    font-size: 11px;
-    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: var(--text-xs);
+    font-weight: 600;
     text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: var(--gray-light);
-    background: var(--black);
-    border: 1px solid var(--line);
-    border-radius: var(--radius-sm);
-    padding: 3px var(--space-2);
+    letter-spacing: 0.04em;
+    color: var(--color-text-tertiary);
+}
+
+.reward-card__badge::before {
+    content: "";
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: var(--color-red);
+    flex-shrink: 0;
 }
 
 .reward-card__title {
-    font-size: 18px;
+    font-size: var(--text-lg);
     font-weight: 700;
     line-height: 1.25;
     color: var(--white);
@@ -520,19 +890,30 @@
     color: var(--red-bright);
 }
 
+/* margin-top: auto empurra o rodapé pro fim do card, mesmo quando o
+   conteúdo acima (descrição opcional, "faltam X pontos") varia de card pra
+   card na mesma linha do grid — sem isso, o botão de cada card ficava numa
+   altura diferente conforme o texto acima era mais curto ou mais longo. */
 .reward-card__footer {
-    margin-top: var(--space-2);
+    margin-top: auto;
+    padding-top: var(--space-2);
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     justify-content: space-between;
     gap: var(--space-3);
+    row-gap: var(--space-2);
 }
 
+/* Fonte mono — mesma convenção do saldo e da atividade recente (ver
+   tokens.css/dashboard.css): pontos são um valor, não um rótulo, e a mono
+   reforça a precisão numérica em vez de competir com o título condensado. */
 .reward-card__points {
-    font-family: var(--font-display);
-    font-size: 17px;
-    font-weight: 800;
+    font-family: var(--font-mono);
+    font-size: var(--text-lg);
+    font-weight: 700;
     color: var(--red-bright);
+    font-variant-numeric: tabular-nums;
     white-space: nowrap;
 }
 
@@ -558,7 +939,12 @@
     white-space: nowrap;
 }
 
-/* Meus Resgates */
+/* ==========================================================================
+   Meus Resgates — cada item responde, nessa ordem de leitura: o que foi
+   resgatado + status (linha do topo), quantos pontos custou, quando/em
+   qual parceiro, e por fim o código/ação. Card, não linha de tabela: sem
+   grade, sem zebra, sem colunas alinhadas por índice.
+   ========================================================================== */
 
 .resgates-list {
     display: flex;
@@ -571,40 +957,134 @@
     display: flex;
     flex-direction: column;
     gap: var(--space-2);
-    padding: var(--space-4);
-    background: var(--black-soft);
-    border: 1px solid var(--line);
-    border-radius: var(--radius-md);
+    padding: var(--space-5);
+    background: var(--color-surface-1);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-4);
+    transition: border-color var(--duration-fast) var(--ease-standard);
 }
 
+.resgate-item:hover {
+    border-color: var(--color-border-strong);
+}
+
+/* "Aguardando utilização" é o único status em que existe algo a fazer
+   (mostrar o código no balcão) — um leve destaque avisa isso antes mesmo
+   de ler o texto do selo. Depende só de qual .status-badge already existe
+   dentro do card (definido por CLASSE_BADGE em meus-resgates.js, não
+   alterado); nenhuma lógica de status foi duplicada aqui. */
+.resgate-item:has(.status-badge--pendente) {
+    border-color: var(--color-red-dark);
+    background: linear-gradient(160deg, var(--color-surface-1) 0%, #1a1010 160%);
+}
+
+/* Empilhado por padrão: nome da recompensa + selo de status dividindo uma
+   única linha, no mobile, sobrava pouco espaço pros dois — nomes mais
+   longos quebravam em 3 linhas e "900 pontos" chegava a quebrar ao meio.
+   Lado a lado só a partir de 640px, quando o card já tem largura de sobra
+   pros dois. */
 .resgate-item__header {
     display: flex;
+    flex-direction: column;
     align-items: flex-start;
-    justify-content: space-between;
-    gap: var(--space-3);
+    gap: var(--space-2);
+}
+
+@media (min-width: 640px) {
+    .resgate-item__header {
+        flex-direction: row;
+        justify-content: space-between;
+        gap: var(--space-3);
+    }
+}
+
+.resgate-item__info {
+    min-width: 0;
 }
 
 .resgate-item__nome {
-    font-size: 16px;
-    font-weight: 600;
+    font-size: var(--text-lg);
+    font-weight: 700;
     color: var(--white);
     margin-bottom: 2px;
 }
 
+/* Pontos gastos — elemento próprio (ver comentário em meus-resgates.js)
+   para ter a mesma presença numérica do saldo/pontos em qualquer outra
+   tela do produto, em vez de dividir espaço com data/empresa na mesma
+   frase. */
+.resgate-item__pontos {
+    font-family: var(--font-mono);
+    font-size: var(--text-xl);
+    font-weight: 700;
+    color: var(--color-red-bright);
+    font-variant-numeric: tabular-nums;
+}
+
 .resgate-item__meta {
-    font-size: 12px;
-    color: var(--gray);
+    font-size: var(--text-xs);
+    color: var(--color-text-tertiary);
 }
 
 .resgate-item__codigo {
-    font-family: var(--font-display);
-    font-size: 14px;
-    letter-spacing: 0.06em;
-    color: var(--gray-light);
+    align-self: flex-start;
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    color: var(--color-text-secondary);
+    background: var(--color-bg);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-2);
+    padding: 6px var(--space-3);
 }
 
 .resgate-item__action {
-    margin-top: var(--space-1);
+    margin-top: var(--space-2);
+}
+
+.resgate-item__action .btn {
+    width: 100%;
+}
+
+/* O botão já existente (.btn--ghost, criado em meus-resgates.js) vira
+   visualmente a ação primária só dentro deste contexto — é a única coisa
+   que faz sentido tocar num resgate pendente. Não precisa de uma classe
+   nova: o mesmo .btn--ghost em qualquer outra tela continua com o visual
+   secundário de sempre. */
+.resgate-item__action .btn--ghost {
+    background: var(--color-red);
+    color: var(--color-text-on-accent);
+    border-color: var(--color-red);
+    box-shadow: var(--shadow-glow);
+}
+
+.resgate-item__action .btn--ghost:hover {
+    background: var(--color-red-dark);
+    color: var(--color-text-on-accent);
+}
+
+@media (min-width: 480px) {
+    .resgate-item__action .btn {
+        width: auto;
+        min-width: 220px;
+    }
+}
+
+/* Skeleton do carregamento inicial — altura aproximada de um card real. */
+.resgate-item-skeleton {
+    height: 148px;
+    border-radius: var(--radius-4);
+}
+
+/* Estado vazio ("Você ainda não resgatou nenhuma recompensa.", via
+   window.UI.definirPlaceholder) — mesma moldura tracejada elegante já
+   usada no catálogo de recompensas quando um filtro não encontra nada. */
+.resgates-list .dash-section__placeholder {
+    text-align: center;
+    padding: var(--space-8) var(--space-4);
+    border: 1px dashed var(--line);
+    border-radius: var(--radius-lg);
 }
 
 /* ==========================================================================
@@ -632,38 +1112,67 @@
    ========================================================================== */
 
 @media (min-width: 768px) {
+    /* A partir daqui a navegação principal vira uma sidebar fixa à
+       esquerda: cabeçalho ocupa a largura toda no topo, sidebar e conteúdo
+       dividem o espaço abaixo dele. Grid em vez de reordenar o HTML — nav e
+       main continuam como irmãos do header, na mesma ordem de sempre. */
+    .app-shell {
+        display: grid;
+        /* minmax(0, 1fr), não 1fr puro: sem o mínimo explícito em 0, a
+           coluna de conteúdo herda o tamanho mínimo do conteúdo interno
+           (min-content) e pode forçar o grid inteiro a ficar mais largo
+           que a viewport quando algum filho tem largura fixa (ex.:
+           .rewards-intro .balance-hero) — o excesso ficava cortado sem
+           aviso pelo overflow-x:hidden do body, em vez de gerar scroll. */
+        grid-template-columns: var(--size-sidebar) minmax(0, 1fr);
+        grid-template-rows: auto 1fr;
+        grid-template-areas: "header header" "nav main";
+        min-height: 100vh;
+    }
+
     .dash-header {
+        grid-area: header;
         padding: var(--space-4) var(--space-6);
     }
 
     .bottom-nav {
-        display: flex;
-        flex-direction: row;
+        grid-area: nav;
         position: static;
-        max-width: var(--content-max-width);
-        margin: 0 auto;
+        flex-direction: column;
+        align-items: stretch;
         width: 100%;
         border-top: none;
-        border-bottom: 1px solid var(--line);
-        background: transparent;
+        border-right: 1px solid var(--line);
+        box-shadow: none;
+        padding: var(--space-5) var(--space-3) var(--space-5);
+        gap: var(--space-1);
     }
 
     .bottom-nav__item {
         flex: none;
-        text-align: center;
-        padding: var(--space-3) var(--space-5);
-        border-left: none;
-        border-top: 2px solid transparent;
-        font-size: 12px;
+        flex-direction: row;
+        justify-content: flex-start;
+        gap: var(--space-3);
+        text-align: left;
+        padding: var(--space-3);
+        border-top: none;
+        border-left: 3px solid transparent;
+        border-radius: var(--radius-md);
     }
 
     .bottom-nav__item.is-active {
-        border-left-color: transparent;
-        border-top-color: var(--red);
-        background: none;
+        border-top-color: transparent;
+        border-left-color: var(--red);
+    }
+
+    .bottom-nav__label {
+        font-size: 13px;
+        letter-spacing: 0.02em;
     }
 
     .dash-main {
+        grid-area: main;
+        max-width: var(--size-content-max-wide);
         padding: var(--space-7) var(--space-6) var(--space-7);
     }
 
@@ -674,10 +1183,40 @@
     .rewards-grid {
         grid-template-columns: repeat(2, 1fr);
     }
+
+    /* A partir daqui já sobra largura pra mostrar os 4 destaques de uma vez
+       — o trilho horizontal (feito pro polegar, no mobile) vira grade. */
+    .rewards-rail {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        overflow: visible;
+        margin: 0;
+        padding: 0;
+    }
+
+    .rewards-rail .reward-card--v2 {
+        flex: initial;
+    }
 }
 
 @media (min-width: 1024px) {
     .rewards-grid {
         grid-template-columns: repeat(3, 1fr);
+    }
+
+    /* 3 colunas, não 4: com a sidebar fixa consumindo espaço, o container
+       de conteúdo (--size-content-max-wide) não é largo o bastante para 4
+       cards manterem o rodapé (pontos + CTA) confortável — 3 colunas dá a
+       mesma largura de card confortável do breakpoint de 768px. */
+    .rewards-rail {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+@media (min-width: 480px) and (max-width: 767px) {
+    /* Telas de celular maiores (ex: 430px) — card um pouco mais estreito
+       relativo à tela pra deixar a "espiada" do próximo card mais evidente. */
+    .rewards-rail .reward-card--v2 {
+        flex-basis: 62%;
     }
 }

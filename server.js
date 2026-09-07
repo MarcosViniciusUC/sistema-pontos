@@ -45,6 +45,18 @@ app.use(cors({
 
 app.use(express.json({ limit: "10kb" }));
 
+// Serve o frontend estático (caminho absoluto via __dirname, não depende do
+// diretório de onde o processo é iniciado). express.static já resolve "/"
+// e "/index.html" para frontend/index.html automaticamente, além de servir
+// o resto dos arquivos (assets/js, assets/css etc.) pelo mesmo caminho.
+//
+// Fica ANTES do rate limiter da API de propósito: uma única carga de página
+// já dispara ~10-15 requisições (HTML + CSS + JS + fontes), e isso não deve
+// disputar a mesma cota que existe para conter abuso da API. Continua
+// protegido pelos headers do Helmet e pelo CORS acima — só não entra na
+// contagem do globalLimiter, que agora se aplica só às rotas da API.
+app.use(express.static(path.join(__dirname, "frontend")));
+
 const globalLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
     limit: 300,
@@ -52,12 +64,6 @@ const globalLimiter = rateLimit({
     legacyHeaders: false
 });
 app.use(globalLimiter);
-
-// Serve o frontend estático (caminho absoluto via __dirname, não depende do
-// diretório de onde o processo é iniciado). express.static já resolve "/"
-// e "/index.html" para frontend/index.html automaticamente, além de servir
-// o resto dos arquivos (assets/js, assets/css etc.) pelo mesmo caminho.
-app.use(express.static(path.join(__dirname, "frontend")));
 
 app.use(authRoutes);
 app.use(userRoutes);

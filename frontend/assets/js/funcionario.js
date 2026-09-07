@@ -391,16 +391,28 @@
     // ==========================================================================
     // Scanner de QR Code (câmera) — mesmo padrão técnico de
     // admin-identificar-cliente.js.
+    //
+    // Um só modal/câmera/jsQR é reaproveitado para dois propósitos
+    // diferentes nesta página (identificar cliente x ler código de
+    // resgate): iniciarScanner() recebe o botão que o acionou, o texto do
+    // modal e uma função de callback com o que fazer com o texto lido —
+    // não existem duas implementações de câmera nem duas lógicas de
+    // decodificação, só o que acontece depois de ler é diferente.
     // ==========================================================================
 
     const abrirScannerBtn = document.getElementById("abrir-scanner-btn");
+    const abrirScannerResgateBtn = document.getElementById("abrir-scanner-resgate-btn");
     const scannerVideoEl = document.getElementById("scanner-video");
     const scannerCanvasEl = document.getElementById("scanner-canvas");
     const scannerFecharBtn = document.getElementById("scanner-fechar");
+    const scannerTituloEl = document.getElementById("modal-scanner-title");
+    const scannerNotaEl = document.getElementById("modal-scanner-nota");
     const scannerCtx = scannerCanvasEl.getContext("2d");
 
     let streamAtual = null;
     let quadroAnimacao = null;
+    let scannerBotaoAtivo = null;
+    let aoLerCodigo = null;
 
     const controladorScanner = window.UI.criarControladorModal(
         document.getElementById("modal-scanner-overlay"),
@@ -422,7 +434,11 @@
         }
 
         scannerVideoEl.srcObject = null;
-        abrirScannerBtn.disabled = false;
+
+        if (scannerBotaoAtivo) {
+            scannerBotaoAtivo.disabled = false;
+            scannerBotaoAtivo = null;
+        }
     }
 
     function processarQuadro() {
@@ -440,38 +456,72 @@
             inversionAttempts: "dontInvert"
         });
 
-        const qrTokenLido = resultado && resultado.data ? resultado.data.trim() : "";
+        const textoLido = resultado && resultado.data ? resultado.data.trim() : "";
 
-        if (qrTokenLido) {
+        if (textoLido) {
+            // Guarda o callback antes de fechar: controladorScanner.fechar()
+            // aciona pararCamera(), que zera scannerBotaoAtivo, mas não mexe
+            // em aoLerCodigo.
+            const callback = aoLerCodigo;
             controladorScanner.fechar();
-            identificarCliente(qrTokenLido);
+            callback(textoLido);
             return;
         }
 
         quadroAnimacao = requestAnimationFrame(processarQuadro);
     }
 
-    async function iniciarScanner() {
-        mensagemIdentificar.esconder();
+    // getUserMedia só existe em "contexto seguro" (HTTPS, ou localhost) —
+    // em HTTP normal (ex: acessando pelo IP da rede local no celular), o
+    // próprio navegador remove navigator.mediaDevices inteiro, e isso batia
+    // na mesma mensagem genérica de "navegador não suportado", o que é
+    // enganoso: o navegador suporta câmera, só falta HTTPS. window.isSecureContext
+    // é a forma padrão de diferenciar os dois casos.
+    function diagnosticarIndisponibilidadeCamera() {
+        if (!window.isSecureContext) {
+            return "inseguro";
+        }
 
         if (typeof window.jsQR === "undefined" || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-            mensagemIdentificar.mostrar("Leitura por câmera não está disponível neste navegador. Use a busca manual.", "erro");
+            return "sem-suporte";
+        }
+
+        return null;
+    }
+
+    async function iniciarScanner(botao, callback, tituloModal, notaModal, exibidorMensagem, mensagemInseguro, mensagemIndisponivel, mensagemSemPermissao) {
+        exibidorMensagem.esconder();
+
+        const motivo = diagnosticarIndisponibilidadeCamera();
+
+        if (motivo === "inseguro") {
+            exibidorMensagem.mostrar(mensagemInseguro, "erro");
             return;
         }
 
-        abrirScannerBtn.disabled = true;
+        if (motivo === "sem-suporte") {
+            exibidorMensagem.mostrar(mensagemIndisponivel, "erro");
+            return;
+        }
+
+        aoLerCodigo = callback;
+        scannerTituloEl.textContent = tituloModal;
+        scannerNotaEl.textContent = notaModal;
+
+        botao.disabled = true;
 
         try {
             streamAtual = await navigator.mediaDevices.getUserMedia({
                 video: { facingMode: "environment" }
             });
         } catch (erro) {
-            abrirScannerBtn.disabled = false;
-            mensagemIdentificar.mostrar("Não foi possível acessar a câmera. Verifique a permissão do navegador ou use a busca manual.", "erro");
+            botao.disabled = false;
+            exibidorMensagem.mostrar(mensagemSemPermissao, "erro");
             return;
         }
 
-        controladorScanner.abrir(abrirScannerBtn);
+        scannerBotaoAtivo = botao;
+        controladorScanner.abrir(botao);
         scannerFecharBtn.focus();
 
         scannerVideoEl.srcObject = streamAtual;
@@ -480,18 +530,47 @@
             await scannerVideoEl.play();
         } catch (erroPlay) {
             // Autoplay bloqueado por alguma política do navegador — a busca
-            // manual continua disponível.
+            // manual/digitação continua disponível.
         }
 
         quadroAnimacao = requestAnimationFrame(processarQuadro);
     }
 
-    abrirScannerBtn.addEventListener("click", iniciarScanner);
+    abrirScannerBtn.addEventListener("click", function () {
+        iniciarScanner(
+            abrirScannerBtn,
+            identificarCliente,
+            "Ler QR do Cliente",
+            "Aponte a câmera para o QR Code do cliente.",
+            mensagemIdentificar,
+            "A leitura por câmera exige uma conexão segura (HTTPS). Acessando por HTTP nesta rede local, use a busca manual pelo nome do cliente.",
+            "Leitura por câmera não está disponível neste navegador. Use a busca manual.",
+            "Não foi possível acessar a câmera. Verifique a permissão do navegador ou use a busca manual."
+        );
+    });
+
+    abrirScannerResgateBtn.addEventListener("click", function () {
+        iniciarScanner(
+            abrirScannerResgateBtn,
+            function (codigoLido) {
+                codigoInput.value = codigoLido;
+                executarValidacaoResgate(codigoLido);
+            },
+            "Ler QR do Resgate",
+            "Aponte a câmera para o QR Code do resgate.",
+            mensagemValidar,
+            "A leitura por câmera exige uma conexão segura (HTTPS). Acessando por HTTP nesta rede local, digite o código do resgate manualmente.",
+            "Leitura por câmera não está disponível neste navegador. Digite o código manualmente.",
+            "Não foi possível acessar a câmera. Verifique a permissão do navegador ou digite o código manualmente."
+        );
+    });
 
     // ==========================================================================
     // Validar resgate (POST /resgates/validar) — mesmo endpoint e mesma
-    // regra de admin-validar.js, só o formulário manual (sem scanner de
-    // resgate nesta tela, pra manter a página simples).
+    // regra de admin-validar.js. O código chega aqui digitado manualmente
+    // ou lido pelo scanner de QR do resgate (ver abrirScannerResgateBtn
+    // acima) — as duas vias só preenchem #codigo-input e chamam
+    // executarValidacaoResgate() abaixo.
     // ==========================================================================
 
     const formValidar = document.getElementById("form-validar");
@@ -512,13 +591,14 @@
         resgateDetalhesEl.hidden = false;
     }
 
-    formValidar.addEventListener("submit", async function (evento) {
-        evento.preventDefault();
-
+    // Única função que fala com POST /resgates/validar nesta página — usada
+    // tanto pelo envio manual do formulário quanto pelo scanner de QR do
+    // resgate (ver iniciarScanner acima), pra não duplicar a regra de
+    // validação em dois lugares. Um código lido por câmera passa exatamente
+    // pelo mesmo caminho de um código digitado.
+    async function executarValidacaoResgate(codigo) {
         mensagemValidar.esconder();
         resgateDetalhesEl.hidden = true;
-
-        const codigo = codigoInput.value.trim();
 
         if (!codigo) {
             mensagemValidar.mostrar("Informe o código do resgate.", "erro");
@@ -550,5 +630,10 @@
             validarBtn.classList.remove("is-loading");
             validarLabel.textContent = "Validar resgate";
         }
+    }
+
+    formValidar.addEventListener("submit", function (evento) {
+        evento.preventDefault();
+        executarValidacaoResgate(codigoInput.value.trim());
     });
 })();

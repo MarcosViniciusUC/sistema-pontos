@@ -1,3 +1,9 @@
+/* ==========================================================================
+   Movement Design System — base
+   Reset, tipografia global, corpo, links, scrollbar e comportamento
+   responsivo padrão. Nada aqui depende de uma tela específica.
+   ========================================================================== */
+
 *,
 *::before,
 *::after {
@@ -8,43 +14,114 @@
 
 html {
     -webkit-text-size-adjust: 100%;
+    color-scheme: dark;
+    /* Evita rolagem horizontal acidental em qualquer tela. */
+    overflow-x: hidden;
 }
 
 body {
-    background: var(--black);
-    color: var(--white);
+    background: var(--color-bg);
+    color: var(--color-text-primary);
     font-family: var(--font-body);
-    font-size: 16px;
+    font-size: var(--text-md);
     line-height: 1.5;
     min-height: 100vh;
+    min-height: 100dvh;
     -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    -webkit-tap-highlight-color: transparent;
+    overflow-x: hidden;
 }
 
 h1, h2, h3 {
     font-family: var(--font-display);
-    font-weight: 700;
+    font-weight: 800;
     line-height: 1.1;
+    letter-spacing: 0.01em;
+    text-wrap: balance;
+}
+
+p {
+    text-wrap: pretty;
 }
 
 button {
     font-family: inherit;
 }
 
-input {
+input,
+select,
+textarea {
     font-family: inherit;
     color: inherit;
 }
 
-a {
-    color: var(--red-bright);
+/* Números que precisam alinhar em coluna ou não "dançar" ao atualizar
+   (saldo, pontos, códigos) usam a fonte mono do sistema. */
+.num,
+.mono {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
 }
 
-/* Foco de teclado visível em qualquer elemento interativo */
+a {
+    color: var(--color-red-bright);
+    text-decoration-color: rgba(255, 59, 59, 0.4);
+    transition: color var(--duration-fast) var(--ease-standard);
+}
+
+a:hover {
+    color: var(--color-text-primary);
+}
+
+/* ==========================================================================
+   Foco de teclado — visível em qualquer elemento interativo, com um leve
+   glow de marca além do contorno (mais perceptível em fundos escuros).
+   ========================================================================== */
+
 a:focus-visible,
 button:focus-visible,
-input:focus-visible {
-    outline: 2px solid var(--red);
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+[tabindex]:focus-visible {
+    outline: 2px solid var(--color-red);
     outline-offset: 2px;
+    border-radius: var(--radius-1);
+}
+
+/* ==========================================================================
+   Scrollbar — o padrão do navegador quebra a estética escura do produto.
+   Firefox via `scrollbar-color`; WebKit/Blink via pseudo-elementos.
+   ========================================================================== */
+
+html {
+    scrollbar-color: var(--color-border-strong) transparent;
+    scrollbar-width: thin;
+}
+
+::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    background-color: var(--color-border-strong);
+    border-radius: var(--radius-full);
+    border: 2px solid var(--color-bg);
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background-color: var(--color-border-hover);
+}
+
+::selection {
+    background: var(--color-red);
+    color: var(--color-text-on-accent);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -53,5 +130,6 @@ input:focus-visible {
     *::after {
         animation-duration: 0.001ms !important;
         transition-duration: 0.001ms !important;
+        scroll-behavior: auto !important;
     }
 }

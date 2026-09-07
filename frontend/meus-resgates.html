@@ -7,7 +7,7 @@
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@600;700;800;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@600;700;800;900&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
 
     <link rel="stylesheet" href="assets/css/tokens.css">
     <link rel="stylesheet" href="assets/css/base.css">
@@ -29,18 +29,47 @@
         </header>
 
         <nav class="bottom-nav" id="main-nav" aria-label="Navegação principal">
-            <a href="dashboard.html" class="bottom-nav__item">Início</a>
-            <a href="historico.html" class="bottom-nav__item">Histórico</a>
-            <a href="recompensas.html" class="bottom-nav__item">Recompensas</a>
-            <a href="meus-resgates.html" class="bottom-nav__item is-active" aria-current="page">Meus Resgates</a>
-            <span class="bottom-nav__item is-disabled" aria-disabled="true" title="Em breve">Perfil</span>
+            <a href="dashboard.html" class="bottom-nav__item">
+                <svg class="bottom-nav__icon" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 11 12 4l8 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M6 10v9a1 1 0 0 0 1 1h4v-6h2v6h4a1 1 0 0 0 1-1v-9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                <span class="bottom-nav__label">Início</span>
+            </a>
+            <a href="historico.html" class="bottom-nav__item">
+                <svg class="bottom-nav__icon" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2"/><path d="M12 7v5l3 3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+                <span class="bottom-nav__label">Histórico</span>
+            </a>
+            <a href="recompensas.html" class="bottom-nav__item">
+                <svg class="bottom-nav__icon" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="3" y="9" width="18" height="4" rx="1" stroke="currentColor" stroke-width="2"/><rect x="5" y="13" width="14" height="8" rx="1" stroke="currentColor" stroke-width="2"/><path d="M12 9v12M12 9c-1.8-3.2-6.8-2.4-6.8 0S10.2 12.2 12 9zm0 0c1.8-3.2 6.8-2.4 6.8 0S13.8 12.2 12 9z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
+                <span class="bottom-nav__label">Recompensas</span>
+            </a>
+            <a href="meus-resgates.html" class="bottom-nav__item is-active" aria-current="page">
+                <svg class="bottom-nav__icon" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 8a2 2 0 0 1 0 4 2 2 0 0 1 0 4h16a2 2 0 0 1 0-4 2 2 0 0 1 0-4H4z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><line x1="14" y1="8" x2="14" y2="16" stroke="currentColor" stroke-width="2" stroke-dasharray="2 2"/></svg>
+                <span class="bottom-nav__label">Meus Resgates</span>
+            </a>
+            <span class="bottom-nav__item is-disabled" aria-disabled="true" title="Em breve">
+                <svg class="bottom-nav__icon" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="8" r="4" stroke="currentColor" stroke-width="2"/><path d="M4 20c0-4.4 3.6-8 8-8s8 3.6 8 8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+                <span class="bottom-nav__label">Perfil</span>
+            </span>
         </nav>
 
         <main class="dash-main">
+            <section class="rewards-intro">
+                <div class="rewards-intro__text">
+                    <h1 id="resgates-title" class="rewards-intro__title" tabindex="-1">Meus Resgates</h1>
+                    <p class="rewards-intro__subtitle">Acompanhe o status de tudo que você já resgatou e tenha o código sempre à mão.</p>
+                </div>
+
+                <div class="balance-hero">
+                    <span class="balance-hero__label">Seu saldo</span>
+                    <span id="balance-chip-value" class="balance-hero__value">--</span>
+                    <span class="balance-hero__hint">pontos disponíveis para resgate</span>
+                </div>
+            </section>
+
             <section class="dash-section">
-                <h1 id="resgates-title" class="dash-section__title" tabindex="-1">Meus Resgates</h1>
                 <ul id="resgates-list" class="resgates-list" aria-live="polite">
-                    <li class="dash-section__placeholder">Carregando...</li>
+                    <li class="resgate-item-skeleton skeleton" aria-hidden="true"></li>
+                    <li class="resgate-item-skeleton skeleton" aria-hidden="true"></li>
+                    <li class="resgate-item-skeleton skeleton" aria-hidden="true"></li>
                 </ul>
             </section>
         </main>
