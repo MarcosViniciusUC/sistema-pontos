@@ -84,6 +84,41 @@ async function cadastrar(req, res) {
 }
 
 /**
+ * Perfil do próprio usuário autenticado (qualquer papel) — sempre filtrado
+ * por req.usuario.id, vindo do token, nunca por um id recebido do cliente.
+ * Existe porque, antes disso, não havia nenhuma forma do próprio usuário
+ * obter nome/email/telefone/qr_token depois do login (o JWT só carrega id
+ * e tipo) — necessário para a tela de Perfil do cliente exibir o cabeçalho
+ * e o próprio QR Code sem depender de GET /usuarios (admin-only, lista
+ * todo mundo). Nunca inclui a coluna senha.
+ */
+async function meuPerfil(req, res) {
+    try {
+        const resultado = await pool.query(
+            `SELECT id, nome, email, telefone, qr_token
+             FROM usuarios
+             WHERE id = $1`,
+            [req.usuario.id]
+        );
+
+        if (resultado.rows.length === 0) {
+            return res.status(404).json({
+                mensagem: "Usuário não encontrado"
+            });
+        }
+
+        res.json(resultado.rows[0]);
+
+    } catch (erro) {
+        console.log(erro);
+
+        res.status(500).json({
+            mensagem: "Erro ao consultar perfil"
+        });
+    }
+}
+
+/**
  * Só é chamada com roleMiddleware("admin") (ver routes) — por isso pode
  * incluir qr_token na resposta: é o identificador que o admin usa para
  * gerar o QR Code de cada cliente na tela de clientes. Não é um dado
@@ -305,6 +340,7 @@ async function buscarCliente(req, res) {
 
 module.exports = {
     cadastrar,
+    meuPerfil,
     listar,
     atualizar,
     buscarPorQrToken,

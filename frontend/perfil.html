@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Movement | Histórico</title>
+    <title>Movement | Perfil</title>
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -33,7 +33,7 @@
                 <svg class="bottom-nav__icon" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 11 12 4l8 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M6 10v9a1 1 0 0 0 1 1h4v-6h2v6h4a1 1 0 0 0 1-1v-9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
                 <span class="bottom-nav__label">Início</span>
             </a>
-            <a href="historico.html" class="bottom-nav__item is-active" aria-current="page">
+            <a href="historico.html" class="bottom-nav__item">
                 <svg class="bottom-nav__icon" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2"/><path d="M12 7v5l3 3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
                 <span class="bottom-nav__label">Histórico</span>
             </a>
@@ -45,7 +45,7 @@
                 <svg class="bottom-nav__icon" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 8a2 2 0 0 1 0 4 2 2 0 0 1 0 4h16a2 2 0 0 1 0-4 2 2 0 0 1 0-4H4z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><line x1="14" y1="8" x2="14" y2="16" stroke="currentColor" stroke-width="2" stroke-dasharray="2 2"/></svg>
                 <span class="bottom-nav__label">Meus Resgates</span>
             </a>
-            <a href="perfil.html" class="bottom-nav__item">
+            <a href="perfil.html" class="bottom-nav__item is-active" aria-current="page">
                 <svg class="bottom-nav__icon" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="8" r="4" stroke="currentColor" stroke-width="2"/><path d="M4 20c0-4.4 3.6-8 8-8s8 3.6 8 8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
                 <span class="bottom-nav__label">Perfil</span>
             </a>
@@ -54,31 +54,75 @@
         <main class="dash-main">
             <section class="rewards-intro">
                 <div class="rewards-intro__text">
-                    <h1 class="rewards-intro__title">Histórico</h1>
-                    <p class="rewards-intro__subtitle">Acompanhe cada entrada e saída de pontos da sua conta.</p>
-                </div>
-
-                <div class="balance-hero">
-                    <span class="balance-hero__label">Seu saldo</span>
-                    <span id="balance-chip-value" class="balance-hero__value">--</span>
-                    <span class="balance-hero__hint">pontos disponíveis para resgate</span>
+                    <h1 class="rewards-intro__title">Perfil</h1>
+                    <p class="rewards-intro__subtitle">Seus dados, seu QR Code e o resumo da sua conta.</p>
                 </div>
             </section>
 
             <section class="dash-section">
-                <ul id="history-list" class="history-list" aria-live="polite">
-                    <li class="history-item-skeleton skeleton" aria-hidden="true"></li>
-                    <li class="history-item-skeleton skeleton" aria-hidden="true"></li>
-                    <li class="history-item-skeleton skeleton" aria-hidden="true"></li>
-                    <li class="history-item-skeleton skeleton" aria-hidden="true"></li>
+                <div class="profile-header" id="profile-header">
+                    <p class="profile-header__nome" id="perfil-nome">Carregando…</p>
+                    <p class="profile-header__contato" id="perfil-email"></p>
+                    <p class="profile-header__contato" id="perfil-telefone" hidden></p>
+                </div>
+            </section>
+
+            <!-- QR pessoal: mesmo qr_token e a mesma lógica qrcodejs já usadas
+                 no fluxo de identificação (admin-clientes.js "Ver QR Code",
+                 recompensas.js / meus-resgates.js para o código de resgate) —
+                 só o tamanho é maior aqui (.qrcode-container--lg), pensado
+                 para ser escaneado pelo funcionário/admin no balcão. -->
+            <section class="dash-section">
+                <div class="profile-card profile-card--center">
+                    <h2 class="dash-section__title">Meu QR Code</h2>
+                    <div id="perfil-qrcode" class="qrcode-container qrcode-container--lg" aria-hidden="true"></div>
+                    <p class="profile-card__codigo" id="perfil-codigo">--</p>
+                    <button type="button" id="copiar-codigo-btn" class="btn btn--ghost">Copiar código</button>
+                </div>
+            </section>
+
+            <section class="dash-section">
+                <div class="profile-card">
+                    <h2 class="dash-section__title">Resumo da conta</h2>
+                    <div class="profile-stats">
+                        <div class="profile-stats__item">
+                            <span class="profile-stats__label">Saldo atual</span>
+                            <span class="profile-stats__value" id="resumo-saldo">--</span>
+                        </div>
+                        <div class="profile-stats__item">
+                            <span class="profile-stats__label">Pontos recebidos</span>
+                            <span class="profile-stats__value" id="resumo-recebidos">--</span>
+                        </div>
+                        <div class="profile-stats__item">
+                            <span class="profile-stats__label">Pontos utilizados</span>
+                            <span class="profile-stats__value profile-stats__value--saida" id="resumo-utilizados">--</span>
+                        </div>
+                        <div class="profile-stats__item">
+                            <span class="profile-stats__label">Resgates realizados</span>
+                            <span class="profile-stats__value" id="resumo-resgates">--</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="dash-section">
+                <div class="dash-section__header">
+                    <h2 class="dash-section__title">Atividade recente</h2>
+                    <a href="historico.html" class="dash-section__link">Ver tudo</a>
+                </div>
+                <ul id="atividade-list" class="activity-list" aria-live="polite">
+                    <li class="activity-item-skeleton skeleton" aria-hidden="true"></li>
+                    <li class="activity-item-skeleton skeleton" aria-hidden="true"></li>
+                    <li class="activity-item-skeleton skeleton" aria-hidden="true"></li>
                 </ul>
             </section>
         </main>
     </div>
 
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script src="assets/js/api.js"></script>
     <script src="assets/js/auth.js"></script>
     <script src="assets/js/ui.js"></script>
-    <script src="assets/js/historico.js"></script>
+    <script src="assets/js/perfil.js"></script>
 </body>
 </html>

@@ -9,6 +9,18 @@ const router = express.Router();
 
 router.post("/usuarios", validateUser, userController.cadastrar);
 
+// Dados do próprio usuário autenticado (qualquer papel) — nome, email,
+// telefone e qr_token para a tela de Perfil do cliente exibir o cabeçalho
+// e o próprio QR Code. Sempre filtrado por req.usuario.id (do token), nunca
+// por um id vindo do cliente — mesmo padrão de segurança já usado em
+// GET /pontos/saldo, GET /pontos/historico e GET /resgates/meus. Nunca
+// inclui a coluna senha.
+router.get(
+    "/usuarios/me",
+    authMiddleware,
+    userController.meuPerfil
+);
+
 router.get(
     "/usuarios",
     authMiddleware,
