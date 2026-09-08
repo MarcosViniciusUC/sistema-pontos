@@ -1,5 +1,7 @@
+const { validarImagem } = require("../utils/validarImagem");
+
 function validateRewardCreate(req, res, next) {
-    const { nome, descricao, pontos_necessarios, empresa_id } = req.body;
+    const { nome, descricao, pontos_necessarios, empresa_id, imagem } = req.body;
 
     if (!nome || typeof nome !== "string" || nome.trim().length === 0) {
         return res.status(400).json({
@@ -30,6 +32,18 @@ function validateRewardCreate(req, res, next) {
         return res.status(400).json({
             mensagem: "Campo 'empresa_id' é obrigatório e deve ser um número inteiro válido"
         });
+    }
+
+    // Imagem é sempre opcional — recompensa sem foto continua usando o
+    // gradiente/monograma de sempre no frontend.
+    if (imagem !== undefined && imagem !== null) {
+        const erroImagem = validarImagem(imagem);
+
+        if (erroImagem) {
+            return res.status(400).json({
+                mensagem: erroImagem
+            });
+        }
     }
 
     next();

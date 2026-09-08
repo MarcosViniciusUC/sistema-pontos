@@ -129,6 +129,16 @@
     gap: var(--space-2);
 }
 
+/* .field nunca tinha sido escondido via JS em nenhuma tela até agora (ver
+   admin-recompensas.js: campo de foto escondido enquanto o editor de
+   recorte está aberto) — sem isto, [hidden] perderia pro display:flex
+   acima (mesma especificidade, e a regra do autor vem depois da regra
+   padrão do navegador). Mesmo padrão já usado em outras classes do
+   projeto (.reward-image-preview, #adicionar-pontos-card etc.). */
+.field[hidden] {
+    display: none;
+}
+
 .field label {
     font-size: var(--text-sm);
     font-weight: 600;
@@ -620,6 +630,12 @@
     display: flex;
     gap: var(--space-3);
     margin-top: var(--space-2);
+}
+
+/* Mesmo motivo de .field[hidden] acima: primeira vez que .modal__actions é
+   escondido via JS (ver admin-recompensas.js, editor de recorte de foto). */
+.modal__actions[hidden] {
+    display: none;
 }
 
 .modal__actions .btn {

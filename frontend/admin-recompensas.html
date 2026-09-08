@@ -109,9 +109,58 @@
                     </select>
                 </div>
 
+                <!-- Imagem é sempre opcional — sem foto, o card do cliente
+                     continua mostrando o gradiente + monograma de sempre
+                     (ver recompensas.js/dashboard.js). Selecionar um arquivo
+                     abre o editor de recorte abaixo (arrastar + zoom); só o
+                     recorte final vira base64 (ver
+                     admin-recompensas.js:gerarRecorteFinal) — nunca enviamos
+                     o arquivo original nem uma foto sem passar pelo recorte. -->
+                <div class="field" id="recompensa-imagem-campo">
+                    <label for="recompensa-imagem">Foto (opcional)</label>
+                    <input type="file" id="recompensa-imagem" name="imagem" accept="image/png,image/jpeg,image/webp">
+                    <p id="recompensa-imagem-erro" class="field-hint" hidden></p>
+                </div>
+
+                <div id="recompensa-imagem-preview-wrap" class="reward-image-preview" hidden>
+                    <img id="recompensa-imagem-preview" alt="Pré-visualização da foto da recompensa">
+                    <div class="reward-image-preview__acoes">
+                        <button type="button" id="recompensa-imagem-ajustar" class="btn btn--text">Ajustar foto</button>
+                        <button type="button" id="recompensa-imagem-remover" class="btn btn--text">Remover foto</button>
+                    </div>
+                </div>
+
+                <!-- Editor de recorte — só aparece ao escolher uma foto nova
+                     ou clicar em "Ajustar foto". Enquanto aberto, esconde o
+                     restante do formulário (nome/pontos/etc. e os botões
+                     Cancelar/Salvar do modal) pra deixar claro que o admin
+                     precisa concluir o ajuste (Usar esta foto / Cancelar)
+                     antes de continuar preenchendo o resto. -->
+                <div id="recompensa-imagem-editor-wrap" class="reward-image-editor" hidden>
+                    <p class="field-hint">Arraste para posicionar e use o controle de zoom. Só a área dentro da moldura será salva.</p>
+
+                    <div id="recompensa-imagem-editor-viewport" class="reward-image-editor__viewport">
+                        <img id="recompensa-imagem-editor-img" class="reward-image-editor__img" alt="">
+                    </div>
+
+                    <div class="reward-image-editor__zoom">
+                        <span aria-hidden="true">−</span>
+                        <input type="range" id="recompensa-imagem-editor-zoom" min="0" max="100" value="0" aria-label="Zoom da foto">
+                        <span aria-hidden="true">+</span>
+                    </div>
+
+                    <div class="reward-image-editor__acoes">
+                        <button type="button" id="recompensa-imagem-editor-resetar" class="btn btn--text">Centralizar</button>
+                        <div class="reward-image-editor__acoes-principais">
+                            <button type="button" id="recompensa-imagem-editor-cancelar" class="btn btn--ghost">Cancelar</button>
+                            <button type="button" id="recompensa-imagem-editor-aplicar" class="btn btn--primary">Usar esta foto</button>
+                        </div>
+                    </div>
+                </div>
+
                 <p id="modal-recompensa-error" class="modal__error" hidden></p>
 
-                <div class="modal__actions">
+                <div class="modal__actions" id="modal-recompensa-acoes">
                     <button type="button" id="modal-recompensa-cancelar" class="btn btn--ghost">Cancelar</button>
                     <button type="submit" id="modal-recompensa-confirmar" class="btn btn--primary">
                         <span class="btn__spinner" aria-hidden="true"></span>

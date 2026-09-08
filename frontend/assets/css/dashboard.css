@@ -805,6 +805,17 @@
     letter-spacing: 0.02em;
 }
 
+/* Foto real da recompensa (opcional) — preenche a mesma caixa 4:3 de
+   .reward-card__media (aspect-ratio + overflow:hidden ali já garantem a
+   moldura padronizada). object-fit:cover corta em vez de esticar, então
+   nenhuma foto fica distorcida independente da proporção original. */
+.reward-card__image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
 .reward-card__media[data-variant="0"] { background: linear-gradient(135deg, #262a2e, #0c0e10); }
 .reward-card__media[data-variant="1"] { background: linear-gradient(135deg, #2a2320, #100c0a); }
 .reward-card__media[data-variant="2"] { background: linear-gradient(135deg, #1f2426, #0a0d0e); }

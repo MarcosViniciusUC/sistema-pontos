@@ -389,16 +389,28 @@
         const card = document.createElement("article");
         card.className = "reward-card reward-card--v2" + (disponivel ? "" : " reward-card--indisponivel");
 
-        // Imagem (placeholder) — ver comentário acima.
+        // Imagem real quando a recompensa tem uma (ver reward.controller.js);
+        // sem imagem, cai no mesmo placeholder de sempre (gradiente +
+        // monograma) — nenhuma mudança de comportamento pras recompensas
+        // que nunca ganharam foto.
         const media = document.createElement("div");
         media.className = "reward-card__media";
         media.setAttribute("aria-hidden", "true");
-        media.dataset.variant = String(obterVarianteMedia(recompensa.empresa_nome || recompensa.nome || ""));
 
-        const monograma = document.createElement("span");
-        monograma.className = "reward-card__monogram";
-        monograma.textContent = obterMonogramaRecompensa(recompensa);
-        media.appendChild(monograma);
+        if (recompensa.imagem) {
+            const foto = document.createElement("img");
+            foto.className = "reward-card__image";
+            foto.src = recompensa.imagem;
+            foto.alt = "";
+            media.appendChild(foto);
+        } else {
+            media.dataset.variant = String(obterVarianteMedia(recompensa.empresa_nome || recompensa.nome || ""));
+
+            const monograma = document.createElement("span");
+            monograma.className = "reward-card__monogram";
+            monograma.textContent = obterMonogramaRecompensa(recompensa);
+            media.appendChild(monograma);
+        }
         card.appendChild(media);
 
         const body = document.createElement("div");

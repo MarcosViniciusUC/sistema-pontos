@@ -7,7 +7,7 @@ const { empresaAtivaExiste } = require("../utils/empresas");
  * pra devolver um 400 claro em vez de deixar a FK estourar como erro 500.
  */
 async function criar(req, res) {
-    const { nome, descricao, pontos_necessarios, empresa_id } = req.body;
+    const { nome, descricao, pontos_necessarios, empresa_id, imagem } = req.body;
 
     try {
         if (!(await empresaAtivaExiste(pool, empresa_id))) {
@@ -17,10 +17,10 @@ async function criar(req, res) {
         }
 
         const resultado = await pool.query(
-            `INSERT INTO recompensas (nome, descricao, pontos_necessarios, empresa_id)
-             VALUES ($1, $2, $3, $4)
-             RETURNING id, nome, descricao, pontos_necessarios, ativo, empresa_id, criado_em`,
-            [nome, descricao ?? null, pontos_necessarios, empresa_id]
+            `INSERT INTO recompensas (nome, descricao, pontos_necessarios, empresa_id, imagem)
+             VALUES ($1, $2, $3, $4, $5)
+             RETURNING id, nome, descricao, pontos_necessarios, ativo, empresa_id, imagem, criado_em`,
+            [nome, descricao ?? null, pontos_necessarios, empresa_id, imagem ?? null]
         );
 
         res.status(201).json(resultado.rows[0]);
@@ -44,7 +44,7 @@ async function listar(req, res) {
     try {
         const resultado = await pool.query(
             `SELECT r.id, r.nome, r.descricao, r.pontos_necessarios, r.ativo, r.criado_em,
-                    r.empresa_id, e.nome AS empresa_nome
+                    r.empresa_id, e.nome AS empresa_nome, r.imagem
              FROM recompensas r
              LEFT JOIN empresas e ON e.id = r.empresa_id
              WHERE r.ativo = true
@@ -78,7 +78,7 @@ async function listarAdmin(req, res) {
     try {
         const resultado = await pool.query(
             `SELECT r.id, r.nome, r.descricao, r.pontos_necessarios, r.ativo, r.criado_em,
-                    r.empresa_id, e.nome AS empresa_nome, e.ativo AS empresa_ativa
+                    r.empresa_id, e.nome AS empresa_nome, e.ativo AS empresa_ativa, r.imagem
              FROM recompensas r
              LEFT JOIN empresas e ON e.id = r.empresa_id
              ORDER BY r.ativo DESC, r.pontos_necessarios ASC`
@@ -120,16 +120,26 @@ async function atualizar(req, res) {
         });
     }
 
+    // imagem segue uma regra diferente dos outros campos: aqui "campo
+    // ausente" (imagemFornecida = false) e "campo enviado como null" (trocar
+    // por vazio, ou seja, remover a foto) precisam de resultados diferentes.
+    // Os outros campos usam COALESCE porque nunca há um jeito válido de
+    // "esvaziar" nome/pontos/empresa por este endpoint — imagem é o único
+    // que precisa disso (botão "Remover foto" no admin).
+    const imagemFornecida = Object.prototype.hasOwnProperty.call(req.body, "imagem");
+    const novaImagem = imagemFornecida ? (req.body.imagem || null) : null;
+
     try {
         const resultado = await pool.query(
             `UPDATE recompensas
              SET nome = COALESCE($1, nome),
                  descricao = COALESCE($2, descricao),
                  pontos_necessarios = COALESCE($3, pontos_necessarios),
-                 empresa_id = COALESCE($4, empresa_id)
+                 empresa_id = COALESCE($4, empresa_id),
+                 imagem = CASE WHEN $6 THEN $7 ELSE imagem END
              WHERE id = $5
-             RETURNING id, nome, descricao, pontos_necessarios, ativo, empresa_id, criado_em`,
-            [nome ?? null, descricao ?? null, pontos_necessarios ?? null, empresa_id ?? null, id]
+             RETURNING id, nome, descricao, pontos_necessarios, ativo, empresa_id, imagem, criado_em`,
+            [nome ?? null, descricao ?? null, pontos_necessarios ?? null, empresa_id ?? null, id, imagemFornecida, novaImagem]
         );
 
         if (resultado.rows.length === 0) {

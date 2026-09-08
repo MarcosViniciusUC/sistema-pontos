@@ -33,9 +33,31 @@
     const modalRecompensaConfirmarBtn = document.getElementById("modal-recompensa-confirmar");
     const modalRecompensaConfirmarLabel = modalRecompensaConfirmarBtn.querySelector(".btn__label");
 
+    const imagemCampoEl = document.getElementById("recompensa-imagem-campo");
+    const imagemInput = document.getElementById("recompensa-imagem");
+    const imagemErroEl = document.getElementById("recompensa-imagem-erro");
+    const imagemPreviewWrapEl = document.getElementById("recompensa-imagem-preview-wrap");
+    const imagemPreviewImgEl = document.getElementById("recompensa-imagem-preview");
+    const imagemAjustarBtn = document.getElementById("recompensa-imagem-ajustar");
+    const imagemRemoverBtn = document.getElementById("recompensa-imagem-remover");
+    const modalRecompensaAcoesEl = document.getElementById("modal-recompensa-acoes");
+
+    const imagemEditorWrapEl = document.getElementById("recompensa-imagem-editor-wrap");
+    const imagemEditorViewportEl = document.getElementById("recompensa-imagem-editor-viewport");
+    const imagemEditorImgEl = document.getElementById("recompensa-imagem-editor-img");
+    const imagemEditorZoomEl = document.getElementById("recompensa-imagem-editor-zoom");
+    const imagemEditorResetarBtn = document.getElementById("recompensa-imagem-editor-resetar");
+    const imagemEditorCancelarBtn = document.getElementById("recompensa-imagem-editor-cancelar");
+    const imagemEditorAplicarBtn = document.getElementById("recompensa-imagem-editor-aplicar");
+
+    // Enquanto o editor de recorte está aberto, Escape/clique-fora não devem
+    // fechar a modal inteira por baixo dele — mesma trava já usada pra não
+    // fechar durante "Salvando..." (podeFechar).
+    let editorAberto = false;
+
     const controladorRecompensa = window.UI.criarControladorModal(
         document.getElementById("modal-recompensa-overlay"),
-        { podeFechar: function () { return !modalRecompensaConfirmarBtn.disabled; } }
+        { podeFechar: function () { return !modalRecompensaConfirmarBtn.disabled && !editorAberto; } }
     );
     document.getElementById("modal-recompensa-cancelar").addEventListener("click", controladorRecompensa.fechar);
 
@@ -67,6 +89,328 @@
     let recompensaEmEdicao = null;
     let recompensaParaDesativar = null;
     let recompensaParaReativar = null;
+
+    // ==========================================================================
+    // Imagem da recompensa — sempre opcional. `imagemPendente` guarda o que
+    // fazer com a foto ao salvar:
+    //   undefined = não mexer (mantém a foto atual ao editar / sem foto ao criar)
+    //   null      = remover a foto atual
+    //   string    = nova imagem (data URL), já recortada/comprimida
+    // Nunca enviamos o arquivo original nem uma foto sem passar pelo editor
+    // de recorte abaixo — só o recorte final (gerado num <canvas>) vira
+    // base64, pra manter o payload pequeno (limite de body de /recompensas
+    // é 6MB, ver server.js) e o card do cliente sempre com o mesmo
+    // enquadramento 4:3, não importa a proporção da foto original.
+    // ==========================================================================
+
+    const RECORTE_LARGURA = 1000;
+    const RECORTE_ALTURA = 750; // 4:3, mesma proporção de .reward-card__media
+    const IMAGEM_QUALIDADE_JPEG = 0.82;
+    const IMAGEM_ARQUIVO_MAXIMO = 15 * 1024 * 1024; // 15MB de arquivo original, antes do recorte
+    const ZOOM_MAXIMO = 3; // 300% do "cover" mínimo (a foto sempre preenche a moldura)
+
+    let imagemPendente;
+    let imagemAntesDoEditor;
+
+    function mostrarErroImagem(texto) {
+        imagemErroEl.textContent = texto;
+        imagemErroEl.hidden = false;
+    }
+
+    function esconderErroImagem() {
+        imagemErroEl.hidden = true;
+        imagemErroEl.textContent = "";
+    }
+
+    function exibirPreview(src) {
+        imagemPreviewImgEl.src = src;
+        imagemPreviewWrapEl.hidden = false;
+    }
+
+    function esconderPreview() {
+        imagemPreviewImgEl.src = "";
+        imagemPreviewWrapEl.hidden = true;
+    }
+
+    function lerArquivoComoDataUrl(arquivo) {
+        return new Promise(function (resolve, reject) {
+            const leitor = new FileReader();
+
+            leitor.onerror = function () {
+                reject(new Error("Não foi possível ler o arquivo."));
+            };
+
+            leitor.onload = function () {
+                resolve(leitor.result);
+            };
+
+            leitor.readAsDataURL(arquivo);
+        });
+    }
+
+    // --------------------------------------------------------------------------
+    // Editor de recorte: arrastar (pointer events, funciona com mouse e toque)
+    // + zoom (range). O <img> do editor é posicionado com left/top/width/height
+    // (px absolutos), não CSS transform — assim o recorte final só precisa
+    // reler esses mesmos quatro números e escalar pro tamanho de saída, sem
+    // duplicar a matemática de posicionamento em outro lugar.
+    // --------------------------------------------------------------------------
+
+    const editor = {
+        naturalWidth: 0,
+        naturalHeight: 0,
+        baseScale: 1, // escala mínima que faz a foto cobrir a moldura inteira
+        zoom: 1, // multiplicador aplicado sobre baseScale (1 a ZOOM_MAXIMO)
+        dx: 0,
+        dy: 0
+    };
+
+    let arrastoAtual = null;
+
+    function obterTamanhoViewport() {
+        const rect = imagemEditorViewportEl.getBoundingClientRect();
+        return { largura: rect.width, altura: rect.height };
+    }
+
+    function calcularBaseScale() {
+        const { largura, altura } = obterTamanhoViewport();
+        return Math.max(largura / editor.naturalWidth, altura / editor.naturalHeight);
+    }
+
+    // Garante que a foto sempre cobre a moldura inteira (nunca sobra espaço
+    // vazio) — o quanto dá pra arrastar depende de quanto a foto, no zoom
+    // atual, é maior que a moldura.
+    function clampPosicao() {
+        const { largura, altura } = obterTamanhoViewport();
+        const escala = editor.baseScale * editor.zoom;
+        const dispW = editor.naturalWidth * escala;
+        const dispH = editor.naturalHeight * escala;
+
+        const maxDx = Math.max(0, (dispW - largura) / 2);
+        const maxDy = Math.max(0, (dispH - altura) / 2);
+
+        editor.dx = Math.min(maxDx, Math.max(-maxDx, editor.dx));
+        editor.dy = Math.min(maxDy, Math.max(-maxDy, editor.dy));
+    }
+
+    function aplicarTransformacao() {
+        const { largura, altura } = obterTamanhoViewport();
+        const escala = editor.baseScale * editor.zoom;
+        const dispW = editor.naturalWidth * escala;
+        const dispH = editor.naturalHeight * escala;
+
+        imagemEditorImgEl.style.width = dispW + "px";
+        imagemEditorImgEl.style.height = dispH + "px";
+        imagemEditorImgEl.style.left = ((largura - dispW) / 2 + editor.dx) + "px";
+        imagemEditorImgEl.style.top = ((altura - dispH) / 2 + editor.dy) + "px";
+    }
+
+    function redefinirEditor() {
+        editor.zoom = 1;
+        editor.dx = 0;
+        editor.dy = 0;
+        imagemEditorZoomEl.value = "0";
+        clampPosicao();
+        aplicarTransformacao();
+    }
+
+    function carregarImagemNoEditor(dataUrl) {
+        return new Promise(function (resolve, reject) {
+            const img = new Image();
+
+            img.onerror = function () {
+                reject(new Error("Não foi possível processar essa imagem."));
+            };
+
+            img.onload = function () {
+                editor.naturalWidth = img.naturalWidth;
+                editor.naturalHeight = img.naturalHeight;
+                imagemEditorImgEl.src = dataUrl;
+                editor.baseScale = calcularBaseScale();
+                redefinirEditor();
+                resolve();
+            };
+
+            img.src = dataUrl;
+        });
+    }
+
+    function abrirEditor(dataUrl) {
+        imagemAntesDoEditor = imagemPendente;
+        esconderErroImagem();
+
+        // A moldura precisa estar visível (não [hidden]) ANTES de calcular
+        // baseScale/posição — calcularBaseScale() lê o tamanho real da
+        // moldura via getBoundingClientRect(), que é 0x0 enquanto ela ainda
+        // está escondida. Por isso a ordem aqui importa: mostra a UI do
+        // editor primeiro, só depois carrega/posiciona a imagem nela.
+        imagemCampoEl.hidden = true;
+        imagemPreviewWrapEl.hidden = true;
+        modalRecompensaAcoesEl.hidden = true;
+        imagemEditorWrapEl.hidden = false;
+        editorAberto = true;
+
+        carregarImagemNoEditor(dataUrl).catch(function () {
+            mostrarErroImagem("Não foi possível processar essa imagem. Tente outro arquivo.");
+            fecharEditor();
+        });
+    }
+
+    // Única fonte de verdade pra "qual foto vale agora": uma string nova
+    // (recém-recortada), null (removida de propósito), ou — quando
+    // imagemPendente ainda é undefined porque o admin não mexeu em nada —
+    // a foto que já estava salva na recompensa em edição, se houver.
+    // Usada tanto pra fechar o editor quanto pelo botão "Ajustar foto", pra
+    // nunca decidir "qual foto mostrar" de dois jeitos diferentes.
+    function obterImagemAtualExibivel() {
+        if (typeof imagemPendente === "string") {
+            return imagemPendente;
+        }
+
+        if (imagemPendente === null) {
+            return null;
+        }
+
+        return (recompensaEmEdicao && recompensaEmEdicao.imagem) || null;
+    }
+
+    function fecharEditor() {
+        imagemEditorWrapEl.hidden = true;
+        imagemCampoEl.hidden = false;
+        modalRecompensaAcoesEl.hidden = false;
+        editorAberto = false;
+
+        const imagemParaExibir = obterImagemAtualExibivel();
+
+        if (imagemParaExibir) {
+            exibirPreview(imagemParaExibir);
+        } else {
+            esconderPreview();
+        }
+    }
+
+    // Só a área visível dentro da moldura vira o recorte final — lê a
+    // posição/tamanho já aplicados no <img> do editor (mesmos valores da
+    // tela, nenhuma conta duplicada) e escala pro canvas de saída fixo
+    // (RECORTE_LARGURA x RECORTE_ALTURA, sempre 4:3).
+    function gerarRecorteFinal() {
+        const { largura } = obterTamanhoViewport();
+        const fatorSaida = RECORTE_LARGURA / largura;
+
+        const left = parseFloat(imagemEditorImgEl.style.left);
+        const top = parseFloat(imagemEditorImgEl.style.top);
+        const dispW = parseFloat(imagemEditorImgEl.style.width);
+        const dispH = parseFloat(imagemEditorImgEl.style.height);
+
+        const canvas = document.createElement("canvas");
+        canvas.width = RECORTE_LARGURA;
+        canvas.height = RECORTE_ALTURA;
+
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(
+            imagemEditorImgEl,
+            left * fatorSaida,
+            top * fatorSaida,
+            dispW * fatorSaida,
+            dispH * fatorSaida
+        );
+
+        return canvas.toDataURL("image/jpeg", IMAGEM_QUALIDADE_JPEG);
+    }
+
+    imagemEditorViewportEl.addEventListener("pointerdown", function (evento) {
+        arrastoAtual = { inicioX: evento.clientX, inicioY: evento.clientY, dxInicial: editor.dx, dyInicial: editor.dy };
+        imagemEditorViewportEl.setPointerCapture(evento.pointerId);
+        imagemEditorViewportEl.classList.add("is-arrastando");
+    });
+
+    imagemEditorViewportEl.addEventListener("pointermove", function (evento) {
+        if (!arrastoAtual) {
+            return;
+        }
+
+        editor.dx = arrastoAtual.dxInicial + (evento.clientX - arrastoAtual.inicioX);
+        editor.dy = arrastoAtual.dyInicial + (evento.clientY - arrastoAtual.inicioY);
+        clampPosicao();
+        aplicarTransformacao();
+    });
+
+    function pararDeArrastar() {
+        arrastoAtual = null;
+        imagemEditorViewportEl.classList.remove("is-arrastando");
+    }
+
+    imagemEditorViewportEl.addEventListener("pointerup", pararDeArrastar);
+    imagemEditorViewportEl.addEventListener("pointercancel", pararDeArrastar);
+
+    imagemEditorZoomEl.addEventListener("input", function () {
+        const fracao = Number(imagemEditorZoomEl.value) / 100;
+        editor.zoom = 1 + fracao * (ZOOM_MAXIMO - 1);
+        clampPosicao();
+        aplicarTransformacao();
+    });
+
+    imagemEditorResetarBtn.addEventListener("click", redefinirEditor);
+
+    imagemEditorCancelarBtn.addEventListener("click", function () {
+        imagemPendente = imagemAntesDoEditor;
+        fecharEditor();
+    });
+
+    imagemEditorAplicarBtn.addEventListener("click", function () {
+        imagemPendente = gerarRecorteFinal();
+        fecharEditor();
+    });
+
+    // --------------------------------------------------------------------------
+    // Selecionar / ajustar / remover
+    // --------------------------------------------------------------------------
+
+    imagemInput.addEventListener("change", async function () {
+        esconderErroImagem();
+
+        const arquivo = imagemInput.files[0];
+        imagemInput.value = "";
+
+        if (!arquivo) {
+            return;
+        }
+
+        if (!arquivo.type.startsWith("image/")) {
+            mostrarErroImagem("Selecione um arquivo de imagem (jpeg, png ou webp).");
+            return;
+        }
+
+        if (arquivo.size > IMAGEM_ARQUIVO_MAXIMO) {
+            mostrarErroImagem("Imagem muito grande. Escolha um arquivo de até 15MB.");
+            return;
+        }
+
+        try {
+            const dataUrl = await lerArquivoComoDataUrl(arquivo);
+            abrirEditor(dataUrl);
+
+        } catch (erro) {
+            mostrarErroImagem("Não foi possível ler esse arquivo. Tente outro.");
+        }
+    });
+
+    // "Ajustar foto" reabre o editor com a imagem que já está valendo agora
+    // (a recém-recortada nesta sessão, ou a que já estava salva ao editar) —
+    // nunca com o arquivo original, que nunca é guardado.
+    imagemAjustarBtn.addEventListener("click", function () {
+        const imagemAtual = obterImagemAtualExibivel();
+
+        if (imagemAtual) {
+            abrirEditor(imagemAtual);
+        }
+    });
+
+    imagemRemoverBtn.addEventListener("click", function () {
+        imagemPendente = null;
+        esconderPreview();
+        esconderErroImagem();
+    });
 
     // Carregada uma vez e reaproveitada nos dois modos do modal (criar/editar)
     // — GET /empresas é admin/funcionário, lista só as empresas ativas.
@@ -235,6 +579,16 @@
     // Criar / editar
     // ==========================================================================
 
+    // Reset defensivo do editor ao (re)abrir a modal — no fluxo normal ele
+    // já está fechado (Aplicar/Cancelar sempre fecham), isto só evita um
+    // estado preso caso a modal seja reaberta de um jeito inesperado.
+    function garantirEditorFechado() {
+        imagemEditorWrapEl.hidden = true;
+        imagemCampoEl.hidden = false;
+        modalRecompensaAcoesEl.hidden = false;
+        editorAberto = false;
+    }
+
     function abrirModalCriar() {
         modoFormulario = "criar";
         recompensaEmEdicao = null;
@@ -246,6 +600,11 @@
         empresaSelect.value = "";
         modalRecompensaErrorEl.hidden = true;
         modalRecompensaErrorEl.textContent = "";
+
+        imagemPendente = undefined;
+        esconderErroImagem();
+        esconderPreview();
+        garantirEditorFechado();
 
         controladorRecompensa.abrir(document.getElementById("nova-recompensa-btn"));
         nomeInput.focus();
@@ -265,6 +624,17 @@
         empresaSelect.value = recompensa.empresa_id || "";
         modalRecompensaErrorEl.hidden = true;
         modalRecompensaErrorEl.textContent = "";
+
+        // undefined = mantém a foto atual se o admin não mexer em nada.
+        imagemPendente = undefined;
+        esconderErroImagem();
+        garantirEditorFechado();
+
+        if (recompensa.imagem) {
+            exibirPreview(recompensa.imagem);
+        } else {
+            esconderPreview();
+        }
 
         controladorRecompensa.abrir(botaoOrigem);
         nomeInput.focus();
@@ -304,6 +674,9 @@
         modalRecompensaConfirmarLabel.textContent = "Salvando...";
         modalRecompensaErrorEl.hidden = true;
 
+        // imagemPendente undefined = campo nem entra no body (JSON.stringify
+        // já omite chaves com valor undefined) — o backend distingue "campo
+        // ausente" (não mexe na foto) de "campo null" (remove a foto).
         try {
             if (modoFormulario === "criar") {
                 await window.api("/recompensas", {
@@ -312,7 +685,8 @@
                         nome: nome,
                         descricao: descricao || undefined,
                         pontos_necessarios: pontos,
-                        empresa_id: empresaId
+                        empresa_id: empresaId,
+                        imagem: imagemPendente
                     }
                 });
 
@@ -325,7 +699,8 @@
                         nome: nome,
                         descricao: descricao,
                         pontos_necessarios: pontos,
-                        empresa_id: empresaId
+                        empresa_id: empresaId,
+                        imagem: imagemPendente
                     }
                 });
 

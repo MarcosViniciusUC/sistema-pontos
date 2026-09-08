@@ -1,7 +1,9 @@
+const { validarImagem } = require("../utils/validarImagem");
+
 // "ativo" não é validado aqui de propósito: PUT não aceita mais esse campo
 // (status muda só por DELETE /recompensas/:id e PATCH /recompensas/:id/reativar).
 function validateRewardUpdate(req, res, next) {
-    const { nome, descricao, pontos_necessarios, empresa_id } = req.body;
+    const { nome, descricao, pontos_necessarios, empresa_id, imagem } = req.body;
 
     if (nome !== undefined && (typeof nome !== "string" || nome.trim().length === 0)) {
         return res.status(400).json({
@@ -31,6 +33,19 @@ function validateRewardUpdate(req, res, next) {
         return res.status(400).json({
             mensagem: "Campo 'empresa_id' deve ser um número inteiro válido"
         });
+    }
+
+    // imagem: null explícito = "remover a foto atual" (ver reward.controller.js
+    // atualizar()); imagem ausente = "não mexer na foto atual"; qualquer outro
+    // valor precisa ser uma data URL de imagem válida.
+    if (imagem !== undefined && imagem !== null) {
+        const erroImagem = validarImagem(imagem);
+
+        if (erroImagem) {
+            return res.status(400).json({
+                mensagem: erroImagem
+            });
+        }
     }
 
     next();

@@ -43,6 +43,14 @@ app.use(cors({
     origin: process.env.CORS_ORIGIN
 }));
 
+// Limite maior só para /recompensas — é a única rota que aceita imagem
+// (base64 embutido no JSON, ver reward.controller.js). Montado ANTES do
+// limite geral abaixo: o body-parser marca a requisição como "já lida" na
+// primeira vez que roda, então o express.json({limit:"10kb"}) seguinte vira
+// um no-op para esse caminho e não rejeita o body maior. Todas as outras
+// rotas continuam exatamente com os mesmos 10kb de antes.
+app.use("/recompensas", express.json({ limit: "6mb" }));
+
 app.use(express.json({ limit: "10kb" }));
 
 // Serve o frontend estático (caminho absoluto via __dirname, não depende do

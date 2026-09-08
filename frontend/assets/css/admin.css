@@ -421,6 +421,116 @@ a.kpi-card:hover {
     color: var(--gray);
 }
 
+/* Pré-visualização da foto da recompensa no modal de criar/editar — mesma
+   proporção 4:3 do card real no cliente (.reward-card__media, em
+   dashboard.css), só que pequena, pra confirmar o enquadramento antes de
+   salvar. */
+.reward-image-preview {
+    display: flex;
+    align-items: center;
+    gap: var(--space-4);
+}
+
+/* Mesmo ajuste já usado em outros pontos do projeto (ex:
+   #adicionar-pontos-card): um seletor de classe com display:flex tem a
+   mesma especificidade do [hidden]{display:none} padrão do navegador, e
+   por vir depois no CSS do autor, vence — sem isto o elemento continuaria
+   visível mesmo com o atributo hidden aplicado por JS. */
+.reward-image-preview[hidden] {
+    display: none;
+}
+
+.reward-image-preview img {
+    width: 120px;
+    aspect-ratio: 4 / 3;
+    object-fit: cover;
+    border-radius: var(--radius-2);
+    border: 1px solid var(--line);
+    background: var(--black-soft);
+    flex-shrink: 0;
+}
+
+.reward-image-preview__acoes {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-1);
+}
+
+/* ==========================================================================
+   Editor de recorte da foto da recompensa — arrastar + zoom dentro da
+   mesma proporção 4:3 usada no card real (.reward-card__media, em
+   dashboard.css). O <img> é posicionado via left/top/width/height inline
+   (JS, ver admin-recompensas.js) em vez de transform, pra mapear 1:1 pros
+   mesmos números usados depois no canvas do recorte final — nenhuma
+   biblioteca externa.
+   ========================================================================== */
+
+.reward-image-editor {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+}
+
+.reward-image-editor[hidden] {
+    display: none;
+}
+
+.reward-image-editor__viewport {
+    position: relative;
+    width: 100%;
+    max-width: 360px;
+    aspect-ratio: 4 / 3;
+    overflow: hidden;
+    border-radius: var(--radius-2);
+    border: 2px solid var(--red);
+    background: var(--black-soft);
+    cursor: grab;
+    touch-action: none;
+    margin: 0 auto;
+}
+
+.reward-image-editor__viewport.is-arrastando {
+    cursor: grabbing;
+}
+
+.reward-image-editor__img {
+    position: absolute;
+    max-width: none;
+    max-height: none;
+    pointer-events: none;
+    user-select: none;
+}
+
+.reward-image-editor__zoom {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    max-width: 360px;
+    width: 100%;
+    margin: 0 auto;
+    color: var(--gray-light);
+    font-size: 16px;
+}
+
+.reward-image-editor__zoom input[type="range"] {
+    flex: 1;
+    accent-color: var(--red);
+}
+
+.reward-image-editor__acoes {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+}
+
+.reward-image-editor__acoes-principais {
+    display: flex;
+    gap: var(--space-3);
+}
+
 /* ==========================================================================
    Validar resgate (formulário fora de modal)
    ========================================================================== */
