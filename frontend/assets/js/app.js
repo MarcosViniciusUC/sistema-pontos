@@ -55,6 +55,29 @@
         messageBox.textContent = "";
     }
 
+    // Lê e imediatamente apaga a marca deixada por api.js quando um 401 fora
+    // da tela de login derruba a sessão (token ausente/inválido/expirado —
+    // ver comentário em api.js). Apagar na leitura garante que a mensagem
+    // aparece uma única vez: um F5 na própria tela de login depois disso não
+    // mostra o aviso de novo, porque a chave já não existe mais.
+    function consumirAvisoSessaoExpirada() {
+        try {
+            if (sessionStorage.getItem("movement_sessao_expirada") === "1") {
+                sessionStorage.removeItem("movement_sessao_expirada");
+                return true;
+            }
+        } catch (erroDeStorage) {
+            // Navegação privada ou storage bloqueado: sem o aviso, mas o
+            // login continua funcionando normalmente.
+        }
+
+        return false;
+    }
+
+    if (consumirAvisoSessaoExpirada()) {
+        mostrarMensagem("Sua sessão expirou. Faça login novamente para continuar.", "erro");
+    }
+
     function definirCarregando(carregando) {
         submitBtn.disabled = carregando;
         submitBtn.classList.toggle("is-loading", carregando);

@@ -826,24 +826,38 @@
     filter: grayscale(70%) brightness(0.55);
 }
 
-/* Selo estático "Em destaque" (destaque GLOBAL, definido por admin/
+/* Selo estático "Destaque" (destaque GLOBAL, definido por admin/
    funcionário — ver reward.controller.js:destacar) — canto oposto ao botão
    de favorito abaixo, pra nunca sobrepor um no outro. Não é clicável: o
    cliente nunca altera este valor, só visualiza (ver seção 7 do pedido).
    Mesma linguagem visual de .status-badge--aprovado (fundo vermelho sólido
-   = estado positivo/ativo em todo o sistema), só reposicionado sobre a mídia. */
+   = estado positivo/ativo em todo o sistema), só reposicionado sobre a mídia.
+   Ícone de chama (ver criarIconeDestaque em dashboard.js/recompensas.js/
+   favoritos.js) em vez do antigo "⭐ Destaque" — o mesmo símbolo de estrela
+   do botão de favorito ao lado misturava dois conceitos diferentes
+   (curadoria do admin x escolha pessoal do cliente) no mesmo card. */
 .reward-card__featured {
     position: absolute;
     top: var(--space-2);
     left: var(--space-2);
     z-index: 1;
+    gap: 4px;
+}
+
+.reward-card__featured-icon {
+    width: 12px;
+    height: 12px;
+    flex-shrink: 0;
 }
 
 /* Estrela de favorito INDIVIDUAL do cliente — conceito diferente do selo
    acima (ver comentário ali). Círculo translúcido sobre a imagem/gradiente,
-   sempre no canto oposto ao selo de destaque. ☆ (vazia) quando não é
-   favorito, ⭐ (preenchida, cor de marca) quando é — mesma cor de destaque
-   usada em todo o resto do produto (--color-red-bright), nenhuma cor nova. */
+   sempre no canto oposto ao selo de destaque. ☆ (vazio) quando não é
+   favorito, ★ (preenchido, cor de marca) quando é — mesma cor de destaque
+   usada em todo o resto do produto (--color-red-bright), nenhuma cor nova.
+   Dingbat de texto (não emoji) para ter aparência estável entre sistemas
+   operacionais e para nunca ser lido visualmente como o mesmo símbolo do
+   selo de destaque acima, que não usa mais estrela nenhuma. */
 .reward-card__favorite {
     position: absolute;
     top: var(--space-2);

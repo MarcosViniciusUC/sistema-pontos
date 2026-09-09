@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Movement | Política de Privacidade</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@600;700;800&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
+
+    <link rel="stylesheet" href="assets/css/tokens.css">
+    <link rel="stylesheet" href="assets/css/base.css">
+    <link rel="stylesheet" href="assets/css/components.css">
+</head>
+<body>
+    <div class="legal-page">
+        <header class="legal-page__header">
+            <a href="index.html" class="legal-page__back">← Voltar</a>
+            <span class="legal-page__brand">MOVEMENT</span>
+        </header>
+
+        <main class="legal-page__content">
+            <h1>Política de Privacidade</h1>
+            <p class="legal-page__updated">Versão inicial do produto — sujeita a atualização conforme o Movement evolui.</p>
+
+            <section>
+                <h2>1. Sobre este documento</h2>
+                <p>Este é um documento inicial, escrito em linguagem simples, para explicar quais dados o Movement usa e para quê. Ele descreve o que o sistema realmente faz hoje — não é uma peça jurídica completa, e será revisado conforme o produto crescer.</p>
+            </section>
+
+            <section>
+                <h2>2. Quais dados o sistema utiliza</h2>
+                <p>Para clientes: nome, email, telefone (opcional) e senha. Para funcionários e administradores, os mesmos dados básicos de conta. Também guardamos o histórico de pontos e de resgates associado à sua conta, porque é isso que faz o programa de fidelidade funcionar.</p>
+            </section>
+
+            <section>
+                <h2>3. Para que esses dados são usados</h2>
+                <p>Nome, email e telefone servem para identificar sua conta, permitir o login e para que um funcionário consiga te atender no balcão (conferir saldo, lançar pontos, validar um resgate). O histórico de pontos e resgates existe para calcular seu saldo e mostrar seu extrato — sem ele, o programa de pontos simplesmente não teria como funcionar.</p>
+            </section>
+
+            <section>
+                <h2>4. Como sua senha é tratada</h2>
+                <p>Sua senha nunca é guardada como texto — ela passa por um processo de hash (bcrypt) antes de ir para o banco de dados. Isso significa que nem mesmo um administrador do sistema consegue ver sua senha real; o sistema só consegue confirmar se a senha digitada bate com o hash guardado, nunca "ler" a senha original de volta.</p>
+            </section>
+
+            <section>
+                <h2>5. QR Code pessoal e códigos de resgate</h2>
+                <p>Seu QR Code pessoal (usado para o funcionário te identificar no balcão) é um identificador aleatório, sem nenhuma relação visível com seu nome, email ou qualquer outro dado pessoal — quem escaneia não lê seu nome, apenas um código interno que o sistema usa para localizar sua conta. O mesmo vale para o código gerado quando você resgata uma recompensa: ele identifica o resgate, não você.</p>
+            </section>
+
+            <section>
+                <h2>6. Quem tem acesso aos seus dados</h2>
+                <p>Funcionários e administradores do estabelecimento têm acesso apenas ao necessário para operar o programa — nome, telefone e saldo, por exemplo — para poder te atender. Ninguém além do próprio sistema tem acesso à sua senha, mesmo em forma de hash, fora do banco de dados.</p>
+            </section>
+
+            <section>
+                <h2>7. Segurança</h2>
+                <p>O sistema usa conexão criptografada (HTTPS), senhas protegidas por hash, limite de tentativas de login para dificultar tentativas automatizadas de acesso indevido, e outras medidas técnicas de proteção mantidas e revisadas continuamente.</p>
+            </section>
+
+            <section>
+                <h2>8. Por quanto tempo os dados ficam guardados</h2>
+                <p>Seus dados de conta ficam guardados enquanto sua conta existir. Recompensas ou resgates que deixam de estar disponíveis não são apagados — eles continuam no seu histórico, para que seu extrato de pontos permaneça completo e correto.</p>
+            </section>
+
+            <section>
+                <h2>9. Contato</h2>
+                <p>Este documento ainda não inclui um canal de contato dedicado para questões de privacidade, porque ele ainda não foi definido para o produto. Assim que existir, esta página será atualizada.</p>
+            </section>
+        </main>
+    </div>
+</body>
+</html>

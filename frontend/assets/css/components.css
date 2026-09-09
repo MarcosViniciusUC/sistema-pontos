@@ -186,6 +186,15 @@
     color: var(--color-text-secondary);
 }
 
+/* Linha de Termos/Privacidade — mesmo componente, só mais discreta (texto
+   menor, sem negrito de destaque) para não competir com a ação principal
+   do formulário (entrar/criar conta) logo acima. */
+.auth-form__footer--legal {
+    margin-top: var(--space-2);
+    font-size: var(--text-xs);
+    color: var(--color-text-tertiary);
+}
+
 /* ==========================================================================
    Botão
    ========================================================================== */
@@ -1006,4 +1015,65 @@
     .auth-card {
         padding: var(--space-8) var(--space-7) var(--space-7);
     }
+}
+
+/* ==========================================================================
+   Páginas legais estáticas (privacidade.html, termos.html) — conteúdo
+   público, sem login, sem JS de página própria. Só tipografia corrida sobre
+   os tokens já existentes; nenhuma cor ou espaçamento novo foi inventado.
+   ========================================================================== */
+
+.legal-page {
+    max-width: 640px;
+    margin: 0 auto;
+    padding: var(--space-6) var(--space-4) var(--space-8);
+}
+
+.legal-page__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: var(--space-6);
+    padding-bottom: var(--space-4);
+    border-bottom: 1px solid var(--color-border);
+}
+
+.legal-page__back {
+    font-size: var(--text-sm);
+    font-weight: 600;
+}
+
+.legal-page__brand {
+    font-family: var(--font-display);
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    font-size: var(--text-md);
+    color: var(--color-text-secondary);
+}
+
+.legal-page__content h1 {
+    font-size: var(--text-3xl);
+    margin-bottom: var(--space-2);
+}
+
+.legal-page__updated {
+    color: var(--color-text-tertiary);
+    font-size: var(--text-sm);
+    margin-bottom: var(--space-6);
+}
+
+.legal-page__content section {
+    margin-bottom: var(--space-5);
+}
+
+.legal-page__content h2 {
+    font-size: var(--text-lg);
+    margin-bottom: var(--space-2);
+    color: var(--color-text-primary);
+}
+
+.legal-page__content p {
+    color: var(--color-text-secondary);
+    font-size: var(--text-base);
+    line-height: 1.6;
 }

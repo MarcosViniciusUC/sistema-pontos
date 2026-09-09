@@ -144,12 +144,51 @@
     // ==========================================================================
 
     function atualizarVisualFavorito(botao, favorita) {
-        botao.textContent = favorita ? "⭐" : "☆";
+        // ★/☆ (dingbat de texto, não emoji) — mesmo par de glifos em toda
+        // tela que tem favorito. Antes o estado marcado usava o emoji "⭐",
+        // que muda de desenho conforme o sistema operacional de quem olha;
+        // trocado por "★" (mesma família de caractere do "☆" já usado no
+        // estado desmarcado) para o botão ficar visualmente estável e,
+        // principalmente, para nunca ser confundido com o selo de destaque
+        // logo ao lado (ver criarIconeDestaque), que agora não usa mais
+        // nenhum símbolo de estrela.
+        botao.textContent = favorita ? "★" : "☆";
         botao.classList.toggle("is-favorito", favorita);
         botao.setAttribute("aria-pressed", String(favorita));
         const rotulo = favorita ? "Remover dos favoritos" : "Adicionar aos favoritos";
         botao.setAttribute("aria-label", rotulo);
         botao.title = rotulo;
+    }
+
+    // ==========================================================================
+    // Selo "Destaque" — destaque GLOBAL (admin/funcionário), conceito
+    // diferente do favorito pessoal do cliente acima. Antes usava o mesmo
+    // símbolo de estrela do botão de favorito ("⭐ Destaque"), o que podia
+    // confundir os dois conceitos num card que mostra as duas coisas ao
+    // mesmo tempo. O ícone de chama não é clicável (aria-hidden) — só o
+    // texto "Destaque" carrega o significado para leitor de tela.
+    // ==========================================================================
+
+    function criarIconeDestaque() {
+        const NS = "http://www.w3.org/2000/svg";
+        const svg = document.createElementNS(NS, "svg");
+        svg.setAttribute("class", "reward-card__featured-icon");
+        svg.setAttribute("viewBox", "0 0 24 24");
+        svg.setAttribute("fill", "none");
+        svg.setAttribute("aria-hidden", "true");
+
+        const path = document.createElementNS(NS, "path");
+        path.setAttribute(
+            "d",
+            "M12 3c1 3-3 4-3 8a3 3 0 0 0 6 0c0-1-.4-1.8-.9-2.2.3 1.7-1 2.6-1.9 1.1-.6-1.1.4-1.9.5-3.4C13.9 7.4 15 9.6 15 12a5.5 5.5 0 0 1-11 0c0-4.5 3.6-6.2 4.1-9z"
+        );
+        path.setAttribute("stroke", "currentColor");
+        path.setAttribute("stroke-width", "1.6");
+        path.setAttribute("stroke-linejoin", "round");
+        path.setAttribute("stroke-linecap", "round");
+        svg.appendChild(path);
+
+        return svg;
     }
 
     function criarBotaoFavorito(recompensa) {
@@ -227,7 +266,8 @@
         // isso visualmente sem precisar de mais uma chamada à API.
         const seloDestaque = document.createElement("span");
         seloDestaque.className = "status-badge status-badge--aprovado reward-card__featured";
-        seloDestaque.textContent = "⭐ Destaque";
+        seloDestaque.appendChild(criarIconeDestaque());
+        seloDestaque.appendChild(document.createTextNode("Destaque"));
         media.appendChild(seloDestaque);
 
         media.appendChild(criarBotaoFavorito(recompensa));

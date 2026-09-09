@@ -23,6 +23,12 @@
     window.UI.configurarSaudacaoELogout("user-greeting", "logout-btn");
     window.UI.configurarMenuPrincipal("nav-menu-btn", "main-nav");
 
+    // Espelha HORAS_PARA_EXPIRAR de src/services/resgateExpiracao.service.js —
+    // só para exibir a regra ao cliente antes/depois do resgate (mesmo valor
+    // usado em recompensas.js). Não decide nada: a expiração de verdade
+    // continua sendo calculada e aplicada inteiramente pelo backend.
+    const HORAS_PARA_EXPIRAR_RESGATE = 5;
+
     const favoritosListEl = document.getElementById("favoritos-list");
     const favoritosTitleEl = document.getElementById("favoritos-title");
     const balanceChipEl = document.getElementById("balance-chip-value");
@@ -103,7 +109,9 @@
         modalRewardPoints.textContent = window.UI.formatarNumero(recompensa.pontos_necessarios) + " pontos";
         modalNoteEl.textContent = "Você vai utilizar " + window.UI.formatarNumero(recompensa.pontos_necessarios)
             + " pontos para resgatar " + recompensa.nome + ". Os pontos são descontados imediatamente"
-            + " e um código de reserva será gerado para você apresentar no estabelecimento.";
+            + " e um código de reserva será gerado para você apresentar no estabelecimento."
+            + " Você terá " + HORAS_PARA_EXPIRAR_RESGATE + " horas para usar o código — se não for utilizado"
+            + " nesse prazo, o resgate é cancelado e os pontos voltam automaticamente para o seu saldo.";
         modalErrorEl.hidden = true;
         modalErrorEl.textContent = "";
 
@@ -177,7 +185,9 @@
         }
 
         modalSucessoNotaEl.textContent = window.UI.formatarNumero(resgate.pontos)
-            + " pontos foram descontados do seu saldo. Apresente este código no estabelecimento para utilizar sua recompensa.";
+            + " pontos foram descontados do seu saldo. Apresente este código no estabelecimento para utilizar sua recompensa."
+            + " Use este código dentro de " + HORAS_PARA_EXPIRAR_RESGATE + " horas — depois disso ele expira"
+            + " e os pontos voltam automaticamente para você.";
 
         renderizarQrCode(resgate.codigo);
 
@@ -192,12 +202,45 @@
     // ==========================================================================
 
     function atualizarVisualFavorito(botao, favorita) {
-        botao.textContent = favorita ? "⭐" : "☆";
+        // ★/☆ (dingbat de texto, não emoji) — ver o mesmo comentário em
+        // dashboard.js. Trocado de "⭐" para "★" para nunca ser confundido
+        // com o selo de destaque (criarIconeDestaque), que não usa mais
+        // nenhum símbolo de estrela.
+        botao.textContent = favorita ? "★" : "☆";
         botao.classList.toggle("is-favorito", favorita);
         botao.setAttribute("aria-pressed", String(favorita));
         const rotulo = favorita ? "Remover dos favoritos" : "Adicionar aos favoritos";
         botao.setAttribute("aria-label", rotulo);
         botao.title = rotulo;
+    }
+
+    // ==========================================================================
+    // Selo "Destaque" — ver comentário completo em dashboard.js. Ícone de
+    // chama (não é mais um símbolo de estrela) para não competir visualmente
+    // com a estrela de favorito do próprio cliente, que aparece no mesmo
+    // card.
+    // ==========================================================================
+
+    function criarIconeDestaque() {
+        const NS = "http://www.w3.org/2000/svg";
+        const svg = document.createElementNS(NS, "svg");
+        svg.setAttribute("class", "reward-card__featured-icon");
+        svg.setAttribute("viewBox", "0 0 24 24");
+        svg.setAttribute("fill", "none");
+        svg.setAttribute("aria-hidden", "true");
+
+        const path = document.createElementNS(NS, "path");
+        path.setAttribute(
+            "d",
+            "M12 3c1 3-3 4-3 8a3 3 0 0 0 6 0c0-1-.4-1.8-.9-2.2.3 1.7-1 2.6-1.9 1.1-.6-1.1.4-1.9.5-3.4C13.9 7.4 15 9.6 15 12a5.5 5.5 0 0 1-11 0c0-4.5 3.6-6.2 4.1-9z"
+        );
+        path.setAttribute("stroke", "currentColor");
+        path.setAttribute("stroke-width", "1.6");
+        path.setAttribute("stroke-linejoin", "round");
+        path.setAttribute("stroke-linecap", "round");
+        svg.appendChild(path);
+
+        return svg;
     }
 
     function criarBotaoFavorito(recompensa, cardEl) {
@@ -286,7 +329,8 @@
         if (recompensa.destacada) {
             const seloDestaque = document.createElement("span");
             seloDestaque.className = "status-badge status-badge--aprovado reward-card__featured";
-            seloDestaque.textContent = "⭐ Destaque";
+            seloDestaque.appendChild(criarIconeDestaque());
+            seloDestaque.appendChild(document.createTextNode("Destaque"));
             media.appendChild(seloDestaque);
         }
 

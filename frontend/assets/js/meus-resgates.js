@@ -17,6 +17,93 @@
 
     const listaEl = document.getElementById("resgates-list");
 
+    // Espelha HORAS_PARA_EXPIRAR de src/services/resgateExpiracao.service.js —
+    // só para mostrar a contagem regressiva ao cliente. Quem decide de
+    // verdade se um resgate expirou continua sendo o backend, comparando
+    // criado_em com NOW() no Postgres a cada chamada (ver seção 9/20 da
+    // documentação); esta conta aqui é só uma estimativa de exibição a
+    // partir do mesmo criado_em que a API já devolve.
+    const HORAS_PARA_EXPIRAR_RESGATE = 5;
+
+    // ==========================================================================
+    // Contagem regressiva dos resgates "aguardando utilização" — recalculada
+    // a partir de resgate.criado_em (dado real do backend), nunca guardada
+    // isolada em memória: um reload sempre parte do mesmo criado_em e chega
+    // no mesmo resultado, então não existe estado que possa ficar
+    // inconsistente entre uma sessão e outra.
+    //
+    // Um único setInterval de página (não um por item) atualiza todos os
+    // textos a cada 30s — criado uma vez em carregarResgates() e nunca
+    // duplicado, porque a lista só é montada uma vez por carregamento de
+    // página (sem essa garantia, recarregar a lista empilharia intervalos e
+    // vazaria memória).
+    // ==========================================================================
+
+    let contadoresAtivos = [];
+    let intervaloContagemId = null;
+
+    function calcularExpiracao(resgate) {
+        return new Date(new Date(resgate.criado_em).getTime() + HORAS_PARA_EXPIRAR_RESGATE * 60 * 60 * 1000);
+    }
+
+    function formatarContagemRegressiva(dataExpiracao) {
+        const restanteMs = dataExpiracao.getTime() - Date.now();
+
+        // Zero/negativo não significa necessariamente "já cancelado" agora
+        // mesmo — o backend só reprocessa expiração no próximo acesso (ver
+        // resgateExpiracao.service.js). Em vez de arriscar dizer "cancelado"
+        // sem confirmar com a API, mostra um texto neutro.
+        if (restanteMs <= 0) {
+            return "Expira a qualquer momento";
+        }
+
+        const totalMinutos = Math.ceil(restanteMs / 60000);
+        const horas = Math.floor(totalMinutos / 60);
+        const minutos = totalMinutos % 60;
+
+        if (horas === 0) {
+            return "Expira em " + minutos + "min";
+        }
+
+        return "Expira em " + horas + "h" + String(minutos).padStart(2, "0") + "min";
+    }
+
+    function formatarHorarioExpiracao(dataExpiracao) {
+        return new Intl.DateTimeFormat("pt-BR", {
+            day: "2-digit",
+            month: "2-digit",
+            hour: "2-digit",
+            minute: "2-digit"
+        }).format(dataExpiracao);
+    }
+
+    function atualizarContadores() {
+        contadoresAtivos = contadoresAtivos.filter(function (contador) {
+            if (!document.contains(contador.elemento)) {
+                return false;
+            }
+
+            contador.elemento.textContent = formatarContagemRegressiva(contador.expiraEm);
+            return true;
+        });
+
+        // Nada mais para contar (todos os itens visíveis já foram validados,
+        // cancelados, ou a página não tem nenhum pendente) — libera o timer
+        // em vez de deixá-lo rodando à toa a cada 30s pelo resto da sessão.
+        if (contadoresAtivos.length === 0 && intervaloContagemId !== null) {
+            clearInterval(intervaloContagemId);
+            intervaloContagemId = null;
+        }
+    }
+
+    function registrarContador(elemento, expiraEm) {
+        contadoresAtivos.push({ elemento, expiraEm });
+
+        if (intervaloContagemId === null) {
+            intervaloContagemId = setInterval(atualizarContadores, 30000);
+        }
+    }
+
     // ==========================================================================
     // Saldo no cabeçalho — função isolada, sem nenhuma relação com a lógica
     // de resgates abaixo (não lê nem escreve nenhuma variável em comum, não
@@ -169,6 +256,16 @@
         }
 
         if (resgate.status === "pendente_validacao") {
+            const expiraEm = calcularExpiracao(resgate);
+
+            const prazo = document.createElement("p");
+            prazo.className = "resgate-item__nota";
+            prazo.textContent = formatarContagemRegressiva(expiraEm);
+            prazo.title = "Expira às " + formatarHorarioExpiracao(expiraEm);
+            item.appendChild(prazo);
+
+            registrarContador(prazo, expiraEm);
+
             const acao = document.createElement("div");
             acao.className = "resgate-item__action";
 

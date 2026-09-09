@@ -50,7 +50,19 @@ async function api(caminho, opcoes = {}) {
         const estaNaTelaDeLogin = window.location.pathname.endsWith("index.html")
             || window.location.pathname === "/";
 
+        // Só existe um jeito de receber 401 fora da tela de login: o
+        // authMiddleware recusando o token (ausente/mal formado/inválido ou
+        // expirado — ver authMiddleware.js). O 401 de credencial errada em
+        // POST /login acontece só na própria tela de login, então nunca cai
+        // aqui — não há ambiguidade a resolver antes de mostrar o aviso.
         if (!estaNaTelaDeLogin) {
+            try {
+                sessionStorage.setItem("movement_sessao_expirada", "1");
+            } catch (erroDeStorage) {
+                // Navegação privada ou storage bloqueado: sem o aviso, mas o
+                // redirecionamento abaixo continua funcionando normalmente.
+            }
+
             window.location.href = "index.html";
         }
     }
