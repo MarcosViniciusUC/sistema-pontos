@@ -60,6 +60,14 @@
     );
     document.getElementById("modal-ativar-cancelar").addEventListener("click", controladorAtivar.fechar);
 
+    // ---- Modal: detalhes da empresa ("Ver mais") ----
+    const modalDetalhesConteudoEl = document.getElementById("modal-detalhes-conteudo");
+
+    const controladorDetalhes = window.UI.criarControladorModal(
+        document.getElementById("modal-detalhes-overlay")
+    );
+    document.getElementById("modal-detalhes-fechar").addEventListener("click", controladorDetalhes.fechar);
+
     let modoFormulario = "criar";
     let empresaEmEdicao = null;
     let empresaParaDesativar = null;
@@ -164,6 +172,14 @@
             const acoes = document.createElement("div");
             acoes.className = "row-actions";
 
+            const btnVerMais = document.createElement("button");
+            btnVerMais.type = "button";
+            btnVerMais.className = "btn btn--ghost";
+            btnVerMais.textContent = "Ver mais";
+            btnVerMais.addEventListener("click", function () {
+                abrirModalDetalhes(empresa, btnVerMais);
+            });
+
             const btnEditar = document.createElement("button");
             btnEditar.type = "button";
             btnEditar.className = "btn btn--ghost";
@@ -172,6 +188,7 @@
                 abrirModalEditar(empresa, btnEditar);
             });
 
+            acoes.appendChild(btnVerMais);
             acoes.appendChild(btnEditar);
 
             if (empresa.ativo) {
@@ -405,6 +422,213 @@
             modalAtivarConfirmarLabel.textContent = "Ativar";
         }
     });
+
+    // ==========================================================================
+    // Detalhes ("Ver mais")
+    // ==========================================================================
+
+    // Mesmo rótulo/classe de badge já usados em admin-resgates.js/meus-resgates.js
+    // pros 3 status de resgate — reaproveitado aqui em vez de inventar um
+    // quarto conjunto de cores só pra esta tela.
+    const ROTULO_STATUS_RESGATE = {
+        pendente_validacao: "Aguardando utilização",
+        utilizado: "Utilizado",
+        cancelado: "Cancelado"
+    };
+
+    const CLASSE_BADGE_RESGATE = {
+        pendente_validacao: "status-badge--pendente",
+        utilizado: "status-badge--aprovado",
+        cancelado: "status-badge--recusado"
+    };
+
+    function criarReceiptRow(rotulo, valorTexto) {
+        const row = document.createElement("div");
+        row.className = "receipt-row";
+
+        const label = document.createElement("span");
+        label.className = "receipt-row__label";
+        label.textContent = rotulo;
+
+        const valor = document.createElement("span");
+        valor.className = "receipt-row__value";
+        valor.textContent = valorTexto;
+
+        row.appendChild(label);
+        row.appendChild(valor);
+        return row;
+    }
+
+    function criarSecaoDetalhe(titulo) {
+        const secao = document.createElement("section");
+        secao.className = "empresa-detalhe__secao";
+
+        const tituloEl = document.createElement("h3");
+        tituloEl.className = "empresa-detalhe__secao-titulo";
+        tituloEl.textContent = titulo;
+        secao.appendChild(tituloEl);
+
+        return secao;
+    }
+
+    function criarLinhaRecompensa(recompensa) {
+        const linha = document.createElement("div");
+        linha.className = "empresa-detalhe__recompensa";
+
+        if (recompensa.imagem) {
+            const img = document.createElement("img");
+            img.className = "empresa-detalhe__recompensa-img";
+            img.src = recompensa.imagem;
+            img.alt = "";
+            linha.appendChild(img);
+        } else {
+            const semImagem = document.createElement("span");
+            semImagem.className = "empresa-detalhe__recompensa-img empresa-detalhe__recompensa-img--vazia";
+            semImagem.setAttribute("aria-hidden", "true");
+            linha.appendChild(semImagem);
+        }
+
+        const info = document.createElement("div");
+        info.className = "empresa-detalhe__recompensa-info";
+
+        const nome = document.createElement("p");
+        nome.className = "empresa-detalhe__recompensa-nome";
+        nome.textContent = recompensa.nome;
+
+        const pontos = document.createElement("p");
+        pontos.className = "empresa-detalhe__recompensa-pontos";
+        pontos.textContent = window.UI.formatarNumero(recompensa.pontos_necessarios) + " pontos";
+
+        info.appendChild(nome);
+        info.appendChild(pontos);
+        linha.appendChild(info);
+
+        const badge = document.createElement("span");
+        badge.className = "status-badge " + (recompensa.ativo ? "status-badge--aprovado" : "status-badge--recusado");
+        badge.textContent = recompensa.ativo ? "Ativa" : "Inativa";
+        linha.appendChild(badge);
+
+        return linha;
+    }
+
+    function renderizarDetalhes(dados) {
+        modalDetalhesConteudoEl.innerHTML = "";
+
+        // ---- Informações da empresa ----
+        const secaoInfo = criarSecaoDetalhe("Informações da empresa");
+        const statsInfo = document.createElement("div");
+        statsInfo.className = "empresa-detalhe__stats";
+        statsInfo.appendChild(criarReceiptRow("Nome", dados.empresa.nome));
+        statsInfo.appendChild(criarReceiptRow("Slug", dados.empresa.slug));
+        statsInfo.appendChild(criarReceiptRow("Status", dados.empresa.ativo ? "Ativa" : "Inativa"));
+        statsInfo.appendChild(criarReceiptRow("Cadastrada em", window.UI.formatarData(dados.empresa.criado_em)));
+        secaoInfo.appendChild(statsInfo);
+        modalDetalhesConteudoEl.appendChild(secaoInfo);
+
+        // ---- Recompensas ----
+        const secaoRecompensas = criarSecaoDetalhe("Recompensas");
+        const statsRecompensas = document.createElement("div");
+        statsRecompensas.className = "empresa-detalhe__stats";
+        statsRecompensas.appendChild(criarReceiptRow("Total", window.UI.formatarNumero(dados.recompensas.total)));
+        statsRecompensas.appendChild(criarReceiptRow("Ativas", window.UI.formatarNumero(dados.recompensas.ativas)));
+        statsRecompensas.appendChild(criarReceiptRow("Inativas", window.UI.formatarNumero(dados.recompensas.inativas)));
+        statsRecompensas.appendChild(criarReceiptRow("Em destaque", window.UI.formatarNumero(dados.recompensas.destacadas)));
+        secaoRecompensas.appendChild(statsRecompensas);
+
+        if (dados.recompensas.lista.length === 0) {
+            const vazio = document.createElement("p");
+            vazio.className = "dash-section__placeholder";
+            vazio.textContent = "Esta empresa ainda não tem recompensas cadastradas.";
+            secaoRecompensas.appendChild(vazio);
+        } else {
+            const lista = document.createElement("div");
+            lista.className = "empresa-detalhe__recompensas-lista";
+            dados.recompensas.lista.forEach(function (recompensa) {
+                lista.appendChild(criarLinhaRecompensa(recompensa));
+            });
+            secaoRecompensas.appendChild(lista);
+        }
+        modalDetalhesConteudoEl.appendChild(secaoRecompensas);
+
+        // ---- Resgates ----
+        const secaoResgates = criarSecaoDetalhe("Resgates");
+        const statsResgates = document.createElement("div");
+        statsResgates.className = "empresa-detalhe__stats";
+        statsResgates.appendChild(criarReceiptRow("Total", window.UI.formatarNumero(dados.resgates.total)));
+        statsResgates.appendChild(criarReceiptRow("Pendentes", window.UI.formatarNumero(dados.resgates.pendentes)));
+        statsResgates.appendChild(criarReceiptRow("Utilizados", window.UI.formatarNumero(dados.resgates.utilizados)));
+        statsResgates.appendChild(criarReceiptRow("Cancelados", window.UI.formatarNumero(dados.resgates.cancelados)));
+        secaoResgates.appendChild(statsResgates);
+        modalDetalhesConteudoEl.appendChild(secaoResgates);
+
+        // ---- Pontos ----
+        const secaoPontos = criarSecaoDetalhe("Pontos");
+        const statsPontos = document.createElement("div");
+        statsPontos.className = "empresa-detalhe__stats";
+        statsPontos.appendChild(criarReceiptRow("Concedidos", window.UI.formatarNumero(dados.pontos.concedidos)));
+        statsPontos.appendChild(criarReceiptRow("Utilizados em resgates", window.UI.formatarNumero(dados.pontos.utilizados)));
+        statsPontos.appendChild(criarReceiptRow("Movimentações", window.UI.formatarNumero(dados.pontos.total_movimentacoes)));
+        secaoPontos.appendChild(statsPontos);
+        modalDetalhesConteudoEl.appendChild(secaoPontos);
+
+        // ---- Atividade ----
+        const secaoAtividade = criarSecaoDetalhe("Atividade");
+
+        if (dados.atividade.ultimo_resgate) {
+            const ultimo = dados.atividade.ultimo_resgate;
+            const linhaUltimo = document.createElement("div");
+            linhaUltimo.className = "empresa-detalhe__atividade-item";
+
+            const texto = document.createElement("p");
+            texto.className = "empresa-detalhe__atividade-texto";
+            texto.textContent = "Último resgate: " + ultimo.recompensa_nome + " — " + ultimo.usuario_nome
+                + " (" + window.UI.formatarData(ultimo.criado_em) + ")";
+
+            const badge = document.createElement("span");
+            badge.className = "status-badge " + (CLASSE_BADGE_RESGATE[ultimo.status] || "");
+            badge.textContent = ROTULO_STATUS_RESGATE[ultimo.status] || ultimo.status;
+
+            linhaUltimo.appendChild(texto);
+            linhaUltimo.appendChild(badge);
+            secaoAtividade.appendChild(linhaUltimo);
+        } else {
+            const semResgate = document.createElement("p");
+            semResgate.className = "dash-section__placeholder";
+            semResgate.textContent = "Esta empresa ainda não teve nenhum resgate.";
+            secaoAtividade.appendChild(semResgate);
+        }
+
+        if (dados.atividade.recompensa_mais_resgatada) {
+            const maisResgatada = dados.atividade.recompensa_mais_resgatada;
+            const textoMaisResgatada = document.createElement("p");
+            textoMaisResgatada.className = "empresa-detalhe__atividade-texto";
+            textoMaisResgatada.textContent = "Recompensa mais resgatada: " + maisResgatada.nome
+                + " (" + window.UI.formatarNumero(maisResgatada.vezes) + " vez"
+                + (maisResgatada.vezes === 1 ? "" : "es") + ")";
+            secaoAtividade.appendChild(textoMaisResgatada);
+        }
+
+        modalDetalhesConteudoEl.appendChild(secaoAtividade);
+    }
+
+    async function abrirModalDetalhes(empresa, botaoOrigem) {
+        modalDetalhesConteudoEl.innerHTML = "";
+        const carregando = document.createElement("p");
+        carregando.className = "dash-section__placeholder";
+        carregando.textContent = "Carregando...";
+        modalDetalhesConteudoEl.appendChild(carregando);
+
+        controladorDetalhes.abrir(botaoOrigem);
+
+        try {
+            const dados = await window.api("/empresas/" + empresa.id + "/detalhes");
+            renderizarDetalhes(dados);
+
+        } catch (erro) {
+            const mensagem = window.UI.mensagemDeErro(erro, "Não foi possível carregar os detalhes desta empresa agora.");
+            window.UI.definirPlaceholder(modalDetalhesConteudoEl, mensagem, "p");
+        }
+    }
 
     carregarEmpresas();
 })();

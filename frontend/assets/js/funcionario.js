@@ -34,8 +34,10 @@
     const tabsMenu = document.getElementById("tabs-menu");
     const tabPontosBtn = document.getElementById("tab-pontos-btn");
     const tabValidarBtn = document.getElementById("tab-validar-btn");
+    const tabRecompensasBtn = document.getElementById("tab-recompensas-btn");
     const tabPontosPainel = document.getElementById("tab-pontos-painel");
     const tabValidarPainel = document.getElementById("tab-validar-painel");
+    const tabRecompensasPainel = document.getElementById("tab-recompensas-painel");
 
     // Só existe efeito visual no celular (no desktop o CSS mantém .tabs
     // sempre visível independente desta classe — ver admin.css).
@@ -50,27 +52,39 @@
         tabsMenuBtn.setAttribute("aria-expanded", String(vaiAbrir));
     });
 
-    function selecionarAba(botaoAtivo, painelAtivo, botaoInativo, painelInativo) {
-        botaoAtivo.classList.add("is-active");
-        botaoAtivo.setAttribute("aria-selected", "true");
-        botaoAtivo.removeAttribute("tabindex");
+    // Generalizado para N abas (era só um par fixo até a 3ª aba —
+    // Recompensas — ser adicionada): cada índice liga um botão ao painel de
+    // mesma posição, todos os outros são desativados/escondidos juntos.
+    const abas = [
+        { botao: tabPontosBtn, painel: tabPontosPainel },
+        { botao: tabValidarBtn, painel: tabValidarPainel },
+        { botao: tabRecompensasBtn, painel: tabRecompensasPainel }
+    ];
 
-        botaoInativo.classList.remove("is-active");
-        botaoInativo.setAttribute("aria-selected", "false");
-        botaoInativo.tabIndex = -1;
+    function selecionarAba(indiceAtivo) {
+        abas.forEach(function (aba, indice) {
+            const ativa = indice === indiceAtivo;
 
-        painelAtivo.hidden = false;
-        painelInativo.hidden = true;
+            aba.botao.classList.toggle("is-active", ativa);
+            aba.botao.setAttribute("aria-selected", String(ativa));
+
+            if (ativa) {
+                aba.botao.removeAttribute("tabindex");
+            } else {
+                aba.botao.tabIndex = -1;
+            }
+
+            aba.painel.hidden = !ativa;
+        });
 
         fecharMenuAbas();
     }
 
-    tabPontosBtn.addEventListener("click", function () {
-        selecionarAba(tabPontosBtn, tabPontosPainel, tabValidarBtn, tabValidarPainel);
-    });
-
-    tabValidarBtn.addEventListener("click", function () {
-        selecionarAba(tabValidarBtn, tabValidarPainel, tabPontosBtn, tabPontosPainel);
+    tabPontosBtn.addEventListener("click", function () { selecionarAba(0); });
+    tabValidarBtn.addEventListener("click", function () { selecionarAba(1); });
+    tabRecompensasBtn.addEventListener("click", function () {
+        selecionarAba(2);
+        carregarRecompensasFuncionario();
     });
 
     // ==========================================================================
@@ -636,4 +650,127 @@
         evento.preventDefault();
         executarValidacaoResgate(codigoInput.value.trim());
     });
+
+    // ==========================================================================
+    // Aba "Recompensas" — destaque global (⭐), mesma capacidade do admin
+    // (ver reward.controller.js:destacar/removerDestaque e admin-recompensas.js,
+    // que usa exatamente o mesmo padrão de otimismo + reversão em caso de
+    // erro). Sem criar/editar/desativar — isso continua exclusivo do admin.
+    //
+    // GET /recompensas é o mesmo endpoint já usado por cliente/admin (só
+    // authMiddleware, sem roleMiddleware — ver reward.routes.js), então o
+    // funcionário já tinha acesso a ele mesmo antes desta fase.
+    //
+    // Reaproveita as classes .empresa-detalhe__recompensa* (criadas para o
+    // modal "Ver mais" de admin-empresas.js) — mesmo formato de linha
+    // (imagem/monograma + nome + pontos), só trocando o selo de status por
+    // esta estrela.
+    // ==========================================================================
+
+    const funcionarioRecompensasContainerEl = document.getElementById("funcionario-recompensas-container");
+    let recompensasFuncionarioCarregadas = false;
+
+    function atualizarVisualDestaqueFuncionario(botao, destacada) {
+        botao.textContent = destacada ? "⭐" : "☆";
+        botao.classList.toggle("star-toggle--ativo", destacada);
+        botao.setAttribute("aria-pressed", String(destacada));
+        const rotulo = destacada ? "Remover destaque" : "Destacar recompensa";
+        botao.setAttribute("aria-label", rotulo);
+        botao.title = rotulo;
+    }
+
+    function criarBotaoDestaqueFuncionario(recompensa) {
+        const botao = document.createElement("button");
+        botao.type = "button";
+        botao.className = "star-toggle";
+        atualizarVisualDestaqueFuncionario(botao, recompensa.destacada);
+
+        botao.addEventListener("click", async function () {
+            const novoValor = !recompensa.destacada;
+
+            recompensa.destacada = novoValor;
+            atualizarVisualDestaqueFuncionario(botao, novoValor);
+            botao.disabled = true;
+
+            try {
+                const caminho = "/recompensas/" + recompensa.id + (novoValor ? "/destacar" : "/remover-destaque");
+                await window.api(caminho, { method: "PATCH" });
+
+            } catch (erro) {
+                recompensa.destacada = !novoValor;
+                atualizarVisualDestaqueFuncionario(botao, !novoValor);
+
+            } finally {
+                botao.disabled = false;
+            }
+        });
+
+        return botao;
+    }
+
+    function criarLinhaRecompensaFuncionario(recompensa) {
+        const linha = document.createElement("div");
+        linha.className = "empresa-detalhe__recompensa";
+
+        if (recompensa.imagem) {
+            const img = document.createElement("img");
+            img.className = "empresa-detalhe__recompensa-img";
+            img.src = recompensa.imagem;
+            img.alt = "";
+            linha.appendChild(img);
+        } else {
+            const semImagem = document.createElement("span");
+            semImagem.className = "empresa-detalhe__recompensa-img empresa-detalhe__recompensa-img--vazia";
+            semImagem.setAttribute("aria-hidden", "true");
+            linha.appendChild(semImagem);
+        }
+
+        const info = document.createElement("div");
+        info.className = "empresa-detalhe__recompensa-info";
+
+        const nome = document.createElement("p");
+        nome.className = "empresa-detalhe__recompensa-nome";
+        nome.textContent = recompensa.empresa_nome ? recompensa.nome + " — " + recompensa.empresa_nome : recompensa.nome;
+
+        const pontos = document.createElement("p");
+        pontos.className = "empresa-detalhe__recompensa-pontos";
+        pontos.textContent = window.UI.formatarNumero(recompensa.pontos_necessarios) + " pontos";
+
+        info.appendChild(nome);
+        info.appendChild(pontos);
+        linha.appendChild(info);
+
+        linha.appendChild(criarBotaoDestaqueFuncionario(recompensa));
+
+        return linha;
+    }
+
+    // Carregada uma única vez (na primeira vez que a aba é aberta) —
+    // recompensa.destacada é atualizada em memória a cada clique na estrela,
+    // então reabrir a aba na mesma sessão não precisa buscar de novo.
+    async function carregarRecompensasFuncionario() {
+        if (recompensasFuncionarioCarregadas) {
+            return;
+        }
+        recompensasFuncionarioCarregadas = true;
+
+        try {
+            const recompensas = await window.api("/recompensas");
+
+            if (recompensas.length === 0) {
+                window.UI.definirPlaceholder(funcionarioRecompensasContainerEl, "Nenhuma recompensa ativa no momento.", "p");
+                return;
+            }
+
+            funcionarioRecompensasContainerEl.innerHTML = "";
+            recompensas.forEach(function (recompensa) {
+                funcionarioRecompensasContainerEl.appendChild(criarLinhaRecompensaFuncionario(recompensa));
+            });
+
+        } catch (erro) {
+            recompensasFuncionarioCarregadas = false;
+            const mensagem = window.UI.mensagemDeErro(erro, "Não foi possível carregar as recompensas agora.");
+            window.UI.definirPlaceholder(funcionarioRecompensasContainerEl, mensagem, "p");
+        }
+    }
 })();

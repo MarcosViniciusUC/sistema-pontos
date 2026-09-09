@@ -53,4 +53,23 @@ router.patch(
     rewardController.reativar
 );
 
+// Destaque GLOBAL (⭐ na área administrativa/funcionário) — admin E
+// funcionário têm a mesma capacidade aqui (diferente do resto deste
+// arquivo, admin-only); cliente não tem papel liberado nestas duas rotas,
+// então uma tentativa dele recebe 403 do roleMiddleware. Não confundir com
+// /favoritos/:id (favorito.routes.js), que é o oposto: só cliente.
+router.patch(
+    "/recompensas/:id/destacar",
+    authMiddleware,
+    roleMiddleware("admin", "funcionario"),
+    rewardController.destacar
+);
+
+router.patch(
+    "/recompensas/:id/remover-destaque",
+    authMiddleware,
+    roleMiddleware("admin", "funcionario"),
+    rewardController.removerDestaque
+);
+
 module.exports = router;

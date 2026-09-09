@@ -10,7 +10,9 @@ const rewardRoutes = require("./src/routes/reward.routes");
 const redemptionRoutes = require("./src/routes/redemption.routes");
 const adminRoutes = require("./src/routes/admin.routes");
 const empresaRoutes = require("./src/routes/empresa.routes");
+const favoritoRoutes = require("./src/routes/favorito.routes");
 const errorHandler = require("./src/middlewares/errorHandler");
+const { iniciarLimpezaPeriodica } = require("./src/services/resgateExpiracao.service");
 
 const app = express();
 
@@ -80,6 +82,7 @@ app.use(rewardRoutes);
 app.use(redemptionRoutes);
 app.use(adminRoutes);
 app.use(empresaRoutes);
+app.use(favoritoRoutes);
 
 app.use((req, res) => {
     res.status(404).json({
@@ -92,3 +95,10 @@ app.use(errorHandler);
 app.listen(3000, () => {
     console.log("Servidor rodando na porta 3000");
 });
+
+// Mecanismo A da expiração de resgates pendentes (5h) — roda uma vez
+// imediatamente e depois a cada 5 minutos enquanto o processo estiver de
+// pé. O mecanismo B (verificação sob demanda) vive em
+// redemption.controller.js e admin.controller.js — ver
+// src/services/resgateExpiracao.service.js para a regra completa.
+iniciarLimpezaPeriodica();

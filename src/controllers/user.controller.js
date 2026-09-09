@@ -124,17 +124,17 @@ async function meuPerfil(req, res) {
  * gerar o QR Code de cada cliente na tela de clientes. Não é um dado
  * sensível como senha; ele existe justamente para ser exibido/escaneado.
  *
- * Filtrada a tipo='cliente': é o que a tela de clientes (e a busca manual
- * de admin-identificar-cliente.js) sempre fizeram no frontend mesmo antes
- * desta mudança — trazer também admin/funcionário nunca foi usado por
- * ninguém, então filtrar aqui só reduz o que trafega, sem quebrar nada.
- * Também é o que torna "pontos" abaixo coerente: saldo de pontos só faz
- * sentido pra cliente.
+ * Traz TODOS os tipos de usuário (cliente, funcionario, admin) — antes só
+ * devolvia tipo='cliente', mas a tela de administração de usuários
+ * (admin-clientes.js) precisa listar todo mundo com o tipo visível. A
+ * busca manual de admin-identificar-cliente.js continua filtrando para
+ * cliente no próprio frontend (não depende deste filtro ter existido aqui).
  *
  * "pontos" nunca vem de uma coluna fixa — é somado a partir de
  * movimentacoes_pontos numa única consulta (LEFT JOIN + agregação), sem
- * uma query por cliente. Cliente sem nenhuma movimentação cai no LEFT JOIN
- * sem linha correspondente e o COALESCE resolve pra 0.
+ * uma query por cliente. Usuário sem nenhuma movimentação (o caso normal
+ * para admin/funcionário, que não têm saldo de fidelidade) cai no LEFT
+ * JOIN sem linha correspondente e o COALESCE resolve pra 0.
  */
 async function listar(req, res) {
     try {
@@ -149,12 +149,11 @@ async function listar(req, res) {
                 ), 0) AS pontos
              FROM usuarios u
              LEFT JOIN movimentacoes_pontos mp ON mp.usuario_id = u.id
-             WHERE u.tipo = 'cliente'
              GROUP BY u.id
              ORDER BY u.criado_em DESC`
         );
 
-        const clientes = resultado.rows.map(function (linha) {
+        const usuarios = resultado.rows.map(function (linha) {
             return {
                 id: linha.id,
                 nome: linha.nome,
@@ -167,7 +166,7 @@ async function listar(req, res) {
             };
         });
 
-        res.json(clientes);
+        res.json(usuarios);
 
     } catch (erro) {
         console.log(erro);

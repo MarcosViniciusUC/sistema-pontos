@@ -240,4 +240,148 @@ async function ativar(req, res) {
     }
 }
 
-module.exports = { listar, listarAdmin, criar, atualizar, ativar, desativar };
+/**
+ * "Ver mais" de uma empresa (admin) — pequena análise de como ela participa
+ * do programa de pontos. Todas as contagens vêm do banco, cada uma numa
+ * consulta de agregação separada sobre uma única tabela (recompensas OU
+ * resgates OU movimentacoes_pontos) em vez de um grande JOIN — evita
+ * qualquer duplicação por fan-out (ex: recompensa com vários resgates
+ * multiplicando linhas se recompensas e resgates fossem juntados na mesma
+ * consulta). É o mesmo princípio já usado em admin.controller.js:dashboard.
+ *
+ * A lista de recompensas é a única consulta que devolve várias linhas —
+ * total/ativas/inativas são derivados dela em JS (contagem de um array já
+ * trazido), não uma segunda consulta, então não tem como os dois números
+ * divergirem entre si.
+ */
+async function detalhar(req, res) {
+    const id = Number(req.params.id);
+
+    if (!Number.isInteger(id)) {
+        return res.status(400).json({
+            mensagem: "ID inválido"
+        });
+    }
+
+    try {
+        const empresaResultado = await pool.query(
+            "SELECT id, nome, slug, ativo, criado_em FROM empresas WHERE id = $1",
+            [id]
+        );
+
+        if (empresaResultado.rows.length === 0) {
+            return res.status(404).json({
+                mensagem: "Empresa não encontrada"
+            });
+        }
+
+        const [
+            recompensasResultado,
+            resgatesResumoResultado,
+            pontosResultado,
+            ultimoResgateResultado,
+            recompensaMaisResgatadaResultado
+        ] = await Promise.all([
+            pool.query(
+                `SELECT id, nome, pontos_necessarios, ativo, imagem, destacada
+                 FROM recompensas
+                 WHERE empresa_id = $1
+                 ORDER BY ativo DESC, pontos_necessarios ASC`,
+                [id]
+            ),
+
+            pool.query(
+                `SELECT
+                    COUNT(*)::int AS total,
+                    COUNT(*) FILTER (WHERE status = 'pendente_validacao')::int AS pendentes,
+                    COUNT(*) FILTER (WHERE status = 'utilizado')::int AS utilizados,
+                    COUNT(*) FILTER (WHERE status = 'cancelado')::int AS cancelados
+                 FROM resgates
+                 WHERE empresa_id = $1`,
+                [id]
+            ),
+
+            pool.query(
+                `SELECT
+                    COALESCE(SUM(CASE WHEN tipo = 'entrada' THEN quantidade ELSE 0 END), 0) AS pontos_concedidos,
+                    COALESCE(SUM(CASE WHEN tipo = 'saida' THEN quantidade ELSE 0 END), 0) AS pontos_utilizados,
+                    COUNT(*)::int AS total_movimentacoes
+                 FROM movimentacoes_pontos
+                 WHERE empresa_id = $1`,
+                [id]
+            ),
+
+            pool.query(
+                `SELECT r.id, r.status, r.criado_em, rec.nome AS recompensa_nome, u.nome AS usuario_nome
+                 FROM resgates r
+                 JOIN recompensas rec ON rec.id = r.recompensa_id
+                 JOIN usuarios u ON u.id = r.usuario_id
+                 WHERE r.empresa_id = $1
+                 ORDER BY r.criado_em DESC
+                 LIMIT 1`,
+                [id]
+            ),
+
+            // GROUP BY recompensa — cada recompensa conta suas próprias
+            // linhas de resgates.pontos vinculadas a ela, sem cruzar com a
+            // tabela de recompensas inteira (não há fan-out aqui: é
+            // COUNT(*) por grupo, não um JOIN solto).
+            pool.query(
+                `SELECT rec.nome, COUNT(*)::int AS vezes
+                 FROM resgates r
+                 JOIN recompensas rec ON rec.id = r.recompensa_id
+                 WHERE r.empresa_id = $1
+                 GROUP BY rec.id, rec.nome
+                 ORDER BY vezes DESC, rec.nome ASC
+                 LIMIT 1`,
+                [id]
+            )
+        ]);
+
+        const listaRecompensas = recompensasResultado.rows;
+        const pontosLinha = pontosResultado.rows[0];
+        const resgatesLinha = resgatesResumoResultado.rows[0];
+
+        res.json({
+            empresa: empresaResultado.rows[0],
+
+            recompensas: {
+                total: listaRecompensas.length,
+                ativas: listaRecompensas.filter((r) => r.ativo).length,
+                inativas: listaRecompensas.filter((r) => !r.ativo).length,
+                // Derivado da mesma lista já buscada acima — nenhuma consulta
+                // extra. Destaque é global (ver reward.controller.js), então
+                // esta contagem não tem relação com favoritos individuais.
+                destacadas: listaRecompensas.filter((r) => r.destacada).length,
+                lista: listaRecompensas
+            },
+
+            resgates: {
+                total: resgatesLinha.total,
+                pendentes: resgatesLinha.pendentes,
+                utilizados: resgatesLinha.utilizados,
+                cancelados: resgatesLinha.cancelados
+            },
+
+            pontos: {
+                concedidos: Number(pontosLinha.pontos_concedidos),
+                utilizados: Number(pontosLinha.pontos_utilizados),
+                total_movimentacoes: pontosLinha.total_movimentacoes
+            },
+
+            atividade: {
+                ultimo_resgate: ultimoResgateResultado.rows[0] || null,
+                recompensa_mais_resgatada: recompensaMaisResgatadaResultado.rows[0] || null
+            }
+        });
+
+    } catch (erro) {
+        console.log(erro);
+
+        res.status(500).json({
+            mensagem: "Erro ao consultar detalhes da empresa"
+        });
+    }
+}
+
+module.exports = { listar, listarAdmin, criar, atualizar, ativar, desativar, detalhar };

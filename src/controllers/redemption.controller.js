@@ -1,5 +1,6 @@
 const pool = require("../config/database");
 const { gerarCodigoResgate } = require("../utils/codigoResgate");
+const { cancelarResgatesExpirados } = require("../services/resgateExpiracao.service");
 
 const MAX_TENTATIVAS_CODIGO = 5;
 
@@ -177,9 +178,16 @@ async function criar(req, res) {
  * podem ter empresa_id NULL (a recompensa deles não tinha empresa definida
  * no momento do resgate) — continuam aparecendo normalmente, só com
  * empresa_nome = null, sem afetar o restante do registro.
+ *
+ * Verificação sob demanda (mecanismo B da expiração de 5h — ver
+ * resgateExpiracao.service.js): processa qualquer resgate expirado ANTES de
+ * montar a resposta, para o admin nunca ver um "pendente_validacao" que já
+ * deveria estar cancelado.
  */
 async function listarAdmin(req, res) {
     try {
+        await cancelarResgatesExpirados();
+
         const resultado = await pool.query(
             `SELECT
                 r.id,
@@ -219,9 +227,16 @@ async function listarAdmin(req, res) {
  *
  * empresa_nome vem de um LEFT JOIN (não INNER) pelo mesmo motivo de
  * listarAdmin: resgates antigos podem ter empresa_id NULL.
+ *
+ * Mesma verificação sob demanda de listarAdmin: se o cliente ficou horas
+ * sem abrir o app e algum resgate dele expirou nesse meio tempo, ele já
+ * aparece como cancelado (com os pontos devolvidos) na primeira consulta
+ * depois de voltar, sem depender só da limpeza periódica em memória.
  */
 async function listarMeus(req, res) {
     try {
+        await cancelarResgatesExpirados();
+
         const resultado = await pool.query(
             `SELECT
                 r.id,
@@ -265,9 +280,17 @@ async function listarMeus(req, res) {
  * validado duas vezes ao mesmo tempo, a segunda tentativa só prossegue
  * depois que a primeira já commitou — e nesse ponto o status já não é mais
  * "pendente_validacao", então ela recebe 409 em vez de validar de novo.
+ *
+ * Também roda a verificação sob demanda de resgates expirados antes de
+ * buscar o código: um resgate que passou das 5 horas mas ainda não foi
+ * varrido pela limpeza periódica não pode ser validado como "utilizado" no
+ * balcão — precisa primeiro virar "cancelado" (com a devolução de pontos),
+ * e só então cair no caminho de erro 409 já existente abaixo.
  */
 async function validar(req, res) {
     const codigo = req.body.codigo.trim().toUpperCase();
+
+    await cancelarResgatesExpirados();
 
     const client = await pool.connect();
 

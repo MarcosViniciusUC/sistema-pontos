@@ -82,15 +82,14 @@
     margin-bottom: var(--space-7);
 }
 
-/* Espaço reservado para o logo real da Movement (svg/png). Nenhum símbolo é
-   desenhado aqui de propósito — só a área que vai recebê-lo. */
+/* Logo real da Movement (símbolo, sem o texto "MOVEMENT" nem a linha —
+   já removidos da imagem). Escala pela altura, largura livre para manter
+   a proporção original do símbolo. */
 .brand__mark {
     flex-shrink: 0;
-    width: 48px;
     height: 48px;
-    background: var(--color-bg);
-    border: 1px solid var(--color-border-strong);
-    border-radius: var(--radius-3);
+    width: auto;
+    object-fit: contain;
 }
 
 .brand__lockup {
@@ -873,6 +872,40 @@
 
 .badge--square {
     border-radius: var(--radius-1);
+}
+
+/* Estrela de destaque GLOBAL (admin/funcionário) — ver
+   reward.controller.js:destacar/removerDestaque. Diferente da estrela de
+   favorito do cliente (essa vive em dashboard.css, junto de .reward-card,
+   porque só aparece sobre a mídia do card); esta aqui é usada em contextos
+   de tabela/lista simples (admin-recompensas.js, funcionario.js), sem
+   posicionamento absoluto. ☆ vazia = sem destaque, ⭐ preenchida (cor de
+   marca) = destacada — mesmas duas cores já usadas em todo o resto do
+   sistema, nenhuma linguagem visual nova. */
+.star-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    background: none;
+    border: none;
+    border-radius: var(--radius-2);
+    font-size: 20px;
+    line-height: 1;
+    color: var(--color-text-tertiary);
+    cursor: pointer;
+    transition: color var(--duration-fast) var(--ease-standard),
+        background-color var(--duration-fast) var(--ease-standard);
+}
+
+.star-toggle:hover {
+    background: var(--color-surface-2);
+}
+
+.star-toggle--ativo {
+    color: var(--color-red-bright);
 }
 
 /* Alertas de página — diferente de .form-message (que vive dentro de um

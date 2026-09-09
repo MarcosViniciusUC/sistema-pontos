@@ -1,4 +1,5 @@
 const pool = require("../config/database");
+const { cancelarResgatesExpirados } = require("../services/resgateExpiracao.service");
 
 /**
  * Dashboard administrativo: reúne em poucas consultas de agregação os
@@ -17,6 +18,12 @@ const pool = require("../config/database");
  */
 async function dashboard(req, res) {
     try {
+        // Verificação sob demanda (mesma de redemption.controller.js) — os
+        // KPIs de resgates pendentes/cancelados abaixo devem refletir
+        // resgates já expirados, mesmo que a limpeza periódica ainda não
+        // tenha rodado desde o último reinício do servidor.
+        await cancelarResgatesExpirados();
+
         const [
             clientesResultado,
             recompensasAtivasResultado,

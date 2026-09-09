@@ -826,6 +826,58 @@
     filter: grayscale(70%) brightness(0.55);
 }
 
+/* Selo estático "Em destaque" (destaque GLOBAL, definido por admin/
+   funcionário — ver reward.controller.js:destacar) — canto oposto ao botão
+   de favorito abaixo, pra nunca sobrepor um no outro. Não é clicável: o
+   cliente nunca altera este valor, só visualiza (ver seção 7 do pedido).
+   Mesma linguagem visual de .status-badge--aprovado (fundo vermelho sólido
+   = estado positivo/ativo em todo o sistema), só reposicionado sobre a mídia. */
+.reward-card__featured {
+    position: absolute;
+    top: var(--space-2);
+    left: var(--space-2);
+    z-index: 1;
+}
+
+/* Estrela de favorito INDIVIDUAL do cliente — conceito diferente do selo
+   acima (ver comentário ali). Círculo translúcido sobre a imagem/gradiente,
+   sempre no canto oposto ao selo de destaque. ☆ (vazia) quando não é
+   favorito, ⭐ (preenchida, cor de marca) quando é — mesma cor de destaque
+   usada em todo o resto do produto (--color-red-bright), nenhuma cor nova. */
+.reward-card__favorite {
+    position: absolute;
+    top: var(--space-2);
+    right: var(--space-2);
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    background: rgba(11, 13, 15, 0.55);
+    border: 1px solid var(--color-border-strong);
+    border-radius: var(--radius-full);
+    font-size: 16px;
+    line-height: 1;
+    color: var(--color-text-on-accent);
+    cursor: pointer;
+    transition: background-color var(--duration-fast) var(--ease-standard),
+        transform var(--duration-fast) var(--ease-standard);
+}
+
+.reward-card__favorite:hover {
+    background: rgba(11, 13, 15, 0.8);
+}
+
+.reward-card__favorite:active {
+    transform: scale(0.92);
+}
+
+.reward-card__favorite.is-favorito {
+    color: var(--color-red-bright);
+}
+
 .reward-card--v2.reward-card--indisponivel .reward-card__monogram {
     color: rgba(255, 255, 255, 0.08);
 }
@@ -1035,6 +1087,14 @@
 .resgate-item__meta {
     font-size: var(--text-xs);
     color: var(--color-text-tertiary);
+}
+
+/* Nota do resgate cancelado (devolução automática de pontos) — mesmo
+   tratamento discreto de .resgate-item__meta, só que na cor secundária
+   (não terciária) pra ter um pouco mais de presença que a data/empresa. */
+.resgate-item__nota {
+    font-size: var(--text-xs);
+    color: var(--color-text-secondary);
 }
 
 .resgate-item__codigo {

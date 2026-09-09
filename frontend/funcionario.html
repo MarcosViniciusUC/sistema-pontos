@@ -53,6 +53,10 @@
                             <svg class="tabs__icon" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 8a2 2 0 0 1 0 4 2 2 0 0 1 0 4h16a2 2 0 0 1 0-4 2 2 0 0 1 0-4H4z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M9 12l2 2 4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
                             Validar resgate
                         </button>
+                        <button type="button" id="tab-recompensas-btn" class="tabs__item" role="tab" aria-selected="false" aria-controls="tab-recompensas-painel" tabindex="-1">
+                            <svg class="tabs__icon" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3l2.4 5.8 6.1.5-4.7 4 1.4 6-5.2-3.3-5.2 3.3 1.4-6-4.7-4 6.1-.5z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
+                            Recompensas
+                        </button>
                     </div>
                 </div>
 
@@ -261,6 +265,25 @@
                                 <span class="receipt-row__value" id="resgate-pontos"></span>
                             </div>
                         </div>
+                    </div>
+                </section>
+                </div>
+
+                <div id="tab-recompensas-painel" class="tab-panel" role="tabpanel" aria-labelledby="tab-recompensas-btn" hidden>
+                <!-- ==========================================================
+                     Destaque global de recompensas (⭐) — mesma capacidade do
+                     admin (ver reward.controller.js:destacar/removerDestaque),
+                     só sem criar/editar/desativar recompensa, que continua
+                     exclusivo do admin (admin-recompensas.html).
+                     ========================================================== -->
+                <section class="dash-section">
+                    <h2 class="dash-section__title">Recompensas em destaque</h2>
+                    <p class="field-hint">
+                        A estrela marca o destaque global — recompensas destacadas aparecem para todos os clientes na área inicial.
+                    </p>
+
+                    <div id="funcionario-recompensas-container" class="operacao-panel">
+                        <p class="dash-section__placeholder">Carregando...</p>
                     </div>
                 </section>
                 </div>

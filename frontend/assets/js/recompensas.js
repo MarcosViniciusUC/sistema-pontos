@@ -383,6 +383,56 @@
         return base ? base.charAt(0).toUpperCase() : "?";
     }
 
+    // ==========================================================================
+    // Estrela de favorito (individual do cliente) — POST/DELETE /favoritos/:id.
+    // Feedback visual imediato (troca o glifo antes da resposta da API),
+    // revertido se a chamada falhar. stopPropagation defensivo: a estrela
+    // fica sobre a mídia do card, então um clique nela nunca deve contar
+    // como clique em "Ver detalhes" ou "Resgatar" (nenhum dos dois vive
+    // dentro de .reward-card__media, mas a proteção evita qualquer
+    // clique-through futuro se o layout mudar).
+    // ==========================================================================
+
+    function atualizarVisualFavorito(botao, favorita) {
+        botao.textContent = favorita ? "⭐" : "☆";
+        botao.classList.toggle("is-favorito", favorita);
+        botao.setAttribute("aria-pressed", String(favorita));
+        const rotulo = favorita ? "Remover dos favoritos" : "Adicionar aos favoritos";
+        botao.setAttribute("aria-label", rotulo);
+        botao.title = rotulo;
+    }
+
+    function criarBotaoFavorito(recompensa) {
+        const botao = document.createElement("button");
+        botao.type = "button";
+        botao.className = "reward-card__favorite";
+        atualizarVisualFavorito(botao, recompensa.favorita);
+
+        botao.addEventListener("click", async function (evento) {
+            evento.stopPropagation();
+
+            const novoValor = !recompensa.favorita;
+
+            recompensa.favorita = novoValor;
+            atualizarVisualFavorito(botao, novoValor);
+            botao.disabled = true;
+
+            try {
+                const metodo = novoValor ? "POST" : "DELETE";
+                await window.api("/favoritos/" + recompensa.id, { method: metodo });
+
+            } catch (erro) {
+                recompensa.favorita = !novoValor;
+                atualizarVisualFavorito(botao, !novoValor);
+
+            } finally {
+                botao.disabled = false;
+            }
+        });
+
+        return botao;
+    }
+
     function criarCardRecompensa(recompensa, saldoConhecido) {
         const disponivel = saldoConhecido && saldoAtual >= recompensa.pontos_necessarios;
 
@@ -392,10 +442,11 @@
         // Imagem real quando a recompensa tem uma (ver reward.controller.js);
         // sem imagem, cai no mesmo placeholder de sempre (gradiente +
         // monograma) — nenhuma mudança de comportamento pras recompensas
-        // que nunca ganharam foto.
+        // que nunca ganharam foto. Sem aria-hidden na caixa (diferente de
+        // antes): ela passou a conter a estrela de favorito, um controle
+        // real que não pode ficar invisível pra leitor de tela.
         const media = document.createElement("div");
         media.className = "reward-card__media";
-        media.setAttribute("aria-hidden", "true");
 
         if (recompensa.imagem) {
             const foto = document.createElement("img");
@@ -408,9 +459,25 @@
 
             const monograma = document.createElement("span");
             monograma.className = "reward-card__monogram";
+            monograma.setAttribute("aria-hidden", "true");
             monograma.textContent = obterMonogramaRecompensa(recompensa);
             media.appendChild(monograma);
         }
+
+        // Destaque GLOBAL (definido por admin/funcionário) — diferente do
+        // favorito individual abaixo. Só aparece quando destacada=true;
+        // aqui (catálogo completo, ao contrário da seção "Em destaque" da
+        // Início) recompensas destacadas e não destacadas convivem lado a
+        // lado, então o selo carrega informação real.
+        if (recompensa.destacada) {
+            const seloDestaque = document.createElement("span");
+            seloDestaque.className = "status-badge status-badge--aprovado reward-card__featured";
+            seloDestaque.textContent = "⭐ Destaque";
+            media.appendChild(seloDestaque);
+        }
+
+        media.appendChild(criarBotaoFavorito(recompensa));
+
         card.appendChild(media);
 
         const body = document.createElement("div");

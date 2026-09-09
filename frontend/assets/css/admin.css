@@ -1028,15 +1028,16 @@ a.kpi-card:hover::after {
         border: none;
     }
 
-    /* ---- #clientes-container: Nome, Email, Telefone, Pontos, Cadastro, Ações ---- */
+    /* ---- #clientes-container: Nome, Tipo, Email, Telefone, Pontos, Cadastro, Ações ---- */
     #clientes-container .data-table td:nth-child(1) { grid-column: 1; grid-row: 1; font-weight: 700; font-size: var(--text-base); color: var(--white); }
-    #clientes-container .data-table td:nth-child(4) { grid-column: 2; grid-row: 1; text-align: right; font-size: var(--text-lg); }
-    #clientes-container .data-table td:nth-child(2) { grid-column: 1 / -1; grid-row: 2; color: var(--color-text-secondary); font-size: var(--text-sm); }
-    #clientes-container .data-table td:nth-child(3) { grid-column: 1; grid-row: 3; }
-    #clientes-container .data-table td:nth-child(5) { grid-column: 2; grid-row: 3; text-align: right; }
-    #clientes-container .data-table td:nth-child(3),
-    #clientes-container .data-table td:nth-child(5) { font-size: var(--text-xs); color: var(--color-text-tertiary); }
-    #clientes-container .data-table td:nth-child(6) { grid-column: 1 / -1; grid-row: 4; margin-top: var(--space-2); }
+    #clientes-container .data-table td:nth-child(5) { grid-column: 2; grid-row: 1; text-align: right; font-size: var(--text-lg); }
+    #clientes-container .data-table td:nth-child(2) { grid-column: 1 / -1; grid-row: 2; }
+    #clientes-container .data-table td:nth-child(3) { grid-column: 1 / -1; grid-row: 3; color: var(--color-text-secondary); font-size: var(--text-sm); }
+    #clientes-container .data-table td:nth-child(4) { grid-column: 1; grid-row: 4; }
+    #clientes-container .data-table td:nth-child(6) { grid-column: 2; grid-row: 4; text-align: right; }
+    #clientes-container .data-table td:nth-child(4),
+    #clientes-container .data-table td:nth-child(6) { font-size: var(--text-xs); color: var(--color-text-tertiary); }
+    #clientes-container .data-table td:nth-child(7) { grid-column: 1 / -1; grid-row: 5; margin-top: var(--space-2); }
 
     /* ---- #empresas-container: Nome, Slug, Status, Ações ---- */
     #empresas-container .data-table td:nth-child(1) { grid-column: 1; grid-row: 1; font-weight: 700; font-size: var(--text-base); color: var(--white); }
@@ -1044,13 +1045,14 @@ a.kpi-card:hover::after {
     #empresas-container .data-table td:nth-child(2) { grid-column: 1 / -1; grid-row: 2; font-family: var(--font-mono); font-size: var(--text-xs); color: var(--color-text-tertiary); }
     #empresas-container .data-table td:nth-child(4) { grid-column: 1 / -1; grid-row: 3; margin-top: var(--space-2); }
 
-    /* ---- #recompensas-container: Nome, Empresa, Descrição, Pontos, Status, Ações ---- */
+    /* ---- #recompensas-container: Nome, Empresa, Descrição, Pontos, Status, Destaque, Ações ---- */
     #recompensas-container .data-table td:nth-child(1) { grid-column: 1; grid-row: 1; font-weight: 700; font-size: var(--text-base); color: var(--white); }
     #recompensas-container .data-table td:nth-child(5) { grid-column: 2; grid-row: 1; text-align: right; }
     #recompensas-container .data-table td:nth-child(2) { grid-column: 1 / -1; grid-row: 2; font-size: var(--text-xs); color: var(--color-text-tertiary); text-transform: uppercase; letter-spacing: 0.04em; }
     #recompensas-container .data-table td:nth-child(3) { grid-column: 1 / -1; grid-row: 3; font-size: var(--text-sm); color: var(--color-text-secondary); }
     #recompensas-container .data-table td:nth-child(4) { grid-column: 1; grid-row: 4; font-family: var(--font-mono); font-weight: 700; color: var(--red-bright); font-size: var(--text-lg); margin-top: var(--space-1); }
-    #recompensas-container .data-table td:nth-child(6) { grid-column: 1 / -1; grid-row: 5; margin-top: var(--space-2); }
+    #recompensas-container .data-table td:nth-child(6) { grid-column: 2; grid-row: 4; text-align: right; margin-top: var(--space-1); }
+    #recompensas-container .data-table td:nth-child(7) { grid-column: 1 / -1; grid-row: 5; margin-top: var(--space-2); }
 
     /* ---- #resgates-container: Cliente, Recompensa, Empresa, Pontos, Código, Status, Data ---- */
     #resgates-container .data-table td:nth-child(2) { grid-column: 1; grid-row: 1; font-weight: 700; font-size: var(--text-base); color: var(--white); }
@@ -1208,4 +1210,103 @@ a.kpi-card:hover::after {
            deixando um vão vazio visível à direita. */
         grid-template-columns: repeat(3, 1fr);
     }
+}
+
+/* ==========================================================================
+   "Ver mais" da empresa (admin-empresas.js) — conteúdo do modal de detalhes.
+   Deliberadamente leve (receipt-row + badges já existentes, nada como os
+   .kpi-card grandes do dashboard) porque é uma leitura rápida dentro de uma
+   modal, não uma tela própria. Empilha em qualquer largura — o scroll
+   vertical já vem de .modal (max-height + overflow-y), sem precisar de
+   nenhuma regra responsiva extra aqui.
+   ========================================================================== */
+
+.empresa-detalhe__secao {
+    margin-bottom: var(--space-5);
+}
+
+.empresa-detalhe__secao:last-child {
+    margin-bottom: 0;
+}
+
+.empresa-detalhe__secao-titulo {
+    font-size: var(--text-2xs);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--color-text-tertiary);
+    margin-bottom: var(--space-3);
+}
+
+.empresa-detalhe__stats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-4);
+    margin-bottom: var(--space-3);
+}
+
+.empresa-detalhe__stats:last-child {
+    margin-bottom: 0;
+}
+
+.empresa-detalhe__recompensas-lista {
+    display: flex;
+    flex-direction: column;
+    max-height: 240px;
+    overflow-y: auto;
+}
+
+.empresa-detalhe__recompensa {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    padding: var(--space-2) 0;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.empresa-detalhe__recompensa:last-child {
+    border-bottom: none;
+}
+
+.empresa-detalhe__recompensa-img {
+    flex-shrink: 0;
+    width: 40px;
+    height: 30px;
+    object-fit: cover;
+    border-radius: var(--radius-2);
+    background: var(--color-bg);
+}
+
+.empresa-detalhe__recompensa-img--vazia {
+    border: 1px dashed var(--color-border-strong);
+}
+
+.empresa-detalhe__recompensa-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.empresa-detalhe__recompensa-nome {
+    font-size: var(--text-sm);
+    font-weight: 600;
+    color: var(--color-text-primary);
+}
+
+.empresa-detalhe__recompensa-pontos {
+    font-size: var(--text-2xs);
+    color: var(--color-text-tertiary);
+}
+
+.empresa-detalhe__atividade-item {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2);
+    margin-bottom: var(--space-2);
+}
+
+.empresa-detalhe__atividade-texto {
+    font-size: var(--text-sm);
+    color: var(--color-text-secondary);
 }

@@ -37,6 +37,15 @@ router.get(
     empresaController.listarAdmin
 );
 
+// "Ver mais" (admin) — análise da participação da empresa no programa de
+// pontos. Admin-only, mesmo padrão de GET /empresas/admin.
+router.get(
+    "/empresas/:id/detalhes",
+    authMiddleware,
+    roleMiddleware("admin"),
+    empresaController.detalhar
+);
+
 router.put(
     "/empresas/:id",
     authMiddleware,

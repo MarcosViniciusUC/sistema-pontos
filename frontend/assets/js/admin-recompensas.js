@@ -471,6 +471,7 @@
             + "<th scope=\"col\">Descrição</th>"
             + "<th scope=\"col\" class=\"num\">Pontos</th>"
             + "<th scope=\"col\">Status</th>"
+            + "<th scope=\"col\">Destaque</th>"
             + "<th scope=\"col\">Ações</th>"
             + "</tr>";
         table.appendChild(thead);
@@ -511,6 +512,9 @@
             badge.className = "status-badge " + (recompensa.ativo ? "status-badge--aprovado" : "status-badge--recusado");
             badge.textContent = recompensa.ativo ? "Ativa" : "Inativa";
             tdStatus.appendChild(badge);
+
+            const tdDestaque = document.createElement("td");
+            tdDestaque.appendChild(criarBotaoDestaque(recompensa));
 
             const tdAcoes = document.createElement("td");
             const acoes = document.createElement("div");
@@ -553,6 +557,7 @@
             tr.appendChild(tdDescricao);
             tr.appendChild(tdPontos);
             tr.appendChild(tdStatus);
+            tr.appendChild(tdDestaque);
             tr.appendChild(tdAcoes);
             tbody.appendChild(tr);
         });
@@ -562,6 +567,55 @@
 
         containerEl.innerHTML = "";
         containerEl.appendChild(wrap);
+    }
+
+    // ==========================================================================
+    // Destaque global (⭐) — admin e funcionário têm a mesma capacidade aqui
+    // (roleMiddleware("admin", "funcionario") nas duas rotas). Diferente do
+    // resto desta tela (criar/editar/desativar/reativar), que é admin-only.
+    //
+    // Feedback visual imediato (troca o glifo/estado antes da resposta da
+    // API), com reversão automática se a chamada falhar — mesmo princípio já
+    // usado em admin-clientes.js pro saldo após +/- pontos, só que aqui é
+    // otimista em vez de esperar a resposta.
+    // ==========================================================================
+
+    function atualizarVisualDestaque(botao, destacada) {
+        botao.textContent = destacada ? "⭐" : "☆";
+        botao.classList.toggle("star-toggle--ativo", destacada);
+        botao.setAttribute("aria-pressed", String(destacada));
+        botao.setAttribute("aria-label", destacada ? "Remover destaque" : "Destacar recompensa");
+        botao.title = destacada ? "Remover destaque" : "Destacar recompensa";
+    }
+
+    function criarBotaoDestaque(recompensa) {
+        const botao = document.createElement("button");
+        botao.type = "button";
+        botao.className = "star-toggle";
+        atualizarVisualDestaque(botao, recompensa.destacada);
+
+        botao.addEventListener("click", async function () {
+            const novoValor = !recompensa.destacada;
+
+            recompensa.destacada = novoValor;
+            atualizarVisualDestaque(botao, novoValor);
+            botao.disabled = true;
+
+            try {
+                const caminho = "/recompensas/" + recompensa.id + (novoValor ? "/destacar" : "/remover-destaque");
+                await window.api(caminho, { method: "PATCH" });
+
+            } catch (erro) {
+                recompensa.destacada = !novoValor;
+                atualizarVisualDestaque(botao, !novoValor);
+                mostrarMensagemPagina(window.UI.mensagemDeErro(erro, "Não foi possível atualizar o destaque agora."), "erro");
+
+            } finally {
+                botao.disabled = false;
+            }
+        });
+
+        return botao;
     }
 
     async function carregarRecompensas() {

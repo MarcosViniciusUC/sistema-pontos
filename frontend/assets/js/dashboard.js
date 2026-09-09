@@ -135,6 +135,59 @@
         return base ? base.charAt(0).toUpperCase() : "?";
     }
 
+    // ==========================================================================
+    // Estrela de favorito (individual do cliente) — mesmo endpoint e mesmo
+    // padrão otimista (troca visual antes da resposta, reverte se falhar) já
+    // usados em recompensas.js/favoritos.js. Conceito diferente do selo
+    // estático "Em destaque" logo abaixo, que é global e nunca clicável pelo
+    // cliente (ver comentário em dashboard.css:.reward-card__featured).
+    // ==========================================================================
+
+    function atualizarVisualFavorito(botao, favorita) {
+        botao.textContent = favorita ? "⭐" : "☆";
+        botao.classList.toggle("is-favorito", favorita);
+        botao.setAttribute("aria-pressed", String(favorita));
+        const rotulo = favorita ? "Remover dos favoritos" : "Adicionar aos favoritos";
+        botao.setAttribute("aria-label", rotulo);
+        botao.title = rotulo;
+    }
+
+    function criarBotaoFavorito(recompensa) {
+        const botao = document.createElement("button");
+        botao.type = "button";
+        botao.className = "reward-card__favorite";
+        atualizarVisualFavorito(botao, recompensa.favorita);
+
+        botao.addEventListener("click", async function (evento) {
+            // O card em si não tem nenhum clique próprio nesta tela (o CTA
+            // sempre é o link/botão do rodapé), mas a estrela fica sobre a
+            // mídia — impedir a propagação é uma proteção defensiva contra
+            // qualquer clique-through acidental, mesmo sem um listener no
+            // card hoje.
+            evento.stopPropagation();
+
+            const novoValor = !recompensa.favorita;
+
+            recompensa.favorita = novoValor;
+            atualizarVisualFavorito(botao, novoValor);
+            botao.disabled = true;
+
+            try {
+                const metodo = novoValor ? "POST" : "DELETE";
+                await window.api("/favoritos/" + recompensa.id, { method: metodo });
+
+            } catch (erro) {
+                recompensa.favorita = !novoValor;
+                atualizarVisualFavorito(botao, !novoValor);
+
+            } finally {
+                botao.disabled = false;
+            }
+        });
+
+        return botao;
+    }
+
     function criarCardRecompensaDestaque(recompensa) {
         const disponivel = saldoConhecido && saldoAtual >= recompensa.pontos_necessarios;
 
@@ -145,9 +198,13 @@
         // sem imagem, cai no mesmo placeholder de sempre — mesmo tratamento
         // de recompensas.js, duplicado aqui de propósito (mesmo princípio já
         // usado no resto do projeto).
+        //
+        // Sem aria-hidden aqui (diferente de antes): a partir de agora esta
+        // caixa também contém a estrela de favorito, um controle real —
+        // escondê-la de leitores de tela deixaria um botão focável, porém
+        // invisível para quem usa AT.
         const media = document.createElement("div");
         media.className = "reward-card__media";
-        media.setAttribute("aria-hidden", "true");
 
         if (recompensa.imagem) {
             const foto = document.createElement("img");
@@ -160,9 +217,21 @@
 
             const monograma = document.createElement("span");
             monograma.className = "reward-card__monogram";
+            monograma.setAttribute("aria-hidden", "true");
             monograma.textContent = obterMonogramaRecompensa(recompensa);
             media.appendChild(monograma);
         }
+
+        // Toda recompensa desta seção já é destacada por definição (é o que
+        // GET /recompensas + o filtro abaixo garantem) — o selo confirma
+        // isso visualmente sem precisar de mais uma chamada à API.
+        const seloDestaque = document.createElement("span");
+        seloDestaque.className = "status-badge status-badge--aprovado reward-card__featured";
+        seloDestaque.textContent = "⭐ Destaque";
+        media.appendChild(seloDestaque);
+
+        media.appendChild(criarBotaoFavorito(recompensa));
+
         card.appendChild(media);
 
         const body = document.createElement("div");
@@ -243,16 +312,23 @@
             return;
         }
 
-        const recompensas = recompensasResultado.value;
+        // "Recompensas em destaque" mostra só o que admin/funcionário
+        // marcaram com destacada=true (ver reward.controller.js:destacar) —
+        // nunca as primeiras N recompensas da lista. Sem recompensa nenhuma
+        // destacada no momento, mostra um vazio elegante em vez de inventar
+        // conteúdo ou esconder a seção inteira.
+        const destacadas = recompensasResultado.value.filter(function (recompensa) {
+            return recompensa.destacada;
+        });
 
-        if (recompensas.length === 0) {
-            window.UI.definirPlaceholder(rewardsListEl, "Nenhuma recompensa disponível no momento.", "p");
+        if (destacadas.length === 0) {
+            window.UI.definirPlaceholder(rewardsListEl, "Nenhuma recompensa em destaque no momento.", "p");
             return;
         }
 
         rewardsListEl.innerHTML = "";
 
-        recompensas.slice(0, 4).forEach(function (recompensa) {
+        destacadas.forEach(function (recompensa) {
             rewardsListEl.appendChild(criarCardRecompensaDestaque(recompensa));
         });
     }

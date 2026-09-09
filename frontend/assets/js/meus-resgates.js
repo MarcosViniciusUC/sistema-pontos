@@ -155,6 +155,19 @@
         codigo.textContent = "Código: " + resgate.codigo;
         item.appendChild(codigo);
 
+        // Resgate cancelado (sempre pela expiração automática de 5 horas —
+        // não existe outro caminho que cancele um resgate hoje) sempre teve
+        // os pontos devolvidos: ver resgateExpiracao.service.js, que nunca
+        // cancela sem inserir a movimentação de entrada correspondente na
+        // mesma transação. Deixa isso explícito aqui pro cliente não achar
+        // que perdeu os pontos.
+        if (resgate.status === "cancelado") {
+            const nota = document.createElement("p");
+            nota.className = "resgate-item__nota";
+            nota.textContent = "Pontos devolvidos automaticamente após o prazo de validação (5 horas).";
+            item.appendChild(nota);
+        }
+
         if (resgate.status === "pendente_validacao") {
             const acao = document.createElement("div");
             acao.className = "resgate-item__action";

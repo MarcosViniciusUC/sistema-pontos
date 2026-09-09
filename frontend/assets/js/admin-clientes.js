@@ -16,6 +16,22 @@
 
     const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+    // Rótulo e classe visual do badge de tipo — reaproveita o componente
+    // .badge genérico (components.css) já pronto para isso, sem inventar
+    // cores novas: cliente fica neutro (.badge), funcionário usa o azul de
+    // .badge--info, admin usa o vermelho de marca (.badge--brand).
+    const ROTULO_TIPO = {
+        cliente: "Cliente",
+        funcionario: "Funcionário",
+        admin: "Administrador"
+    };
+
+    const CLASSE_BADGE_TIPO = {
+        cliente: "badge",
+        funcionario: "badge badge--info",
+        admin: "badge badge--brand"
+    };
+
     const containerEl = document.getElementById("clientes-container");
     const buscaInput = document.getElementById("busca-cliente");
     const pageMessageEl = document.getElementById("page-message");
@@ -120,7 +136,7 @@
 
     function renderizarTabela(lista) {
         if (lista.length === 0) {
-            window.UI.definirPlaceholder(containerEl, "Nenhum cliente encontrado.", "p");
+            window.UI.definirPlaceholder(containerEl, "Nenhum usuário encontrado.", "p");
             return;
         }
 
@@ -133,6 +149,7 @@
         const thead = document.createElement("thead");
         thead.innerHTML = "<tr>"
             + "<th scope=\"col\">Nome</th>"
+            + "<th scope=\"col\">Tipo</th>"
             + "<th scope=\"col\">Email</th>"
             + "<th scope=\"col\">Telefone</th>"
             + "<th scope=\"col\" class=\"num\">Pontos</th>"
@@ -148,6 +165,12 @@
 
             const tdNome = document.createElement("td");
             tdNome.textContent = cliente.nome;
+
+            const tdTipo = document.createElement("td");
+            const badgeTipo = document.createElement("span");
+            badgeTipo.className = CLASSE_BADGE_TIPO[cliente.tipo] || "badge";
+            badgeTipo.textContent = ROTULO_TIPO[cliente.tipo] || cliente.tipo;
+            tdTipo.appendChild(badgeTipo);
 
             const tdEmail = document.createElement("td");
             tdEmail.textContent = cliente.email;
@@ -180,37 +203,48 @@
                 abrirModalEditar(cliente, btnEditar);
             });
 
-            const btnMais = document.createElement("button");
-            btnMais.type = "button";
-            btnMais.className = "btn btn--ghost";
-            btnMais.textContent = "+ Pontos";
-            btnMais.addEventListener("click", function () {
-                abrirModalPontos(cliente, "entrada", btnMais);
-            });
-
-            const btnMenos = document.createElement("button");
-            btnMenos.type = "button";
-            btnMenos.className = "btn btn--ghost";
-            btnMenos.textContent = "− Pontos";
-            btnMenos.addEventListener("click", function () {
-                abrirModalPontos(cliente, "saida", btnMenos);
-            });
-
-            const btnQr = document.createElement("button");
-            btnQr.type = "button";
-            btnQr.className = "btn btn--ghost";
-            btnQr.textContent = "Ver QR Code";
-            btnQr.addEventListener("click", function () {
-                abrirModalQr(cliente, btnQr);
-            });
-
             acoes.appendChild(btnEditar);
-            acoes.appendChild(btnMais);
-            acoes.appendChild(btnMenos);
-            acoes.appendChild(btnQr);
+
+            // Pontos e QR Code só existem pra cliente — o backend já recusa
+            // POST /pontos/entrada para usuario_id que não seja cliente (ver
+            // points.controller.js:entrada), e qr_token de admin/funcionário
+            // não é usado por nenhum fluxo de identificação no balcão. Em vez
+            // de deixar os botões visíveis levando a um erro, eles nem
+            // aparecem para essas linhas.
+            if (cliente.tipo === "cliente") {
+                const btnMais = document.createElement("button");
+                btnMais.type = "button";
+                btnMais.className = "btn btn--ghost";
+                btnMais.textContent = "+ Pontos";
+                btnMais.addEventListener("click", function () {
+                    abrirModalPontos(cliente, "entrada", btnMais);
+                });
+
+                const btnMenos = document.createElement("button");
+                btnMenos.type = "button";
+                btnMenos.className = "btn btn--ghost";
+                btnMenos.textContent = "− Pontos";
+                btnMenos.addEventListener("click", function () {
+                    abrirModalPontos(cliente, "saida", btnMenos);
+                });
+
+                const btnQr = document.createElement("button");
+                btnQr.type = "button";
+                btnQr.className = "btn btn--ghost";
+                btnQr.textContent = "Ver QR Code";
+                btnQr.addEventListener("click", function () {
+                    abrirModalQr(cliente, btnQr);
+                });
+
+                acoes.appendChild(btnMais);
+                acoes.appendChild(btnMenos);
+                acoes.appendChild(btnQr);
+            }
+
             tdAcoes.appendChild(acoes);
 
             tr.appendChild(tdNome);
+            tr.appendChild(tdTipo);
             tr.appendChild(tdEmail);
             tr.appendChild(tdTelefone);
             tr.appendChild(tdPontos);
@@ -246,10 +280,11 @@
 
     async function carregarClientes() {
         try {
-            const usuarios = await window.api("/usuarios");
-            clientes = usuarios.filter(function (u) {
-                return u.tipo === "cliente";
-            });
+            // GET /usuarios agora devolve todos os tipos (cliente, funcionario,
+            // admin) — ver user.controller.js:listar. Antes só vinha cliente,
+            // e este filtro no frontend era redundante; removido porque agora
+            // a tela precisa mostrar todo mundo com o tipo visível.
+            clientes = await window.api("/usuarios");
             aplicarFiltro();
 
         } catch (erro) {
