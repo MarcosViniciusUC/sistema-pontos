@@ -11,6 +11,7 @@ const redemptionRoutes = require("./src/routes/redemption.routes");
 const adminRoutes = require("./src/routes/admin.routes");
 const empresaRoutes = require("./src/routes/empresa.routes");
 const favoritoRoutes = require("./src/routes/favorito.routes");
+const engagementRoutes = require("./src/routes/engagement.routes");
 const errorHandler = require("./src/middlewares/errorHandler");
 const { iniciarLimpezaPeriodica } = require("./src/services/resgateExpiracao.service");
 
@@ -83,6 +84,7 @@ app.use(redemptionRoutes);
 app.use(adminRoutes);
 app.use(empresaRoutes);
 app.use(favoritoRoutes);
+app.use(engagementRoutes);
 
 app.use((req, res) => {
     res.status(404).json({

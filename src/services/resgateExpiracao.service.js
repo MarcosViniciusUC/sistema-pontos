@@ -153,5 +153,6 @@ function iniciarLimpezaPeriodica(intervaloMs) {
 
 module.exports = {
     cancelarResgatesExpirados,
-    iniciarLimpezaPeriodica
+    iniciarLimpezaPeriodica,
+    HORAS_PARA_EXPIRAR
 };

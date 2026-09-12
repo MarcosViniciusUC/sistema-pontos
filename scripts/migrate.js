@@ -101,6 +101,10 @@ const MIGRATIONS = [
     {
         nome: "migrate-usuarios-cpf.js",
         jaAplicada: () => colunaExiste("usuarios", "cpf")
+    },
+    {
+        nome: "migrate-engajamento-historico.js",
+        jaAplicada: () => tabelaExiste("notificacoes_historico")
     }
 ];
 
