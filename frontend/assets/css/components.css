@@ -707,6 +707,17 @@
     color: var(--color-text-tertiary);
 }
 
+/* "Disponível para resgate" no catálogo (recompensas.js, Bloco 1 da V2) —
+   verde (--color-success), nunca a mesma cor sólida vermelha de
+   --aprovado: aquela já significa "Destaque" (selo global de
+   admin/funcionário) no mesmo card, e as duas informações não podem se
+   confundir visualmente. */
+.status-badge--disponivel {
+    background: var(--color-success-surface);
+    border-color: var(--color-success);
+    color: var(--color-success);
+}
+
 /* Área de QR Code gerado (qrcodejs) — usada no resgate do cliente e no QR
    individual do cliente no painel admin. Moldura com "cantos de mira" na
    cor de marca — reforça a identidade sem interferir no contraste que o

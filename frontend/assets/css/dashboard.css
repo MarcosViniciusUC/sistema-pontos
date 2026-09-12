@@ -142,6 +142,89 @@
 }
 
 /* ==========================================================================
+   Progresso de fidelização (Bloco 1 da V2) — vive dentro do próprio
+   .balance-card (não é um card novo) para a informação de progresso
+   continuar parecendo parte do mesmo bloco "seus pontos", em vez de mais um
+   painel separado. Largura de leitura confortável mesmo quando o card fica
+   bem largo (desktop), sem depender de nenhuma cor sozinha para comunicar
+   estado (o texto sempre repete em palavras o que a barra mostra
+   visualmente — ver aria-label em window.UI.criarBarraProgresso).
+   ========================================================================== */
+
+.balance-card__progress {
+    position: relative;
+    width: 100%;
+    max-width: 320px;
+    margin-top: var(--space-5);
+    padding-top: var(--space-5);
+    border-top: 1px solid var(--color-border);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-1);
+}
+
+.balance-card__progress-title {
+    font-size: var(--text-base);
+    font-weight: 700;
+    color: var(--color-text-on-accent);
+}
+
+.balance-card__progress-text {
+    font-size: var(--text-sm);
+    color: var(--color-text-secondary);
+}
+
+.balance-card__progress-text strong {
+    color: var(--color-text-on-accent);
+    font-weight: 700;
+}
+
+.balance-card__progress-numbers {
+    font-family: var(--font-mono);
+    font-size: var(--text-md);
+    font-weight: 700;
+    color: var(--color-text-on-accent);
+    font-variant-numeric: tabular-nums;
+    margin-top: var(--space-2);
+}
+
+.balance-card__progress-missing {
+    font-size: var(--text-sm);
+    font-weight: 700;
+    color: var(--color-red-bright);
+}
+
+.balance-card__progress-missing.is-quase-la {
+    color: var(--color-warning);
+}
+
+/* ==========================================================================
+   Barra de progresso genérica — usada aqui e nos cards de favoritos
+   (.reward-card__progress). Preenchimento cresce a partir da esquerda;
+   nunca depende só da cor para comunicar o valor (todo lugar que usa esta
+   barra também imprime o número por extenso ao lado — ver
+   .balance-card__progress-numbers / .reward-card__progress-numbers).
+   ========================================================================== */
+
+.progress-bar {
+    width: 100%;
+    height: 10px;
+    background: var(--color-surface-3);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-full);
+    overflow: hidden;
+}
+
+.progress-bar__fill {
+    height: 100%;
+    min-width: 4px;
+    background: linear-gradient(90deg, var(--color-red-dark), var(--color-red));
+    border-radius: var(--radius-full);
+    transition: width var(--duration-slow) var(--ease-out);
+}
+
+/* ==========================================================================
    Ações rápidas — atalhos para as três telas que já existem (Recompensas,
    Meus Resgates, Histórico). Três colunas cabem confortavelmente mesmo em
    telas de 360-390px sem precisar de scroll horizontal.
@@ -673,6 +756,44 @@
 }
 
 /* ==========================================================================
+   Progresso individual do favorito (Bloco 1 da V2) — mesma barra genérica
+   de .balance-card__progress (ver início do arquivo), em escala menor pra
+   caber dentro do corpo do card. Só aparece em favoritos.js, para uma
+   recompensa que não está desativada (ver criarBlocoProgresso).
+   ========================================================================== */
+
+.reward-card__progress {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin: var(--space-2) 0;
+}
+
+.reward-card__progress-numbers {
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    font-weight: 700;
+    color: var(--white);
+    font-variant-numeric: tabular-nums;
+}
+
+.reward-card__progress-missing {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--red-bright);
+}
+
+.reward-card__progress-missing.is-quase-la {
+    color: var(--color-warning);
+}
+
+.reward-card__progress-disponivel {
+    font-size: var(--text-sm);
+    font-weight: 700;
+    color: var(--color-success);
+}
+
+/* ==========================================================================
    Card de recompensa "rico" — usado tanto pelo catálogo (Recompensas) quanto
    pelos destaques da Início (dashboard.js gera o mesmo HTML, sem o botão
    "Ver detalhes" e sem abrir modal de resgate — o CTA sempre linka para
@@ -1001,6 +1122,16 @@
 .reward-card__cta {
     padding: 10px var(--space-5);
     font-size: 13px;
+}
+
+/* Agrupa selo + botão do estado "disponível" (Bloco 1 da V2) como um único
+   filho do footer, ao lado do preço — ver comentário em recompensas.js. */
+.reward-card__footer-group {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    flex-wrap: wrap;
+    justify-content: flex-end;
 }
 
 .reward-card__missing {

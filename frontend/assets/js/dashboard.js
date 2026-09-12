@@ -25,6 +25,7 @@
     const balanceErrorEl = document.getElementById("balance-error");
     const historyListEl = document.getElementById("history-list");
     const rewardsListEl = document.getElementById("rewards-list");
+    const progressAreaEl = document.getElementById("progress-area");
 
     let saldoAtual = 0;
     let saldoConhecido = false;
@@ -325,6 +326,106 @@
         return card;
     }
 
+    // ==========================================================================
+    // Área de progresso (Bloco 1 da V2) — transforma o saldo cru numa
+    // sensação de progresso: quanto falta para a próxima recompensa, ou o
+    // aviso de que já dá pra resgatar. Cálculo inteiro em
+    // window.UI.calcularProgresso/encontrarProximaRecompensa/
+    // encontrarRecompensasDesbloqueadas (src/assets/js/ui.js), reaproveitando
+    // saldoAtual e a mesma lista de recompensas já carregada acima — nenhuma
+    // chamada nova à API só para isto. Puramente apresentação: quem decide
+    // de verdade se um resgate é permitido continua sendo o backend, a cada
+    // requisição de POST /resgates.
+    // ==========================================================================
+
+    function renderizarProgressoDesbloqueado(desbloqueadas) {
+        const maisBarata = desbloqueadas[0];
+
+        const titulo = document.createElement("p");
+        titulo.className = "balance-card__progress-title";
+        titulo.textContent = desbloqueadas.length === 1
+            ? "🎁 Você já desbloqueou uma recompensa!"
+            : `🎁 Você já desbloqueou ${desbloqueadas.length} recompensas!`;
+        progressAreaEl.appendChild(titulo);
+
+        const texto = document.createElement("p");
+        texto.className = "balance-card__progress-text";
+
+        const negrito = document.createElement("strong");
+        negrito.textContent = maisBarata.nome;
+
+        texto.append("Você tem pontos suficientes para resgatar: ", negrito);
+
+        if (desbloqueadas.length > 1) {
+            texto.append(` (e mais ${desbloqueadas.length - 1})`);
+        }
+
+        progressAreaEl.appendChild(texto);
+    }
+
+    function renderizarProgressoEmAndamento(proxima) {
+        const progresso = window.UI.calcularProgresso(saldoAtual, proxima.pontos_necessarios);
+
+        const rotuloAcessivel = `${window.UI.formatarNumero(saldoAtual)} de `
+            + `${window.UI.formatarNumero(proxima.pontos_necessarios)} pontos para ${proxima.nome}`;
+
+        progressAreaEl.appendChild(window.UI.criarBarraProgresso(progresso.percentual, rotuloAcessivel));
+
+        const numeros = document.createElement("p");
+        numeros.className = "balance-card__progress-numbers";
+        numeros.textContent = `${window.UI.formatarNumero(saldoAtual)} / `
+            + `${window.UI.formatarNumero(proxima.pontos_necessarios)} pontos`;
+        progressAreaEl.appendChild(numeros);
+
+        const proximaTexto = document.createElement("p");
+        proximaTexto.className = "balance-card__progress-text";
+        const negrito = document.createElement("strong");
+        negrito.textContent = proxima.nome;
+        proximaTexto.append("Próxima recompensa: ", negrito);
+        progressAreaEl.appendChild(proximaTexto);
+
+        const faltamTexto = document.createElement("p");
+        faltamTexto.className = "balance-card__progress-missing" + (progresso.quaseLa ? " is-quase-la" : "");
+        faltamTexto.textContent = progresso.quaseLa
+            ? `🔥 Está quase! Faltam apenas ${window.UI.formatarNumero(progresso.faltam)} pontos`
+            : `Faltam ${window.UI.formatarNumero(progresso.faltam)} pontos`;
+        progressAreaEl.appendChild(faltamTexto);
+    }
+
+    function atualizarAreaProgresso(recompensas) {
+        progressAreaEl.innerHTML = "";
+
+        const ativas = recompensas.filter(function (r) { return r.ativo; });
+
+        if (ativas.length === 0) {
+            const vazio = document.createElement("p");
+            vazio.className = "balance-card__progress-text";
+            vazio.textContent = "Nenhuma recompensa disponível no momento.";
+            progressAreaEl.appendChild(vazio);
+            progressAreaEl.hidden = false;
+            return;
+        }
+
+        // Se o saldo já cobre uma ou mais recompensas, essa é sempre a
+        // informação principal — nunca mostrar "faltam X pontos" como se
+        // nada tivesse sido desbloqueado ainda (mesmo quando ainda existe
+        // uma recompensa mais cara acima do saldo).
+        const desbloqueadas = window.UI.encontrarRecompensasDesbloqueadas(ativas, saldoAtual);
+
+        if (desbloqueadas.length > 0) {
+            renderizarProgressoDesbloqueado(desbloqueadas);
+        } else {
+            const proxima = window.UI.encontrarProximaRecompensa(ativas, saldoAtual);
+            // proxima só é null aqui se `ativas` estivesse vazio, já tratado
+            // acima — mas a checagem defensiva evita depender só disso.
+            if (proxima) {
+                renderizarProgressoEmAndamento(proxima);
+            }
+        }
+
+        progressAreaEl.hidden = false;
+    }
+
     async function carregarSaldoERecompensas() {
         // Promise.allSettled: uma falha em qualquer uma das duas chamadas não
         // apaga o que a outra já carregou com sucesso.
@@ -350,6 +451,13 @@
                 "p"
             );
             return;
+        }
+
+        // Sem saldo conhecido não há progresso pra calcular — a área fica
+        // escondida (mesmo padrão de "degradar sem quebrar" já usado no
+        // resto da tela: o erro do saldo já apareceu acima, em balanceErrorEl).
+        if (saldoConhecido) {
+            atualizarAreaProgresso(recompensasResultado.value);
         }
 
         // "Recompensas em destaque" mostra só o que admin/funcionário

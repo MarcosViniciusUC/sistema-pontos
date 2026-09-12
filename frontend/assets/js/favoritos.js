@@ -380,6 +380,14 @@
             aviso.className = "reward-card__falta";
             aviso.textContent = "Não foi possível verificar seu saldo agora";
             body.appendChild(aviso);
+        } else {
+            // Progresso individual deste favorito (Bloco 1 da V2) — nunca
+            // calculado para uma recompensa desativada (ela não pode ser
+            // resgatada de qualquer forma, então "faltam X pontos" não faria
+            // sentido ali; ver ramo `desativada` acima). Mesmo cálculo puro
+            // de dashboard.js (window.UI.calcularProgresso), individual por
+            // favorito.
+            body.appendChild(criarBlocoProgresso(recompensa));
         }
 
         const footer = document.createElement("div");
@@ -404,17 +412,53 @@
                 abrirModalConfirmacao(recompensa, btnResgatar);
             });
             footer.appendChild(btnResgatar);
-        } else if (saldoConhecido) {
-            const diferenca = recompensa.pontos_necessarios - saldoAtual;
-            const faltam = document.createElement("span");
-            faltam.className = "reward-card__missing";
-            faltam.textContent = `Faltam ${window.UI.formatarNumero(diferenca)} pontos`;
-            footer.appendChild(faltam);
         }
+        // Quando indisponível só por saldo (não desativada), o bloco de
+        // progresso acima já mostra "Faltam X pontos" — repetir a mesma
+        // informação de novo aqui, sem a barra, seria só ruído.
 
         body.appendChild(footer);
 
         return card;
+    }
+
+    /**
+     * "X / Y pontos" + barra + "Faltam Z pontos" (ou "🔥 Está quase!"), ou
+     * "🎁 Você já pode resgatar" quando o saldo já cobre o custo — nunca
+     * "faltam 0 pontos" nesse caso (ver requisito do Bloco 1).
+     */
+    function criarBlocoProgresso(recompensa) {
+        const progresso = window.UI.calcularProgresso(saldoAtual, recompensa.pontos_necessarios);
+
+        const bloco = document.createElement("div");
+        bloco.className = "reward-card__progress";
+
+        if (progresso.disponivel) {
+            const disponivelTexto = document.createElement("p");
+            disponivelTexto.className = "reward-card__progress-disponivel";
+            disponivelTexto.textContent = "🎁 Você já pode resgatar";
+            bloco.appendChild(disponivelTexto);
+            return bloco;
+        }
+
+        const numeros = document.createElement("p");
+        numeros.className = "reward-card__progress-numbers";
+        numeros.textContent = `${window.UI.formatarNumero(saldoAtual)} / `
+            + `${window.UI.formatarNumero(recompensa.pontos_necessarios)} pontos`;
+        bloco.appendChild(numeros);
+
+        const rotuloAcessivel = `${window.UI.formatarNumero(saldoAtual)} de `
+            + `${window.UI.formatarNumero(recompensa.pontos_necessarios)} pontos para ${recompensa.nome}`;
+        bloco.appendChild(window.UI.criarBarraProgresso(progresso.percentual, rotuloAcessivel));
+
+        const faltamTexto = document.createElement("p");
+        faltamTexto.className = "reward-card__progress-missing" + (progresso.quaseLa ? " is-quase-la" : "");
+        faltamTexto.textContent = progresso.quaseLa
+            ? `🔥 Está quase! Faltam apenas ${window.UI.formatarNumero(progresso.faltam)} pontos`
+            : `Faltam ${window.UI.formatarNumero(progresso.faltam)} pontos`;
+        bloco.appendChild(faltamTexto);
+
+        return bloco;
     }
 
     function mostrarVazio() {

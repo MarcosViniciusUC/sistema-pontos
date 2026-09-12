@@ -575,6 +575,21 @@
         footer.appendChild(pontos);
 
         if (disponivel) {
+            // Agrupado num único wrapper para o footer continuar com exatamente
+            // dois filhos (pontos + este grupo) — mantém o mesmo layout
+            // "space-between" de sempre, em vez de um terceiro item flutuando
+            // no meio quando o card fica estreito.
+            const grupoDisponivel = document.createElement("div");
+            grupoDisponivel.className = "reward-card__footer-group";
+
+            // Discreto de propósito (Bloco 1 da V2): um selo pequeno ao lado
+            // do botão, não uma segunda barra/bloco de progresso — a
+            // recompensa já está disponível, não há mais nada a acompanhar.
+            const selo = document.createElement("span");
+            selo.className = "status-badge status-badge--disponivel";
+            selo.textContent = "Disponível para resgate";
+            grupoDisponivel.appendChild(selo);
+
             const btnResgatar = document.createElement("button");
             btnResgatar.type = "button";
             btnResgatar.className = "btn btn--primary reward-card__cta";
@@ -582,7 +597,9 @@
             btnResgatar.addEventListener("click", function () {
                 abrirModalConfirmacao(recompensa, btnResgatar);
             });
-            footer.appendChild(btnResgatar);
+            grupoDisponivel.appendChild(btnResgatar);
+
+            footer.appendChild(grupoDisponivel);
         } else if (saldoConhecido) {
             const diferenca = recompensa.pontos_necessarios - saldoAtual;
             const faltam = document.createElement("span");

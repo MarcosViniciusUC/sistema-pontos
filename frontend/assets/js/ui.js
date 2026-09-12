@@ -261,6 +261,104 @@
             : (mensagemPadrao || "Não foi possível conectar ao servidor. Tente novamente.");
     }
 
+    // ==========================================================================
+    // Progresso de fidelização (Bloco 1 da V2) — cálculo puro, sem chamada à
+    // API própria: sempre a partir do saldo (GET /pontos/saldo) e do catálogo
+    // de recompensas (GET /recompensas ou GET /favoritos) que a própria
+    // página já carregou para outro fim. Compartilhado entre
+    // dashboard.js/recompensas.js/favoritos.js para o cálculo nunca divergir
+    // entre as três telas.
+    //
+    // Isto é sempre e só apresentação: o backend nunca lê nem confia em
+    // nenhum valor calculado aqui para autorizar um resgate — a validação de
+    // saldo que vale de verdade continua inteiramente em
+    // redemption.controller.js, a cada requisição.
+    // ==========================================================================
+
+    // Regra do "quase lá": 80% do caminho até o custo da recompensa (não um
+    // número fixo de pontos) — escolhida por escalar corretamente tanto para
+    // recompensas baratas quanto caras, em vez de um valor absoluto que
+    // seria generoso demais para uma recompensa de 50 pontos e apertado
+    // demais para uma de 5000.
+    const QUASE_LA_PERCENTUAL = 0.8;
+
+    /**
+     * Progresso do saldo atual em direção ao custo de UMA recompensa
+     * específica. `percentual` já vem limitado a [0, 100] (protege contra
+     * saldo=0, saldo muito acima do custo, ou custo muito baixo).
+     */
+    function calcularProgresso(saldo, pontosNecessarios) {
+        const razao = pontosNecessarios > 0 ? saldo / pontosNecessarios : 1;
+        const percentual = Math.max(0, Math.min(100, Math.round(razao * 100)));
+        const disponivel = saldo >= pontosNecessarios;
+
+        return {
+            percentual: percentual,
+            faltam: Math.max(0, pontosNecessarios - saldo),
+            disponivel: disponivel,
+            quaseLa: !disponivel && razao >= QUASE_LA_PERCENTUAL
+        };
+    }
+
+    /**
+     * A recompensa com MENOR pontos_necessarios entre as que o saldo ainda
+     * não alcança — "próxima recompensa" do dashboard. `recompensas` deve
+     * conter só recompensas ativas (o chamador filtra antes); não assume
+     * nenhuma ordenação de entrada (GET /favoritos, por exemplo, vem
+     * ordenado por data de favorito, não por pontos). Retorna null quando o
+     * saldo já cobre todas (nada acima dele).
+     */
+    function encontrarProximaRecompensa(recompensas, saldo) {
+        return recompensas
+            .filter(function (r) { return r.pontos_necessarios > saldo; })
+            .reduce(function (menor, atual) {
+                if (!menor || atual.pontos_necessarios < menor.pontos_necessarios) {
+                    return atual;
+                }
+                return menor;
+            }, null);
+    }
+
+    /**
+     * Todas as recompensas que o saldo já cobre, da mais barata para a mais
+     * cara — usada para identificar "a oportunidade mais relevante" quando o
+     * cliente já tem pontos suficientes para uma ou mais recompensas (nunca
+     * dá a entender que só existe uma, quando existem várias).
+     */
+    function encontrarRecompensasDesbloqueadas(recompensas, saldo) {
+        return recompensas
+            .filter(function (r) { return r.pontos_necessarios <= saldo; })
+            .slice()
+            .sort(function (a, b) { return a.pontos_necessarios - b.pontos_necessarios; });
+    }
+
+    /**
+     * Barra de progresso acessível: `role="progressbar"` com
+     * aria-valuenow/min/max, mais um aria-label textual — o progresso nunca
+     * depende só da cor/largura visual para ser entendido (leitor de tela
+     * anuncia o rótulo por extenso, ex: "720 de 800 pontos para Sessão de
+     * Personal Trainer").
+     */
+    function criarBarraProgresso(percentual, rotuloAcessivel) {
+        const barra = document.createElement("div");
+        barra.className = "progress-bar";
+        barra.setAttribute("role", "progressbar");
+        barra.setAttribute("aria-valuemin", "0");
+        barra.setAttribute("aria-valuemax", "100");
+        barra.setAttribute("aria-valuenow", String(percentual));
+
+        if (rotuloAcessivel) {
+            barra.setAttribute("aria-label", rotuloAcessivel);
+        }
+
+        const preenchimento = document.createElement("div");
+        preenchimento.className = "progress-bar__fill";
+        preenchimento.style.width = percentual + "%";
+        barra.appendChild(preenchimento);
+
+        return barra;
+    }
+
     /**
      * Liga o botão "☰ Menu" que colapsa a navegação principal (.bottom-nav
      * do cliente ou .admin-nav do admin) no celular — no desktop o CSS já
@@ -303,6 +401,10 @@
         criarItemHistorico,
         criarControladorModal,
         definirPlaceholder,
-        mensagemDeErro
+        mensagemDeErro,
+        calcularProgresso,
+        encontrarProximaRecompensa,
+        encontrarRecompensasDesbloqueadas,
+        criarBarraProgresso
     };
 })();
