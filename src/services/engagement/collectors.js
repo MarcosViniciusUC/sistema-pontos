@@ -13,14 +13,13 @@
  * legítimo é sempre a camada que chama o motor (ver engine.js e
  * engagement.controller.js) — nunca este arquivo.
  *
- * PERFORMANCE: 4 consultas fixas por cliente (saldo, recompensas ativas,
- * favoritos, resgates pendentes), nenhuma delas dentro de um loop. Avaliar
- * N clientes de uma vez (um futuro cron/lote) da forma como este arquivo
- * está feito seria 4×N consultas — aceitável para simulação sob demanda
- * (1 cliente por vez, que é o único uso real desta etapa), mas NÃO deve ser
- * usado assim num lote grande sem antes reescrever para consultas agregadas
- * (todas os clientes de uma vez, com JOIN/GROUP BY) — ver seção de
- * performance do relatório final.
+ * PERFORMANCE: as funções `coletarX(usuarioId)` fazem 1 consulta cada,
+ * pensadas para UM cliente por vez (uso real: simulação sob demanda via
+ * POST /admin/engajamento/simular). Para processar VÁRIOS clientes de uma
+ * rodada (ver scheduler.js), use `coletarContextoEmLote(usuarioIds)` — ela
+ * busca os mesmos dados para o lote inteiro em 4 consultas FIXAS (nunca
+ * 4×N), agregando por `usuario_id` no Postgres em vez de repetir a mesma
+ * consulta num loop do Node.
  */
 const pool = require("../../config/database");
 
@@ -117,10 +116,125 @@ async function coletarDadosCliente(usuarioId) {
     return resultado.rows[0] || null;
 }
 
+/**
+ * Todos os clientes (tipo='cliente' — nunca admin/funcionário, que não têm
+ * saldo de fidelidade) — usado pelo scheduler.js para saber quem processar.
+ * Só as 3 colunas que o motor realmente usa (ver coletarDadosCliente).
+ */
+async function coletarClientesElegiveis() {
+    const resultado = await pool.query(
+        `SELECT id, nome, email FROM usuarios WHERE tipo = 'cliente' ORDER BY id`
+    );
+
+    return resultado.rows;
+}
+
+/**
+ * Versão EM LOTE de coletarSaldo/coletarRecompensasAtivas/
+ * coletarResgatesPendentes — pensada para o scheduler.js, que precisa do
+ * contexto de VÁRIOS clientes na mesma rodada. Em vez de repetir as 3
+ * consultas por cliente (o que viraria 3×N consultas — exatamente o N+1
+ * que este arquivo já alertava contra desde o Bloco 3), busca cada dado
+ * UMA VEZ PARA TODOS os `usuarioIds` de uma vez (agregação/IN, nunca um
+ * loop de queries) e devolve um Map<usuarioId, contexto> pronto para
+ * eventDetector.js — mesmo formato de dado que coletarSaldo/
+ * coletarRecompensasAtivas/coletarResgatesPendentes produziam
+ * individualmente, então nenhum detector precisou mudar.
+ *
+ * Total: sempre 4 consultas, não importa se `usuarioIds` tem 1 ou 10.000
+ * elementos (a lista de recompensas ativas nem depende do lote de
+ * usuários — é buscada uma vez só).
+ */
+async function coletarContextoEmLote(usuarioIds, horasParaExpirar) {
+    if (usuarioIds.length === 0) {
+        return new Map();
+    }
+
+    const [saldosResultado, recompensasResultado, favoritosResultado, resgatesResultado] = await Promise.all([
+        pool.query(
+            `SELECT usuario_id, COALESCE(SUM(
+                CASE WHEN tipo = 'entrada' THEN quantidade WHEN tipo = 'saida' THEN -quantidade END
+            ), 0) AS saldo
+             FROM movimentacoes_pontos
+             WHERE usuario_id = ANY($1)
+             GROUP BY usuario_id`,
+            [usuarioIds]
+        ),
+        // Recompensas ativas não dependem do usuário (só o "favorita" abaixo
+        // depende) — buscadas uma única vez para o lote inteiro.
+        pool.query(
+            `SELECT r.id, r.nome, r.pontos_necessarios, r.empresa_id, e.nome AS empresa_nome
+             FROM recompensas r
+             LEFT JOIN empresas e ON e.id = r.empresa_id
+             WHERE r.ativo = true
+             ORDER BY r.pontos_necessarios ASC`
+        ),
+        pool.query(
+            `SELECT usuario_id, recompensa_id FROM recompensas_favoritas WHERE usuario_id = ANY($1)`,
+            [usuarioIds]
+        ),
+        pool.query(
+            `SELECT r.id, r.usuario_id, r.codigo, r.pontos, r.criado_em, rc.nome AS recompensa_nome,
+                    EXTRACT(EPOCH FROM (
+                        (r.criado_em + ($2 || ' hours')::interval) - NOW()
+                    )) / 3600 AS horas_restantes
+             FROM resgates r
+             LEFT JOIN recompensas rc ON rc.id = r.recompensa_id
+             WHERE r.usuario_id = ANY($1) AND r.status = 'pendente_validacao'`,
+            [usuarioIds, horasParaExpirar]
+        )
+    ]);
+
+    const saldoPorUsuario = new Map(saldosResultado.rows.map(function (l) { return [l.usuario_id, Number(l.saldo)]; }));
+
+    const favoritosPorUsuario = new Map();
+    favoritosResultado.rows.forEach(function (l) {
+        if (!favoritosPorUsuario.has(l.usuario_id)) {
+            favoritosPorUsuario.set(l.usuario_id, new Set());
+        }
+        favoritosPorUsuario.get(l.usuario_id).add(l.recompensa_id);
+    });
+
+    const resgatesPorUsuario = new Map();
+    resgatesResultado.rows.forEach(function (linha) {
+        const item = {
+            id: linha.id,
+            codigo: linha.codigo,
+            pontos: linha.pontos,
+            recompensa_nome: linha.recompensa_nome,
+            horas_restantes: Number(linha.horas_restantes)
+        };
+        if (!resgatesPorUsuario.has(linha.usuario_id)) {
+            resgatesPorUsuario.set(linha.usuario_id, []);
+        }
+        resgatesPorUsuario.get(linha.usuario_id).push(item);
+    });
+
+    const contextoPorUsuario = new Map();
+
+    usuarioIds.forEach(function (usuarioId) {
+        const favoritosDoUsuario = favoritosPorUsuario.get(usuarioId) || new Set();
+
+        const recompensasAtivas = recompensasResultado.rows.map(function (r) {
+            return { ...r, favorita: favoritosDoUsuario.has(r.id) };
+        });
+
+        contextoPorUsuario.set(usuarioId, {
+            saldo: saldoPorUsuario.get(usuarioId) || 0,
+            recompensasAtivas: recompensasAtivas,
+            resgatesPendentes: resgatesPorUsuario.get(usuarioId) || []
+        });
+    });
+
+    return contextoPorUsuario;
+}
+
 module.exports = {
     coletarSaldo,
     coletarRecompensasAtivas,
     coletarUltimaMovimentacao,
     coletarResgatesPendentes,
-    coletarDadosCliente
+    coletarDadosCliente,
+    coletarClientesElegiveis,
+    coletarContextoEmLote
 };

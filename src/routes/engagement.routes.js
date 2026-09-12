@@ -16,4 +16,14 @@ router.post(
     engagementController.simular
 );
 
+// Roda uma rodada do scheduler agora, sem esperar o intervalo automático —
+// sempre em modo SIMULAÇÃO, mesma proteção contra sobreposição do
+// intervalo automático (ver scheduler.js). Nunca envia nada real.
+router.post(
+    "/admin/engajamento/scheduler/executar",
+    authMiddleware,
+    roleMiddleware("admin"),
+    engagementController.executarSchedulerAgora
+);
+
 module.exports = router;

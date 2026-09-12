@@ -179,4 +179,82 @@ async function processarAutomacoes(usuarioId, opcoes) {
     return { erro: null, automacaoEscolhida: automacaoEscolhida.nome, resultado: registro };
 }
 
-module.exports = { coletarContexto, detectarEventos, simular, processarAutomacoes };
+/**
+ * SIMULAÇÃO EM LOTE (scheduler.js) — separada de propósito de
+ * `processarAutomacoes()` acima: esta função NUNCA chama
+ * `notificationHistory.tentarEnviarComLimiteGlobal` (que grava e, se
+ * permitido, chamaria o provider de verdade) nem `notificationService`.
+ * Só LÊ o limite global (`verificarBloqueioGlobal`, sem lock, sem gravar) —
+ * é fisicamente impossível esta função disparar um envio real, mesmo que
+ * uma automação esteja `ativa: true` (ver scheduler.js, que é quem chama
+ * isto em toda rodada).
+ *
+ * Recebe `cliente` e `contexto` JÁ COLETADOS (ver
+ * collectors.js:coletarContextoEmLote) — não faz nenhuma consulta própria,
+ * para o scheduler poder processar N clientes com as mesmas 4 consultas em
+ * lote, não 4×N.
+ *
+ * Retorna sempre um objeto com `status` em
+ * 'SIMULADO' | 'BLOQUEADO_LIMITE' | 'SEM_AUTOMACAO_ELEGIVEL'.
+ */
+async function avaliarParaSimulacaoDeLote(cliente, contexto, opcoes) {
+    const eventosDetectados = detectarEventos(contexto, opcoes);
+    const tiposDetectados = new Set(eventosDetectados.map(function (e) { return e.tipo; }));
+
+    const automacoesElegiveis = automationRegistry.listarAtivas()
+        .filter(function (a) { return tiposDetectados.has(a.evento); });
+
+    if (automacoesElegiveis.length === 0) {
+        return {
+            usuarioId: cliente.id,
+            nome: cliente.nome,
+            status: "SEM_AUTOMACAO_ELEGIVEL",
+            motivo: "Nenhuma automação ativa corresponde a um evento detectado para este cliente",
+            evento: null,
+            automacao: null,
+            prioridade: null,
+            mensagem: null
+        };
+    }
+
+    const automacaoEscolhida = automationRegistry.escolherMaiorPrioridade(automacoesElegiveis);
+    const eventoCorrespondente = eventosDetectados.find(function (e) { return e.tipo === automacaoEscolhida.evento; });
+    const variaveis = montarContextoDeVariaveis(cliente, contexto.saldo, eventoCorrespondente.payload);
+    const mensagem = renderizarTemplate(automacaoEscolhida.template, variaveis);
+
+    // Só leitura — nunca grava, nunca usa o advisory lock (esse só existe
+    // no caminho real de envio, dentro de tentarEnviarComLimiteGlobal).
+    const statusLimiteGlobal = await notificationHistory.verificarBloqueioGlobal(cliente.id);
+
+    if (statusLimiteGlobal.bloqueado) {
+        return {
+            usuarioId: cliente.id,
+            nome: cliente.nome,
+            status: "BLOQUEADO_LIMITE",
+            motivo: `Já recebeu uma mensagem em ${statusLimiteGlobal.ultimoEnvioEm.toISOString()} — dentro da janela de ${notificationHistory.LIMITE_GLOBAL_DIAS} dias`,
+            evento: automacaoEscolhida.evento,
+            automacao: automacaoEscolhida.nome,
+            prioridade: typeof automacaoEscolhida.prioridade === "number" ? automacaoEscolhida.prioridade : null,
+            mensagem: mensagem
+        };
+    }
+
+    return {
+        usuarioId: cliente.id,
+        nome: cliente.nome,
+        status: "SIMULADO",
+        motivo: "Permitido pelo limite global — em produção, isto seria enviado",
+        evento: automacaoEscolhida.evento,
+        automacao: automacaoEscolhida.nome,
+        prioridade: typeof automacaoEscolhida.prioridade === "number" ? automacaoEscolhida.prioridade : null,
+        mensagem: mensagem
+    };
+}
+
+module.exports = {
+    coletarContexto,
+    detectarEventos,
+    simular,
+    processarAutomacoes,
+    avaliarParaSimulacaoDeLote
+};

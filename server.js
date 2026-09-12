@@ -14,6 +14,7 @@ const favoritoRoutes = require("./src/routes/favorito.routes");
 const engagementRoutes = require("./src/routes/engagement.routes");
 const errorHandler = require("./src/middlewares/errorHandler");
 const { iniciarLimpezaPeriodica } = require("./src/services/resgateExpiracao.service");
+const engagementScheduler = require("./src/services/engagement/scheduler");
 
 const app = express();
 
@@ -104,3 +105,9 @@ app.listen(3000, () => {
 // redemption.controller.js e admin.controller.js — ver
 // src/services/resgateExpiracao.service.js para a regra completa.
 iniciarLimpezaPeriodica();
+
+// Scheduler do Motor de Engajamento (modo SIMULAÇÃO) — chamado sempre, mas
+// só agenda algo de verdade se ENGAGEMENT_SCHEDULER_ENABLED=true estiver no
+// ambiente (default: desligado — ver src/services/engagement/schedulerConfig.js).
+// Nunca envia nada real, não importa o valor desta variável.
+engagementScheduler.iniciar();
