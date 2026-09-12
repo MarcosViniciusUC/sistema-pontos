@@ -25,11 +25,35 @@
     }
 
     const form = document.getElementById("login-form");
-    const emailInput = document.getElementById("email");
+    const cpfInput = document.getElementById("cpf");
     const senhaInput = document.getElementById("senha");
     const submitBtn = document.getElementById("submit-btn");
     const submitLabel = submitBtn.querySelector(".btn__label");
     const messageBox = document.getElementById("form-message");
+
+    // Máscara "inteligente": só formata como CPF quando o valor digitado é
+    // puramente numérico. No momento em que aparece uma letra ou "@", para
+    // de mascarar e deixa o valor passar intacto — é assim que as 3 contas
+    // de exceção (identificadoresLegado.js no backend) conseguem digitar
+    // "admin", "funcio" ou "maria@teste.com" neste mesmo campo, sem que o
+    // login vire um formulário genérico "CPF ou email" para todo mundo (a
+    // decisão de quem é exceção continua sendo só do backend).
+    function aplicarMascaraSeForNumerico(valor) {
+        if (/[a-zA-Z@]/.test(valor)) {
+            return valor;
+        }
+
+        const digitos = valor.replace(/\D/g, "").slice(0, 11);
+
+        return digitos
+            .replace(/(\d{3})(\d)/, "$1.$2")
+            .replace(/(\d{3})(\d)/, "$1.$2")
+            .replace(/(\d{3})(\d{1,2})$/, "$1-$2");
+    }
+
+    cpfInput.addEventListener("input", function () {
+        cpfInput.value = aplicarMascaraSeForNumerico(cpfInput.value);
+    });
 
     function mostrarMensagem(texto, tipo) {
         const icone = tipo === "erro" ? "!" : "✓";
@@ -88,11 +112,11 @@
         evento.preventDefault();
         esconderMensagem();
 
-        const email = emailInput.value.trim();
+        const cpf = cpfInput.value.trim();
         const senha = senhaInput.value;
 
-        if (!email || !senha) {
-            mostrarMensagem("Preencha email e senha para continuar.", "erro");
+        if (!cpf || !senha) {
+            mostrarMensagem("Preencha CPF e senha para continuar.", "erro");
             return;
         }
 
@@ -101,12 +125,26 @@
         try {
             const resposta = await window.api("/login", {
                 method: "POST",
-                body: { email, senha }
+                body: { cpf, senha }
             });
 
             const payload = window.Auth.decodificarToken(resposta.token);
             window.Auth.salvarSessao(resposta.token, payload ? payload.tipo : null);
-            window.Auth.salvarEmail(email);
+
+            // Nunca guarda o valor digitado no login para a saudação "Olá,
+            // ...": desde que o login passou a ser por CPF, esse valor pode
+            // ser um CPF (dado pessoal que não deve aparecer solto na tela)
+            // ou um identificador legado. GET /usuarios/me já existe e
+            // devolve o email de contato real de qualquer conta — é sempre
+            // isso que a saudação deve mostrar. Se essa chamada falhar por
+            // qualquer motivo, o login já aconteceu e continua válido; só a
+            // saudação cai no fallback "Olá!" (ver ui.js).
+            try {
+                const perfil = await window.api("/usuarios/me");
+                window.Auth.salvarEmail(perfil.email);
+            } catch (erroDePerfil) {
+                // Não crítico — ver comentário acima.
+            }
 
             mostrarMensagem("Login realizado com sucesso.", "sucesso");
 

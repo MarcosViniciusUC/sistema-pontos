@@ -35,6 +35,7 @@
 
     const form = document.getElementById("cadastro-form");
     const nomeInput = document.getElementById("nome");
+    const cpfInput = document.getElementById("cpf");
     const emailInput = document.getElementById("email");
     const telefoneInput = document.getElementById("telefone");
     const senhaInput = document.getElementById("senha");
@@ -42,6 +43,51 @@
     const submitBtn = document.getElementById("submit-btn");
     const submitLabel = submitBtn.querySelector(".btn__label");
     const messageBox = document.getElementById("form-message");
+
+    // Máscara de exibição — puramente de UX. O valor enviado à API é sempre
+    // normalizarCpf(valor), só dígitos; quem valida de verdade é o backend
+    // (validateUser.js usa o mesmo algoritmo de dígito verificador).
+    function normalizarCpf(valor) {
+        return (valor || "").replace(/\D/g, "").slice(0, 11);
+    }
+
+    function aplicarMascaraCpf(digitos) {
+        return digitos
+            .replace(/(\d{3})(\d)/, "$1.$2")
+            .replace(/(\d{3})(\d)/, "$1.$2")
+            .replace(/(\d{3})(\d{1,2})$/, "$1-$2");
+    }
+
+    // Dígitos verificadores de CPF — mesmo algoritmo do backend
+    // (src/utils/cpf.js), reimplementado aqui só para feedback imediato.
+    // Quem decide de verdade continua sendo o backend.
+    function validarCpf(digitos) {
+        if (digitos.length !== 11 || /^(\d)\1{10}$/.test(digitos)) {
+            return false;
+        }
+
+        function calcularDigito(base, pesoInicial) {
+            let soma = 0;
+            for (let i = 0; i < base.length; i++) {
+                soma += Number(base[i]) * (pesoInicial - i);
+            }
+            const resto = soma % 11;
+            return resto < 2 ? 0 : 11 - resto;
+        }
+
+        const d1 = calcularDigito(digitos.slice(0, 9), 10);
+        if (d1 !== Number(digitos[9])) {
+            return false;
+        }
+
+        const d2 = calcularDigito(digitos.slice(0, 10), 11);
+        return d2 === Number(digitos[10]);
+    }
+
+    cpfInput.addEventListener("input", function () {
+        const digitos = normalizarCpf(cpfInput.value);
+        cpfInput.value = aplicarMascaraCpf(digitos);
+    });
 
     function mostrarMensagem(texto, tipo) {
         messageBox.innerHTML = "";
@@ -76,17 +122,24 @@
         esconderMensagem();
 
         const nome = nomeInput.value.trim();
+        const cpf = normalizarCpf(cpfInput.value);
         const email = emailInput.value.trim();
         const telefone = telefoneInput.value.trim();
         const senha = senhaInput.value;
         const confirmarSenha = confirmarSenhaInput.value;
 
-        // Mesmas regras de validateUser.js no backend (nome >= 2, email com
-        // formato válido, senha >= 6) — checadas aqui só pra dar feedback
-        // imediato; quem decide de verdade continua sendo o backend.
+        // Mesmas regras de validateUser.js no backend (nome >= 2, CPF válido,
+        // email com formato válido, senha >= 6) — checadas aqui só pra dar
+        // feedback imediato; quem decide de verdade continua sendo o backend.
         if (!nome || nome.length < 2) {
             mostrarMensagem("Informe seu nome completo.", "erro");
             nomeInput.focus();
+            return;
+        }
+
+        if (!validarCpf(cpf)) {
+            mostrarMensagem("Informe um CPF válido.", "erro");
+            cpfInput.focus();
             return;
         }
 
@@ -115,6 +168,7 @@
                 method: "POST",
                 body: {
                     nome: nome,
+                    cpf: cpf,
                     email: email,
                     senha: senha,
                     telefone: telefone || undefined

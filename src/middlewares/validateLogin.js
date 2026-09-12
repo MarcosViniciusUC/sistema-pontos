@@ -1,21 +1,21 @@
-const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const { validarCpf } = require("../utils/cpf");
+const { ehIdentificadorLegado } = require("../utils/identificadoresLegado");
 
-// Exceção estreita e deliberada: só estes dois identificadores literais
-// (contas de teste fixas — ver scripts/create-admin.js e
-// create-funcionario.js) pulam a exigência de formato de email no login.
-// Qualquer outro valor sem "@algo.algo" continua rejeitado normalmente;
-// isto não é um sistema de "username" genérico, só uma exceção pontual.
-const IDENTIFICADORES_SEM_EMAIL = ["admin", "funcio"];
-
+// Login normal é sempre por CPF. A única exceção é a lista fechada de 3
+// contas legadas em identificadoresLegado.js (nenhuma delas tem CPF
+// cadastrado, de propósito) — essas continuam entrando pelo identificador
+// antigo (email). Não existe meio-termo: qualquer valor que não seja um CPF
+// válido E não esteja na lista legada é rejeitado aqui, antes mesmo de
+// consultar o banco.
 function validateLogin(req, res, next) {
-    const { email, senha } = req.body;
+    const { cpf, senha } = req.body;
 
-    const formatoValido = typeof email === "string"
-        && (EMAIL_REGEX.test(email) || IDENTIFICADORES_SEM_EMAIL.includes(email));
+    const formatoValido = typeof cpf === "string"
+        && (ehIdentificadorLegado(cpf) || validarCpf(cpf));
 
-    if (!email || typeof email !== "string" || !formatoValido) {
+    if (!cpf || typeof cpf !== "string" || !formatoValido) {
         return res.status(400).json({
-            mensagem: "Campo 'email' é obrigatório e deve ter um formato válido"
+            mensagem: "Campo 'cpf' é obrigatório e deve ser um CPF válido"
         });
     }
 

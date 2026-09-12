@@ -1,32 +1,39 @@
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcrypt");
 const pool = require("../config/database");
+const { normalizarCpf } = require("../utils/cpf");
+const { ehIdentificadorLegado } = require("../utils/identificadoresLegado");
 
 // Hash bcrypt fixo (mesmo custo de 10 rounds usado em todos os hashes reais —
 // ver cadastrar() em user.controller.js), gerado uma única vez e nunca
 // recalculado em tempo de execução. É só o hash de uma senha aleatória
 // qualquer, que nunca autentica ninguém — existe unicamente para dar ao
-// bcrypt.compare() um trabalho computacional para fazer quando o email não
-// é encontrado.
+// bcrypt.compare() um trabalho computacional para fazer quando o
+// CPF/identificador não é encontrado.
 //
-// Por quê: sem isso, "email não existe" retornava 401 imediatamente após o
-// SELECT, enquanto "email existe, senha errada" só retornava 401 depois do
-// bcrypt.compare() (que é lento de propósito). Essa diferença de tempo
-// (dezenas de ms, medida e confirmada na auditoria de segurança) permite
-// descobrir quais emails estão cadastrados sem nunca ler o conteúdo da
+// Por quê: sem isso, "identificador não existe" retornava 401 imediatamente
+// após o SELECT, enquanto "identificador existe, senha errada" só retornava
+// 401 depois do bcrypt.compare() (que é lento de propósito). Essa diferença
+// de tempo (dezenas de ms, medida e confirmada na auditoria de segurança)
+// permite descobrir quais CPFs estão cadastrados sem nunca ler o conteúdo da
 // resposta — só cronometrando quanto tempo /login demorou. Rodar o mesmo
-// bcrypt.compare() nos dois caminhos iguala o custo computacional das duas
-// respostas.
+// bcrypt.compare() nos dois caminhos (CPF normal ou identificador legado)
+// iguala o custo computacional de todas as respostas.
 const HASH_DUMMY_PARA_IGUALAR_TEMPO = "$2b$10$bPBRitadSGg/sShKhd9qjuuPklzIsrV2NL9szJxHhPKX1RT5bZx4W";
 
 async function login(req, res) {
-    const { email, senha } = req.body;
+    const { cpf, senha } = req.body;
 
     try {
-        const resultado = await pool.query(
-            "SELECT * FROM usuarios WHERE email = $1",
-            [email]
-        );
+        // Login normal é por CPF (coluna `cpf`, só dígitos). As 3 contas da
+        // lista fechada em identificadoresLegado.js (nenhuma tem CPF
+        // cadastrado, de propósito) continuam entrando pelo identificador
+        // antigo, buscado por `email` — nunca as duas coisas ao mesmo tempo
+        // para o mesmo valor, e nunca um fallback genérico "tenta CPF, se
+        // não achar tenta email" para qualquer usuário fora dessa lista.
+        const resultado = ehIdentificadorLegado(cpf)
+            ? await pool.query("SELECT * FROM usuarios WHERE email = $1", [cpf])
+            : await pool.query("SELECT * FROM usuarios WHERE cpf = $1", [normalizarCpf(cpf)]);
 
         const usuario = resultado.rows[0];
 
@@ -40,7 +47,7 @@ async function login(req, res) {
 
         if (!usuario || !senhaCorreta) {
             return res.status(401).json({
-                mensagem: "Email ou senha inválidos"
+                mensagem: "CPF ou senha inválidos"
             });
         }
 

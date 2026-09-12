@@ -13,7 +13,9 @@ const MAX_TENTATIVAS_QR_TOKEN = 5;
  * SAVEPOINT já usado para o código de reserva de resgates.
  */
 async function cadastrar(req, res) {
-    const { nome, email, senha, telefone } = req.body;
+    // cpf já chega normalizado (só dígitos) e validado por validateUser.js —
+    // o controller nunca recebe/grava a versão com pontuação.
+    const { nome, email, senha, telefone, cpf } = req.body;
     const senhaHash = await bcrypt.hash(senha, 10);
 
     const client = await pool.connect();
@@ -30,10 +32,10 @@ async function cadastrar(req, res) {
 
             try {
                 const resultado = await client.query(
-                    `INSERT INTO usuarios (nome, email, senha, telefone, tipo, qr_token)
-                     VALUES ($1, $2, $3, $4, 'cliente', $5)
+                    `INSERT INTO usuarios (nome, email, senha, telefone, tipo, qr_token, cpf)
+                     VALUES ($1, $2, $3, $4, 'cliente', $5, $6)
                      RETURNING id, nome, email, telefone`,
-                    [nome, email, senhaHash, telefone, qrToken]
+                    [nome, email, senhaHash, telefone, qrToken, cpf]
                 );
 
                 await client.query("RELEASE SAVEPOINT tentativa_qr_token");
@@ -46,6 +48,13 @@ async function cadastrar(req, res) {
                     await client.query("ROLLBACK");
                     return res.status(409).json({
                         mensagem: "Este email já está cadastrado"
+                    });
+                }
+
+                if (erroInsercao.code === "23505" && erroInsercao.constraint === "usuarios_cpf_key") {
+                    await client.query("ROLLBACK");
+                    return res.status(409).json({
+                        mensagem: "Este CPF já está cadastrado"
                     });
                 }
 
@@ -186,20 +195,22 @@ async function atualizar(req, res) {
         });
     }
 
-    // Somente estes três campos podem ser editados por este endpoint.
+    // Somente estes quatro campos podem ser editados por este endpoint.
     // "tipo" e "senha" nunca são lidos daqui, mesmo que enviados no body —
-    // não existe caminho de código que os leve até a query.
-    const { nome, email, telefone } = req.body;
+    // não existe caminho de código que os leve até a query. "cpf" já chega
+    // normalizado (só dígitos) e validado por validateUserUpdate.js.
+    const { nome, email, telefone, cpf } = req.body;
 
     try {
         const resultado = await pool.query(
             `UPDATE usuarios
              SET nome = COALESCE($1, nome),
                  email = COALESCE($2, email),
-                 telefone = COALESCE($3, telefone)
-             WHERE id = $4
+                 telefone = COALESCE($3, telefone),
+                 cpf = COALESCE($4, cpf)
+             WHERE id = $5
              RETURNING id, nome, email, telefone, tipo, qr_token, criado_em`,
-            [nome ?? null, email ?? null, telefone ?? null, id]
+            [nome ?? null, email ?? null, telefone ?? null, cpf ?? null, id]
         );
 
         if (resultado.rows.length === 0) {
@@ -212,6 +223,12 @@ async function atualizar(req, res) {
 
     } catch (erro) {
         console.log(erro);
+
+        if (erro.code === "23505" && erro.constraint === "usuarios_cpf_key") {
+            return res.status(409).json({
+                mensagem: "Este CPF já está cadastrado"
+            });
+        }
 
         if (erro.code === "23505") {
             return res.status(409).json({

@@ -21,9 +21,11 @@ function salvarSessao(token, tipo) {
 }
 
 /**
- * Guarda o email digitado no login apenas para exibição (ex: "Olá, ...").
- * Não existe hoje um endpoint que devolva o nome do cliente autenticado,
- * então usamos o que a própria pessoa informou — não é um dado inventado.
+ * Guarda um email real (vindo de GET /usuarios/me, chamado por app.js logo
+ * após o login) apenas para exibição (ex: "Olá, ..."). Nunca o valor
+ * digitado no campo de login — desde que o login passou a ser por CPF, esse
+ * valor pode ser um CPF (dado pessoal) ou um identificador legado, nenhum
+ * dos dois apropriado para aparecer solto na tela.
  */
 function salvarEmail(email) {
     if (email) {

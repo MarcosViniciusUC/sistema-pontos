@@ -1,6 +1,6 @@
 /**
  * Wrapper único para todas as chamadas à API.
- * Uso: api("/pontos/saldo") | api("/login", { method: "POST", body: { email, senha } })
+ * Uso: api("/pontos/saldo") | api("/login", { method: "POST", body: { cpf, senha } })
  */
 const API_BASE_URL = window.location.origin;
 
