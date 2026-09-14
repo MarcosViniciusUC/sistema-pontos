@@ -43,7 +43,14 @@
  */
 const path = require("path");
 const { spawn } = require("child_process");
-const pool = require("../src/config/database");
+// ETAPA 3C-13 — o orquestrador precisa criar/ler `migration_history`, o
+// que exige privilégio de CREATE no schema — `app_runtime` (a partir desta
+// etapa, o papel usado por src/config/database.js) deliberadamente NÃO tem
+// esse privilégio. databaseAdmin.js conecta com a mesma credencial de
+// sempre (`postgres`, DB_USER/DB_PASSWORD, inalterada) — só o nome do
+// módulo muda, para deixar explícito que este arquivo é uma ferramenta de
+// administração, nunca o caminho usado pelo processo HTTP da aplicação.
+const pool = require("../src/config/databaseAdmin");
 
 async function colunaExiste(tabela, coluna) {
     const resultado = await pool.query(
@@ -84,6 +91,25 @@ async function colunaNotNull(tabela, coluna) {
         `SELECT 1 FROM information_schema.columns
          WHERE table_schema = 'public' AND table_name = $1 AND column_name = $2 AND is_nullable = 'NO'`,
         [tabela, coluna]
+    );
+    return resultado.rows.length > 0;
+}
+
+// ETAPA 3C-13 (RLS) — três checagens novas de reconciliação.
+async function roleExiste(nomeRole) {
+    const resultado = await pool.query("SELECT 1 FROM pg_roles WHERE rolname = $1", [nomeRole]);
+    return resultado.rows.length > 0;
+}
+
+async function roleTemPrivilegioNaTabela(nomeRole, tabela, privilegio) {
+    const resultado = await pool.query("SELECT has_table_privilege($1, $2, $3) AS tem", [nomeRole, tabela, privilegio]);
+    return resultado.rows[0].tem === true;
+}
+
+async function politicaExiste(tabela, nomePolitica) {
+    const resultado = await pool.query(
+        "SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = $1 AND policyname = $2",
+        [tabela, nomePolitica]
     );
     return resultado.rows.length > 0;
 }
@@ -162,6 +188,46 @@ const MIGRATIONS = [
         // nenhum (oposto exato da migration anterior). Uma tabela
         // representativa basta pelo mesmo motivo (transação única).
         jaAplicada: async () => !(await colunaTemDefault("usuarios", "tenant_id"))
+    },
+    {
+        nome: "migrate-rls-role.js",
+        // Etapa 3C-13 — cria o papel `app_runtime` (NOSUPERUSER,
+        // NOBYPASSRLS), sem o qual nenhuma política RLS criada mais abaixo
+        // teria efeito nenhum sobre a aplicação (superusuário/dono de
+        // tabela sempre ignora RLS). "Aplicada" = o papel existe.
+        jaAplicada: () => roleExiste("app_runtime")
+    },
+    {
+        nome: "migrate-rls-grants.js",
+        // Concede a app_runtime só os privilégios de tabela/sequence
+        // estritamente necessários (nunca CREATE/ALTER/DROP/TRUNCATE). Uma
+        // tabela representativa (usuarios, SELECT) basta — a migration
+        // sempre concede todas de uma vez, numa única transação.
+        jaAplicada: () => roleTemPrivilegioNaTabela("app_runtime", "usuarios", "SELECT")
+    },
+    {
+        nome: "migrate-rls-dominio.js",
+        // Habilita RLS + política 'tenant_isolation' nas 7 tabelas
+        // tenant-aware (nunca em password_reset_tokens, fora do escopo
+        // desta etapa — ver relatório da 3C-13). Uma tabela representativa
+        // basta pelo mesmo motivo de sempre (transação única, todas as 7
+        // ficam prontas juntas ou nenhuma fica).
+        jaAplicada: () => politicaExiste("usuarios", "tenant_isolation")
+    },
+    {
+        nome: "migrate-rls-tenants.js",
+        // Política especial de 'tenants' (SELECT aberto, mutação só em
+        // bypass) — nunca a política tenant-based padrão, que criaria um
+        // ciclo com a resolução de tenant por slug (ver relatório da
+        // 3C-13).
+        jaAplicada: () => politicaExiste("tenants", "tenants_mutacao_bypass")
+    },
+    {
+        nome: "migrate-rls-admins-plataforma.js",
+        // Política especial de 'admins_plataforma' (bypass-only, inclusive
+        // SELECT) — tabela sensível, sem tenant_id, sem exceção de leitura
+        // aberta como em 'tenants'.
+        jaAplicada: () => politicaExiste("admins_plataforma", "admins_plataforma_bypass_only")
     }
 ];
 

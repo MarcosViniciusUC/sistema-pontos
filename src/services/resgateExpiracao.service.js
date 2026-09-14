@@ -1,4 +1,5 @@
 const pool = require("../config/database");
+const requestContext = require("../config/requestContext");
 
 const HORAS_PARA_EXPIRAR = 5;
 
@@ -46,81 +47,102 @@ const HORAS_PARA_EXPIRAR = 5;
  * devolução gravada com tenant_id=1, nunca contabilizada no saldo real do
  * usuário (que passou a ser calculado filtrando por tenant_id desde a
  * Etapa 3C-4). Esse era um bug cross-tenant real, corrigido aqui.
+ *
+ * ETAPA 3C-13 (RLS) — este job continua cross-tenant por natureza (mesmo
+ * motivo do comentário acima: chamado por um timer sem request nenhum, e
+ * também de dentro de rotas de tenants diferentes). Por isso a função
+ * INTEIRA roda em modo bypass (`requestContext.runAsBypass`), sempre,
+ * independente de qual contexto (se algum) estava ativo em quem chamou —
+ * nunca herda o `app.tenant_id` de uma requisição de admin que por acaso
+ * tenha disparado esta limpeza (ver redemption.controller.js/
+ * admin.controller.js), o que restringiria incorretamente a consulta de
+ * candidatos a um único tenant. `tenant_id` de cada devolução continua
+ * vindo sempre da própria linha do resgate (`resgate.tenant_id`, nunca
+ * assumido) — bypass só controla VISIBILIDADE/permissão de escrita, nunca
+ * qual valor é gravado.
  */
 async function cancelarResgatesExpirados() {
-    const candidatos = await pool.query(
-        `SELECT id FROM resgates
-         WHERE status = 'pendente_validacao'
-           AND criado_em + INTERVAL '${HORAS_PARA_EXPIRAR} hours' <= NOW()`
-    );
+    return requestContext.runAsBypass(async () => {
+        const candidatos = await pool.query(
+            `SELECT id FROM resgates
+             WHERE status = 'pendente_validacao'
+               AND criado_em + INTERVAL '${HORAS_PARA_EXPIRAR} hours' <= NOW()`
+        );
 
-    const cancelados = [];
+        const cancelados = [];
 
-    for (const linha of candidatos.rows) {
-        const client = await pool.connect();
+        for (const linha of candidatos.rows) {
+            const client = await pool.connect();
 
-        try {
-            await client.query("BEGIN");
+            try {
+                await client.query("BEGIN");
 
-            // FOR UPDATE trava a linha — uma segunda chamada concorrente para
-            // o mesmo id bloqueia aqui até esta transação terminar (COMMIT ou
-            // ROLLBACK), e só então lê o status já atualizado.
-            const resgateResultado = await client.query(
-                `SELECT id, usuario_id, pontos, status, tenant_id, criado_em
-                 FROM resgates
-                 WHERE id = $1
-                   AND status = 'pendente_validacao'
-                   AND criado_em + INTERVAL '${HORAS_PARA_EXPIRAR} hours' <= NOW()
-                 FOR UPDATE`,
-                [linha.id]
-            );
+                // client próprio (pool.connect()), fora do wrapper de
+                // src/config/database.js — não herda o bypass do
+                // requestContext automaticamente, precisa do seu próprio
+                // set_config.
+                await client.query("SELECT set_config('app.bypass_tenant_rls', 'on', true)");
 
-            if (resgateResultado.rows.length === 0) {
-                // Já foi processado por outra chamada concorrente, validado,
-                // ou deixou de estar expirado (não deveria acontecer, mas o
-                // recheck cobre qualquer corrida) — nada a fazer aqui.
+                // FOR UPDATE trava a linha — uma segunda chamada concorrente para
+                // o mesmo id bloqueia aqui até esta transação terminar (COMMIT ou
+                // ROLLBACK), e só então lê o status já atualizado.
+                const resgateResultado = await client.query(
+                    `SELECT id, usuario_id, pontos, status, tenant_id, criado_em
+                     FROM resgates
+                     WHERE id = $1
+                       AND status = 'pendente_validacao'
+                       AND criado_em + INTERVAL '${HORAS_PARA_EXPIRAR} hours' <= NOW()
+                     FOR UPDATE`,
+                    [linha.id]
+                );
+
+                if (resgateResultado.rows.length === 0) {
+                    // Já foi processado por outra chamada concorrente, validado,
+                    // ou deixou de estar expirado (não deveria acontecer, mas o
+                    // recheck cobre qualquer corrida) — nada a fazer aqui.
+                    await client.query("ROLLBACK");
+                    continue;
+                }
+
+                const resgate = resgateResultado.rows[0];
+
+                await client.query(
+                    `UPDATE resgates
+                     SET status = 'cancelado', atualizado_em = NOW()
+                     WHERE id = $1`,
+                    [resgate.id]
+                );
+
+                await client.query(
+                    `INSERT INTO movimentacoes_pontos (usuario_id, quantidade, tipo, descricao, tenant_id)
+                     VALUES ($1, $2, 'entrada', $3, $4)`,
+                    [
+                        resgate.usuario_id,
+                        resgate.pontos,
+                        `Pontos devolvidos pelo cancelamento do resgate #${resgate.id}`,
+                        resgate.tenant_id
+                    ]
+                );
+
+                await client.query("COMMIT");
+
+                cancelados.push({
+                    id: resgate.id,
+                    usuario_id: resgate.usuario_id,
+                    pontos: resgate.pontos
+                });
+
+            } catch (erro) {
                 await client.query("ROLLBACK");
-                continue;
+                console.log(`Erro ao cancelar resgate expirado #${linha.id}:`, erro.message);
+
+            } finally {
+                client.release();
             }
-
-            const resgate = resgateResultado.rows[0];
-
-            await client.query(
-                `UPDATE resgates
-                 SET status = 'cancelado', atualizado_em = NOW()
-                 WHERE id = $1`,
-                [resgate.id]
-            );
-
-            await client.query(
-                `INSERT INTO movimentacoes_pontos (usuario_id, quantidade, tipo, descricao, tenant_id)
-                 VALUES ($1, $2, 'entrada', $3, $4)`,
-                [
-                    resgate.usuario_id,
-                    resgate.pontos,
-                    `Pontos devolvidos pelo cancelamento do resgate #${resgate.id}`,
-                    resgate.tenant_id
-                ]
-            );
-
-            await client.query("COMMIT");
-
-            cancelados.push({
-                id: resgate.id,
-                usuario_id: resgate.usuario_id,
-                pontos: resgate.pontos
-            });
-
-        } catch (erro) {
-            await client.query("ROLLBACK");
-            console.log(`Erro ao cancelar resgate expirado #${linha.id}:`, erro.message);
-
-        } finally {
-            client.release();
         }
-    }
 
-    return cancelados;
+        return cancelados;
+    });
 }
 
 let intervaloAtivo = null;

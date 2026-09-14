@@ -33,6 +33,12 @@ async function cadastrar(req, res) {
     try {
         await client.query("BEGIN");
 
+        // ETAPA 3C-13 (RLS) — este client é próprio (pool.connect()), fora
+        // do wrapper de src/config/database.js, então precisa do seu
+        // próprio set_config. tenantId sempre de req.tenantId (contexto já
+        // resolvido/validado acima), nunca do body.
+        await client.query("SELECT set_config('app.tenant_id', $1, true)", [String(tenantId)]);
+
         let usuarioCriado = null;
 
         for (let tentativa = 0; tentativa < MAX_TENTATIVAS_QR_TOKEN && !usuarioCriado; tentativa++) {

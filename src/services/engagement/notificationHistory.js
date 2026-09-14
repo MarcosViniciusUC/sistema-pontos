@@ -82,6 +82,12 @@ async function tentarEnviarComLimiteGlobal({ usuarioId, tenantId, evento, automa
     try {
         await client.query("BEGIN");
 
+        // ETAPA 3C-13 (RLS) — client próprio, fora do wrapper de
+        // src/config/database.js: precisa do seu próprio set_config.
+        // tenantId já chega como parâmetro (do cliente processado — ver
+        // engine.js:processarAutomacoes), nunca de um tenant assumido.
+        await client.query("SELECT set_config('app.tenant_id', $1, true)", [String(tenantId)]);
+
         // Trava lógica por usuário — nenhuma outra chamada para o MESMO
         // usuarioId passa daqui até esta transação terminar (COMMIT/ROLLBACK).
         await client.query("SELECT pg_advisory_xact_lock($1)", [usuarioId]);

@@ -225,6 +225,17 @@ async function criarAdmin(req, res) {
     try {
         await client.query("BEGIN");
 
+        // ETAPA 3C-13 (RLS) — client próprio, fora do wrapper de
+        // src/config/database.js: precisa do seu próprio set_config. Esta
+        // rota já roda inteiramente atrás de authPlataformaMiddleware +
+        // exigirEscopoPlataforma (ver plataforma.routes.js) — bypass aqui é
+        // herdado dessa autenticação já validada, nunca de dado de request.
+        // Necessário porque o admin criado pertence a um tenant escolhido
+        // pela plataforma (req.params.id), não ao "tenant da sessão" (que
+        // nem existe aqui — quem está autenticado é a plataforma, não um
+        // tenant).
+        await client.query("SELECT set_config('app.bypass_tenant_rls', 'on', true)");
+
         const tenantResultado = await client.query(
             "SELECT id FROM tenants WHERE id = $1",
             [id]

@@ -22,7 +22,7 @@
  */
 const readline = require("readline");
 const bcrypt = require("bcrypt");
-const pool = require("../src/config/database");
+const pool = require("../src/config/databaseAdmin");
 const { gerarQrTokenUsuario } = require("../src/utils/qrTokenUsuario");
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;

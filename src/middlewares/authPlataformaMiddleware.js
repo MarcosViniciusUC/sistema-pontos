@@ -1,5 +1,6 @@
 const jwt = require("jsonwebtoken");
 const pool = require("../config/database");
+const requestContext = require("../config/requestContext");
 
 /**
  * Autenticação de PLATAFORMA (Maple Tech) — separada e paralela a
@@ -38,6 +39,18 @@ const pool = require("../config/database");
  * `req.usuario` (esse campo é do modelo de tenant; um controller que lesse
  * `req.usuario` por engano numa rota de plataforma deve ver `undefined` e
  * falhar visivelmente, não um objeto parcialmente preenchido).
+ *
+ * ETAPA 3C-13 (RLS) — a partir do momento em que o FORMATO do JWT já foi
+ * validado como sendo de plataforma (linha 71-80, acima), tanto a própria
+ * revalidação contra `admins_plataforma` quanto o restante da cadeia
+ * (`next()`) rodam dentro de `requestContext.runAsBypass(...)`.
+ * `admins_plataforma` tem RLS bypass-only mesmo para SELECT (ver
+ * migrate-rls-admins-plataforma.js) — sem isto, a própria revalidação
+ * abaixo nunca encontraria nenhuma linha (fail-closed) e todo admin de
+ * plataforma real seria rejeitado com "Sessão expirada". Bypass nunca vem
+ * de header/body/query — é ativado aqui só depois de assinatura E formato
+ * já terem sido confirmados; um JWT de tenant nunca chega até este ponto
+ * (é rejeitado antes, com 401/403, ver acima).
  */
 async function authPlataformaMiddleware(req, res, next) {
     const authHeader = req.headers.authorization;
@@ -80,20 +93,22 @@ async function authPlataformaMiddleware(req, res, next) {
     }
 
     try {
-        const resultado = await pool.query(
-            "SELECT id FROM admins_plataforma WHERE id = $1",
-            [decoded.id]
-        );
+        await requestContext.runAsBypass(async () => {
+            const resultado = await pool.query(
+                "SELECT id FROM admins_plataforma WHERE id = $1",
+                [decoded.id]
+            );
 
-        if (resultado.rows.length === 0) {
-            return res.status(401).json({
-                mensagem: "Sessão expirada. Faça login novamente."
-            });
-        }
+            if (resultado.rows.length === 0) {
+                return res.status(401).json({
+                    mensagem: "Sessão expirada. Faça login novamente."
+                });
+            }
 
-        req.adminPlataforma = { id: decoded.id, escopo: decoded.escopo };
+            req.adminPlataforma = { id: decoded.id, escopo: decoded.escopo };
 
-        next();
+            next();
+        });
 
     } catch (erro) {
         console.log(erro);

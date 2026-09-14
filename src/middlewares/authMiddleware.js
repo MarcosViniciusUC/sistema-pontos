@@ -1,5 +1,6 @@
 const jwt = require("jsonwebtoken");
 const { buscarTenantPorId } = require("../services/tenantResolver");
+const requestContext = require("../config/requestContext");
 
 /**
  * ETAPA 3B — authMiddleware agora exige e revalida `tenant_id`.
@@ -33,6 +34,16 @@ const { buscarTenantPorId } = require("../services/tenantResolver");
  * (`tenants.id`) é barato o bastante para rodar em toda requisição
  * autenticada; pular essa checagem para "economizar uma query" deixaria
  * usuários de um tenant desativado autenticados por até 1h a mais.
+ *
+ * ETAPA 3C-13 (RLS) — depois de validar tudo acima, `next()` roda dentro
+ * de `requestContext.runAsTenant(tenant.id, ...)`: toda query feita pelo
+ * resto da cadeia desta requisição passa a informar `app.tenant_id` ao
+ * Postgres automaticamente (ver src/config/database.js), sem o controller
+ * precisar saber disso. O valor vem sempre de `tenant.id` (a linha REAL
+ * confirmada no banco acima, nunca `decoded.tenant_id` cru do token) —
+ * mesmo princípio de nunca ecoar um dado não revalidado. Nunca bypass
+ * aqui: esta é sempre uma requisição de TENANT, nunca de plataforma (ver
+ * authPlataformaMiddleware.js para o outro caso).
  */
 async function authMiddleware(req, res, next) {
     const authHeader = req.headers.authorization;
@@ -92,7 +103,7 @@ async function authMiddleware(req, res, next) {
         req.tenantId = tenant.id;
         req.tenant = tenant;
 
-        next();
+        requestContext.runAsTenant(tenant.id, next);
 
     } catch (erro) {
         console.log(erro);

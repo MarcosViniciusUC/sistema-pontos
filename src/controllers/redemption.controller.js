@@ -47,6 +47,10 @@ async function criar(req, res) {
     try {
         await client.query("BEGIN");
 
+        // ETAPA 3C-13 (RLS) — client próprio, fora do wrapper de
+        // src/config/database.js: precisa do seu próprio set_config.
+        await client.query("SELECT set_config('app.tenant_id', $1, true)", [String(tenantId)]);
+
         // LEFT JOIN pra também trazer o nome da empresa (exibido ao cliente
         // na confirmação do resgate) sem uma segunda consulta — recompensa
         // sem empresa definida (histórica) segue com empresa_nome = null.
@@ -335,6 +339,15 @@ async function validar(req, res) {
 
     try {
         await client.query("BEGIN");
+
+        // ETAPA 3C-13 (RLS) — client próprio, fora do wrapper de
+        // src/config/database.js: precisa do seu próprio set_config.
+        // `codigo` é intencionalmente global (ver comentário acima), mas o
+        // CONTEXTO de quem está validando é sempre o tenant autenticado —
+        // isso não muda o resultado (um código de outro tenant já caía no
+        // mesmo 404 pela checagem em JS logo abaixo), só torna a proteção
+        // automática também no nível do banco.
+        await client.query("SELECT set_config('app.tenant_id', $1, true)", [String(req.usuario.tenant_id)]);
 
         const resgateResultado = await client.query(
             `SELECT id, usuario_id, recompensa_id, pontos, codigo, status, tenant_id, criado_em, atualizado_em

@@ -51,6 +51,10 @@ async function entrada(req, res) {
     try {
         await client.query("BEGIN");
 
+        // ETAPA 3C-13 (RLS) — client próprio, fora do wrapper de
+        // src/config/database.js: precisa do seu próprio set_config.
+        await client.query("SELECT set_config('app.tenant_id', $1, true)", [String(tenantId)]);
+
         const usuarioResultado = await client.query(
             "SELECT id FROM usuarios WHERE id = $1 AND tipo = 'cliente' AND tenant_id = $2 FOR UPDATE",
             [usuario_id, tenantId]
@@ -135,6 +139,10 @@ async function saida(req, res) {
 
     try {
         await client.query("BEGIN");
+
+        // ETAPA 3C-13 (RLS) — client próprio, fora do wrapper de
+        // src/config/database.js: precisa do seu próprio set_config.
+        await client.query("SELECT set_config('app.tenant_id', $1, true)", [String(tenantId)]);
 
         const usuarioResultado = await client.query(
             "SELECT id FROM usuarios WHERE id = $1 AND tenant_id = $2 FOR UPDATE",

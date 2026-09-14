@@ -30,6 +30,7 @@ const collectors = require("./collectors");
 const engine = require("./engine");
 const { HORAS_PARA_EXPIRAR } = require("../resgateExpiracao.service");
 const config = require("./schedulerConfig");
+const requestContext = require("../../config/requestContext");
 
 let emExecucao = false;
 let intervaloAtivo = null;
@@ -45,6 +46,18 @@ function log(mensagem) {
  * avaliarParaSimulacaoDeLote não lança, mas um erro de infraestrutura —
  * ex: banco fora do ar — é logado e devolvido em `erro`, nunca derruba o
  * processo).
+ *
+ * ETAPA 3C-13 (RLS) — a rodada inteira roda dentro de
+ * `requestContext.runAsBypass(...)`: `coletarClientesElegiveis`/
+ * `coletarContextoEmLote` buscam clientes de TODOS os tenants de propósito
+ * (ver collectors.js), nunca "o tenant de uma requisição" — não existe tal
+ * coisa aqui, o disparo é um timer (`iniciar()`) ou uma rota de
+ * plataforma (`executarManualmente`), nunca uma requisição de tenant.
+ * Bypass é estabelecido aqui DENTRO, sempre, mesmo quando chamado a partir
+ * de uma rota que já esteja em bypass (aninhar `runAsBypass` dentro de
+ * `runAsBypass` é inofensivo) — isso garante que a rodada automática
+ * (disparada por `setInterval`, sem NENHUM contexto ambiente) funcione
+ * exatamente igual à rodada manual, nunca dependendo de quem chamou.
  */
 async function executarRodada(opcoes) {
     if (emExecucao) {
@@ -56,44 +69,46 @@ async function executarRodada(opcoes) {
     log("início");
 
     try {
-        const clientes = await collectors.coletarClientesElegiveis();
-        log(`clientes encontrados: ${clientes.length}`);
+        return await requestContext.runAsBypass(async () => {
+            const clientes = await collectors.coletarClientesElegiveis();
+            log(`clientes encontrados: ${clientes.length}`);
 
-        if (clientes.length === 0) {
-            log("fim");
-            return { pulou: false, erro: null, resultados: [] };
-        }
-
-        // ETAPA 3C-7 — passa os objetos `clientes` inteiros (cada um já com
-        // `tenant_id`, ver collectors.js:coletarClientesElegiveis), não mais
-        // uma lista de ids soltos: coletarContextoEmLote precisa do tenant
-        // de cada cliente para nunca aplicar recompensas de um tenant a um
-        // cliente de outro.
-        const contextoPorUsuario = await collectors.coletarContextoEmLote(clientes, HORAS_PARA_EXPIRAR);
-
-        const resultados = [];
-
-        for (const cliente of clientes) {
-            log(`processando usuário #${cliente.id} (tenant ${cliente.tenant_id})`);
-
-            const contexto = contextoPorUsuario.get(cliente.id);
-            const resultado = await engine.avaliarParaSimulacaoDeLote(cliente, contexto, opcoes);
-
-            if (resultado.status === "SIMULADO") {
-                log(`automação selecionada para #${cliente.id}: ${resultado.automacao} (prioridade ${resultado.prioridade}) — SIMULADO`);
-            } else if (resultado.status === "BLOQUEADO_LIMITE") {
-                log(`#${cliente.id}: ${resultado.automacao} seria elegível, mas BLOQUEADO pelo limite global de 7 dias`);
-            } else {
-                log(`#${cliente.id}: nenhuma automação elegível`);
+            if (clientes.length === 0) {
+                log("fim");
+                return { pulou: false, erro: null, resultados: [] };
             }
 
-            resultados.push(resultado);
-        }
+            // ETAPA 3C-7 — passa os objetos `clientes` inteiros (cada um já com
+            // `tenant_id`, ver collectors.js:coletarClientesElegiveis), não mais
+            // uma lista de ids soltos: coletarContextoEmLote precisa do tenant
+            // de cada cliente para nunca aplicar recompensas de um tenant a um
+            // cliente de outro.
+            const contextoPorUsuario = await collectors.coletarContextoEmLote(clientes, HORAS_PARA_EXPIRAR);
 
-        log("simulação concluída");
-        log("fim");
+            const resultados = [];
 
-        return { pulou: false, erro: null, resultados };
+            for (const cliente of clientes) {
+                log(`processando usuário #${cliente.id} (tenant ${cliente.tenant_id})`);
+
+                const contexto = contextoPorUsuario.get(cliente.id);
+                const resultado = await engine.avaliarParaSimulacaoDeLote(cliente, contexto, opcoes);
+
+                if (resultado.status === "SIMULADO") {
+                    log(`automação selecionada para #${cliente.id}: ${resultado.automacao} (prioridade ${resultado.prioridade}) — SIMULADO`);
+                } else if (resultado.status === "BLOQUEADO_LIMITE") {
+                    log(`#${cliente.id}: ${resultado.automacao} seria elegível, mas BLOQUEADO pelo limite global de 7 dias`);
+                } else {
+                    log(`#${cliente.id}: nenhuma automação elegível`);
+                }
+
+                resultados.push(resultado);
+            }
+
+            log("simulação concluída");
+            log("fim");
+
+            return { pulou: false, erro: null, resultados };
+        });
 
     } catch (erro) {
         log(`ERRO na rodada: ${erro.message}`);
