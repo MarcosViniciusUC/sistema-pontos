@@ -1,6 +1,6 @@
 
  const pool = require("../config/database");
-const { empresaAtivaExiste } = require("../utils/empresas");
+const { empresaAtivaNoTenant } = require("../utils/empresas");
 
 /**
  * Registra uma entrada de pontos (usada tanto pela tela de clientes quanto
@@ -22,9 +22,29 @@ const { empresaAtivaExiste } = require("../utils/empresas");
  * e o campo estruturado obrigatório é `empresa_id`. A coluna continua
  * existindo (NOT NULL DEFAULT 'outro') só por compatibilidade com dados
  * antigos; o INSERT abaixo deixa o banco preenchê-la com o default.
+ *
+ * ETAPA 3C-4 — `tenant_id` vem exclusivamente de `req.usuario.tenant_id`
+ * (do JWT do admin/funcionário autenticado, nunca de um campo do body) e é
+ * gravado explicitamente no INSERT, sem depender do DEFAULT temporário
+ * (Etapa 2). Duas validações cruzadas passam a considerar o tenant, dentro
+ * da MESMA transação (nada foi transformado em consulta independente):
+ *   - o lock do usuário (`FOR UPDATE`) agora exige `tenant_id = $2` além de
+ *     `tipo = 'cliente'` — um `usuario_id` de outro tenant não bate com
+ *     nenhuma linha e cai no mesmo 404 genérico de "Usuário não
+ *     encontrado", nunca revelando que aquele id existe em outro tenant;
+ *   - a checagem de empresa passa a usar `empresaAtivaNoTenant()` (em vez
+ *     de `empresaAtivaExiste()`): uma empresa de outro tenant, mesmo que
+ *     exista e esteja ativa, é tratada como "Empresa inválida".
+ * O recálculo de saldo (ainda dentro da transação) também passa a filtrar
+ * por `tenant_id`, por consistência com a regra "toda leitura de
+ * movimentacoes_pontos considera tenant_id" — redundante em termos de
+ * resultado (usuario_id já pertence a um único tenant, confirmado acima),
+ * mas deixa a query correta por si só, sem depender de uma garantia
+ * externa a ela.
  */
 async function entrada(req, res) {
     const { usuario_id, quantidade, descricao, empresa_id } = req.body;
+    const tenantId = req.usuario.tenant_id;
 
     const client = await pool.connect();
 
@@ -32,8 +52,8 @@ async function entrada(req, res) {
         await client.query("BEGIN");
 
         const usuarioResultado = await client.query(
-            "SELECT id FROM usuarios WHERE id = $1 AND tipo = 'cliente' FOR UPDATE",
-            [usuario_id]
+            "SELECT id FROM usuarios WHERE id = $1 AND tipo = 'cliente' AND tenant_id = $2 FOR UPDATE",
+            [usuario_id, tenantId]
         );
 
         if (usuarioResultado.rows.length === 0) {
@@ -43,7 +63,7 @@ async function entrada(req, res) {
             });
         }
 
-        if (!(await empresaAtivaExiste(client, empresa_id))) {
+        if (!(await empresaAtivaNoTenant(client, empresa_id, tenantId))) {
             await client.query("ROLLBACK");
             return res.status(400).json({
                 mensagem: "Empresa inválida"
@@ -51,10 +71,10 @@ async function entrada(req, res) {
         }
 
         const resultado = await client.query(
-            `INSERT INTO movimentacoes_pontos (usuario_id, quantidade, tipo, descricao, empresa_id)
-             VALUES ($1, $2, 'entrada', $3, $4)
+            `INSERT INTO movimentacoes_pontos (usuario_id, quantidade, tipo, descricao, empresa_id, tenant_id)
+             VALUES ($1, $2, 'entrada', $3, $4, $5)
              RETURNING id, usuario_id, quantidade, tipo, descricao, empresa_id, criado_em`,
-            [usuario_id, quantidade, descricao, empresa_id]
+            [usuario_id, quantidade, descricao, empresa_id, tenantId]
         );
 
         const saldoResultado = await client.query(
@@ -65,8 +85,8 @@ async function entrada(req, res) {
                 END
             ), 0) AS saldo
              FROM movimentacoes_pontos
-             WHERE usuario_id = $1`,
-            [usuario_id]
+             WHERE usuario_id = $1 AND tenant_id = $2`,
+            [usuario_id, tenantId]
         );
 
         await client.query("COMMIT");
@@ -97,8 +117,19 @@ async function entrada(req, res) {
     }
 }
 
+/**
+ * ETAPA 3C-4 — mesmo padrão de entrada(): `tenant_id` vem de
+ * `req.usuario.tenant_id`, nunca do body. O lock do usuário passa a exigir
+ * `tenant_id = $2` (sem alterar a ausência intencional do filtro
+ * `tipo = 'cliente'` aqui — comportamento pré-existente, não é objeto desta
+ * etapa); um `usuario_id` de outro tenant cai no mesmo 404 genérico. O
+ * cálculo de saldo (usado para validar saldo suficiente, ainda dentro da
+ * transação) e o INSERT final passam a considerar `tenant_id`, pelo mesmo
+ * motivo de consistência de entrada().
+ */
 async function saida(req, res) {
     const { usuario_id, quantidade, descricao } = req.body;
+    const tenantId = req.usuario.tenant_id;
 
     const client = await pool.connect();
 
@@ -106,8 +137,8 @@ async function saida(req, res) {
         await client.query("BEGIN");
 
         const usuarioResultado = await client.query(
-            "SELECT id FROM usuarios WHERE id = $1 FOR UPDATE",
-            [usuario_id]
+            "SELECT id FROM usuarios WHERE id = $1 AND tenant_id = $2 FOR UPDATE",
+            [usuario_id, tenantId]
         );
 
         if (usuarioResultado.rows.length === 0) {
@@ -125,8 +156,8 @@ async function saida(req, res) {
                 END
             ), 0) AS saldo
              FROM movimentacoes_pontos
-             WHERE usuario_id = $1`,
-            [usuario_id]
+             WHERE usuario_id = $1 AND tenant_id = $2`,
+            [usuario_id, tenantId]
         );
 
         const saldoAtual = Number(saldoResultado.rows[0].saldo);
@@ -139,10 +170,10 @@ async function saida(req, res) {
         }
 
         const resultado = await client.query(
-            `INSERT INTO movimentacoes_pontos (usuario_id, quantidade, tipo, descricao)
-             VALUES ($1, $2, 'saida', $3)
+            `INSERT INTO movimentacoes_pontos (usuario_id, quantidade, tipo, descricao, tenant_id)
+             VALUES ($1, $2, 'saida', $3, $4)
              RETURNING id, usuario_id, quantidade, tipo, descricao, criado_em`,
-            [usuario_id, quantidade, descricao]
+            [usuario_id, quantidade, descricao, tenantId]
         );
 
         await client.query("COMMIT");
@@ -161,6 +192,7 @@ async function saida(req, res) {
     }
 }
 
+// ETAPA 3C-4 — filtrado também por `tenant_id = req.usuario.tenant_id`.
 async function saldo(req, res) {
     const usuario_id = req.usuario.id;
 
@@ -173,8 +205,8 @@ async function saldo(req, res) {
                 END
             ), 0) AS saldo
              FROM movimentacoes_pontos
-             WHERE usuario_id = $1`,
-            [usuario_id]
+             WHERE usuario_id = $1 AND tenant_id = $2`,
+            [usuario_id, req.usuario.tenant_id]
         );
 
         res.json({
@@ -190,6 +222,7 @@ async function saldo(req, res) {
     }
 }
 
+// ETAPA 3C-4 — filtrado também por `tenant_id = req.usuario.tenant_id`.
 async function historico(req, res) {
     const usuario_id = req.usuario.id;
 
@@ -197,9 +230,9 @@ async function historico(req, res) {
         const resultado = await pool.query(
             `SELECT id, quantidade, tipo, descricao, criado_em
              FROM movimentacoes_pontos
-             WHERE usuario_id = $1
+             WHERE usuario_id = $1 AND tenant_id = $2
              ORDER BY criado_em DESC`,
-            [usuario_id]
+            [usuario_id, req.usuario.tenant_id]
         );
 
         res.json(resultado.rows);
@@ -229,6 +262,10 @@ async function historico(req, res) {
  * cima da mesma linha, sem GROUP BY nem uma query por origem — garante que
  * as 5 sempre aparecem na resposta, mesmo com valor 0, já que são colunas
  * fixas do SELECT e não dependem de existir dado com aquele origem.
+ *
+ * ETAPA 3C-4 — filtrado também por `tenant_id = req.usuario.tenant_id`.
+ * Antes desta etapa não havia WHERE nenhum: "o sistema inteiro" somava
+ * movimentações de TODOS os tenants, não só do tenant do admin autenticado.
  */
 async function resumoAdmin(req, res) {
     try {
@@ -242,7 +279,9 @@ async function resumoAdmin(req, res) {
                 COALESCE(SUM(CASE WHEN tipo = 'entrada' AND origem = 'promocao' THEN quantidade ELSE 0 END), 0) AS entrada_promocao,
                 COALESCE(SUM(CASE WHEN tipo = 'entrada' AND origem = 'ajuste' THEN quantidade ELSE 0 END), 0) AS entrada_ajuste,
                 COALESCE(SUM(CASE WHEN tipo = 'entrada' AND origem = 'outro' THEN quantidade ELSE 0 END), 0) AS entrada_outro
-             FROM movimentacoes_pontos`
+             FROM movimentacoes_pontos
+             WHERE tenant_id = $1`,
+            [req.usuario.tenant_id]
         );
 
         const linha = resultado.rows[0];
