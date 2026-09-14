@@ -15,11 +15,17 @@ const { normalizarSlug } = require("../utils/empresas");
  * lançamentos/recompensas, nem aparecer como filtro pro cliente), mas isso
  * não afeta o histórico: nada aqui apaga ou esconde linhas antigas que já
  * referenciam essa empresa.
+ *
+ * ETAPA 3C-2 — filtrado também por `tenant_id = req.usuario.tenant_id` (do
+ * JWT autenticado, nunca de body/query/params). Antes desta etapa não
+ * havia filtro nenhum de tenant: qualquer usuário autenticado via os três
+ * papéis liberados veria empresas de TODOS os tenants nesse select.
  */
 async function listar(req, res) {
     try {
         const resultado = await pool.query(
-            "SELECT id, nome, slug FROM empresas WHERE ativo = true ORDER BY nome"
+            "SELECT id, nome, slug FROM empresas WHERE ativo = true AND tenant_id = $1 ORDER BY nome",
+            [req.usuario.tenant_id]
         );
 
         res.json(resultado.rows);
@@ -38,11 +44,16 @@ async function listar(req, res) {
  * reativar uma empresa desativada ou só conferir o cadastro completo. Só
  * admin (ver roleMiddleware na rota) — GET /empresas continua só ativo=true
  * pros selects, sem nenhuma mudança.
+ *
+ * ETAPA 3C-2 — filtrado também por `tenant_id = req.usuario.tenant_id`.
+ * Antes desta etapa não havia WHERE nenhum: um admin via empresas de todos
+ * os tenants nesta listagem.
  */
 async function listarAdmin(req, res) {
     try {
         const resultado = await pool.query(
-            "SELECT id, nome, slug, ativo, criado_em FROM empresas ORDER BY ativo DESC, nome ASC"
+            "SELECT id, nome, slug, ativo, criado_em FROM empresas WHERE tenant_id = $1 ORDER BY ativo DESC, nome ASC",
+            [req.usuario.tenant_id]
         );
 
         res.json(resultado.rows);
@@ -63,6 +74,14 @@ async function listarAdmin(req, res) {
  * banco (ver scripts/migrate-empresas.js); aqui só traduzimos a violação
  * dela pra uma resposta 409 legível, mesmo padrão já usado em
  * user.controller.js para email duplicado.
+ *
+ * ETAPA 3C-2 — `tenant_id` vem exclusivamente de `req.usuario.tenant_id`
+ * (do JWT do admin autenticado, nunca de um campo do body) e é gravado
+ * explicitamente no INSERT, sem depender do DEFAULT temporário (Etapa 2) —
+ * o contexto de tenant já está disponível aqui. A constraint agora é
+ * `UNIQUE(tenant_id, slug)` (Etapa 2): o mesmo slug volta a ser permitido
+ * em tenants diferentes, e continua rejeitado duas vezes dentro do mesmo
+ * tenant.
  */
 async function criar(req, res) {
     const { nome, slug } = req.body;
@@ -76,10 +95,10 @@ async function criar(req, res) {
 
     try {
         const resultado = await pool.query(
-            `INSERT INTO empresas (nome, slug)
-             VALUES ($1, $2)
+            `INSERT INTO empresas (nome, slug, tenant_id)
+             VALUES ($1, $2, $3)
              RETURNING id, nome, slug, ativo, criado_em`,
-            [nome.trim(), slugNormalizado]
+            [nome.trim(), slugNormalizado, req.usuario.tenant_id]
         );
 
         res.status(201).json(resultado.rows[0]);
@@ -104,6 +123,13 @@ async function criar(req, res) {
  * abaixo, mesmo motivo já documentado em reward.controller.js:atualizar).
  * Campos omitidos mantêm o valor atual (COALESCE); slug, se enviado,
  * passa pela mesma normalização/validação de criar().
+ *
+ * ETAPA 3C-2 — `WHERE id = $3 AND tenant_id = $4` (tenant_id sempre de
+ * req.usuario.tenant_id). Antes desta etapa filtrava só por `id` — um
+ * admin do Tenant A que soubesse/adivinhasse o id de uma empresa do Tenant
+ * B conseguiria editá-la. Um id de outro tenant agora não bate com nenhuma
+ * linha e cai no mesmo 404 genérico de "não existe", sem revelar que o id
+ * pertence a outro tenant.
  */
 async function atualizar(req, res) {
     const id = Number(req.params.id);
@@ -128,9 +154,9 @@ async function atualizar(req, res) {
             `UPDATE empresas
              SET nome = COALESCE($1, nome),
                  slug = COALESCE($2, slug)
-             WHERE id = $3
+             WHERE id = $3 AND tenant_id = $4
              RETURNING id, nome, slug, ativo, criado_em`,
-            [nome !== undefined ? nome.trim() : null, slugNormalizado, id]
+            [nome !== undefined ? nome.trim() : null, slugNormalizado, id, req.usuario.tenant_id]
         );
 
         if (resultado.rows.length === 0) {
@@ -165,6 +191,10 @@ async function atualizar(req, res) {
  * as listagens administrativas continuam mostrando o nome dela via
  * LEFT JOIN, ativa ou não. Idempotente: desativar de novo só confirma o
  * estado atual, não é erro.
+ *
+ * ETAPA 3C-2 — `WHERE id = $1 AND tenant_id = $2`, mesmo motivo de
+ * atualizar(): sem isso, um admin do Tenant A poderia desativar uma
+ * empresa do Tenant B só sabendo/adivinhando o id.
  */
 async function desativar(req, res) {
     const id = Number(req.params.id);
@@ -179,9 +209,9 @@ async function desativar(req, res) {
         const resultado = await pool.query(
             `UPDATE empresas
              SET ativo = false
-             WHERE id = $1
+             WHERE id = $1 AND tenant_id = $2
              RETURNING id, nome, slug, ativo, criado_em`,
-            [id]
+            [id, req.usuario.tenant_id]
         );
 
         if (resultado.rows.length === 0) {
@@ -204,6 +234,8 @@ async function desativar(req, res) {
 /**
  * Reativa a empresa (ativo -> true), voltando a aparecer no GET /empresas
  * dos selects. Idempotente, mesmo padrão de desativar() acima.
+ *
+ * ETAPA 3C-2 — mesmo filtro `AND tenant_id = $2` de desativar()/atualizar().
  */
 async function ativar(req, res) {
     const id = Number(req.params.id);
@@ -218,9 +250,9 @@ async function ativar(req, res) {
         const resultado = await pool.query(
             `UPDATE empresas
              SET ativo = true
-             WHERE id = $1
+             WHERE id = $1 AND tenant_id = $2
              RETURNING id, nome, slug, ativo, criado_em`,
-            [id]
+            [id, req.usuario.tenant_id]
         );
 
         if (resultado.rows.length === 0) {
@@ -253,6 +285,14 @@ async function ativar(req, res) {
  * total/ativas/inativas são derivados dela em JS (contagem de um array já
  * trazido), não uma segunda consulta, então não tem como os dois números
  * divergirem entre si.
+ *
+ * ETAPA 3C-2 — a busca da EMPRESA em si agora exige `tenant_id = $2`: um id
+ * de empresa de outro tenant cai no mesmo 404 genérico, antes mesmo de
+ * chegar nas sub-consultas. As sub-consultas por `empresa_id` em
+ * recompensas/resgates/movimentacoes_pontos permanecem SEM filtro de
+ * tenant_id de propósito — esses domínios ainda não foram isolados (etapas
+ * futuras separadas); ver nota em src/utils/empresas.js sobre `empresa_id`
+ * não substituir `tenant_id`.
  */
 async function detalhar(req, res) {
     const id = Number(req.params.id);
@@ -265,8 +305,8 @@ async function detalhar(req, res) {
 
     try {
         const empresaResultado = await pool.query(
-            "SELECT id, nome, slug, ativo, criado_em FROM empresas WHERE id = $1",
-            [id]
+            "SELECT id, nome, slug, ativo, criado_em FROM empresas WHERE id = $1 AND tenant_id = $2",
+            [id, req.usuario.tenant_id]
         );
 
         if (empresaResultado.rows.length === 0) {

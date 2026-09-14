@@ -10,6 +10,16 @@
  * ou um client já dentro de uma transação (ex: pontos.controller.js:entrada,
  * que precisa ver o estado dentro da própria transação). Por isso não tem
  * um default silencioso: cada chamador decide explicitamente qual usar.
+ *
+ * ATENÇÃO (ETAPA 3C-2) — esta checagem NÃO valida `tenant_id`, de
+ * propósito: os domínios que a chamam hoje (pontos, recompensas) ainda não
+ * foram isolados por tenant (etapas futuras separadas), e mudar a
+ * assinatura aqui exigiria também alterar esses controllers, fora do
+ * escopo desta etapa. Ou seja: `empresa_id` identifica UMA empresa, mas
+ * **não substitui** `tenant_id` — um `empresa_id` de outro tenant passa
+ * despercebido por esta função até que pontos/recompensas recebam sua
+ * própria etapa de isolamento (quando esta função deve passar a receber e
+ * checar `tenant_id` também).
  */
 async function empresaAtivaExiste(db, empresaId) {
     const resultado = await db.query(
