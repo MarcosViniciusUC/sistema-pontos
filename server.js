@@ -12,6 +12,7 @@ const adminRoutes = require("./src/routes/admin.routes");
 const empresaRoutes = require("./src/routes/empresa.routes");
 const favoritoRoutes = require("./src/routes/favorito.routes");
 const engagementRoutes = require("./src/routes/engagement.routes");
+const plataformaRoutes = require("./src/routes/plataforma.routes");
 const errorHandler = require("./src/middlewares/errorHandler");
 const { iniciarLimpezaPeriodica } = require("./src/services/resgateExpiracao.service");
 const engagementScheduler = require("./src/services/engagement/scheduler");
@@ -86,6 +87,12 @@ app.use(adminRoutes);
 app.use(empresaRoutes);
 app.use(favoritoRoutes);
 app.use(engagementRoutes);
+
+// ETAPA 3C-8 — autenticação de PLATAFORMA (Maple Tech), separada da
+// autenticação de tenant (authRoutes acima). Só a rota de login existe
+// nesta etapa (ver plataforma.routes.js) — nenhum painel visual, nenhuma
+// outra rota de plataforma ainda.
+app.use(plataformaRoutes);
 
 app.use((req, res) => {
     res.status(404).json({

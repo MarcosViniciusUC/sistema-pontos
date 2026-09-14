@@ -64,13 +64,17 @@ async function executarRodada(opcoes) {
             return { pulou: false, erro: null, resultados: [] };
         }
 
-        const usuarioIds = clientes.map(function (c) { return c.id; });
-        const contextoPorUsuario = await collectors.coletarContextoEmLote(usuarioIds, HORAS_PARA_EXPIRAR);
+        // ETAPA 3C-7 — passa os objetos `clientes` inteiros (cada um já com
+        // `tenant_id`, ver collectors.js:coletarClientesElegiveis), não mais
+        // uma lista de ids soltos: coletarContextoEmLote precisa do tenant
+        // de cada cliente para nunca aplicar recompensas de um tenant a um
+        // cliente de outro.
+        const contextoPorUsuario = await collectors.coletarContextoEmLote(clientes, HORAS_PARA_EXPIRAR);
 
         const resultados = [];
 
         for (const cliente of clientes) {
-            log(`processando usuário #${cliente.id}`);
+            log(`processando usuário #${cliente.id} (tenant ${cliente.tenant_id})`);
 
             const contexto = contextoPorUsuario.get(cliente.id);
             const resultado = await engine.avaliarParaSimulacaoDeLote(cliente, contexto, opcoes);

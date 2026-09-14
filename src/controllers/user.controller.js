@@ -18,6 +18,16 @@ async function cadastrar(req, res) {
     const { nome, email, senha, telefone, cpf } = req.body;
     const senhaHash = await bcrypt.hash(senha, 10);
 
+    // ETAPA 3B — tenant vem do CONTEXTO da requisição (resolvido/validado
+    // por resolverTenantMiddleware/exigirTenantAtivoMiddleware em
+    // user.routes.js), nunca de um campo do body: o cliente não escolhe
+    // livremente em qual tenant a conta é criada. Gravado explicitamente na
+    // criação para não depender do DEFAULT temporário de compatibilidade
+    // (ver migrate-tenant-id-default-temporario.js) — esse DEFAULT continua
+    // existindo só para escritas que ainda não têm contexto de tenant
+    // disponível, o que já não é mais o caso deste endpoint.
+    const tenantId = req.tenantId;
+
     const client = await pool.connect();
 
     try {
@@ -32,10 +42,10 @@ async function cadastrar(req, res) {
 
             try {
                 const resultado = await client.query(
-                    `INSERT INTO usuarios (nome, email, senha, telefone, tipo, qr_token, cpf)
-                     VALUES ($1, $2, $3, $4, 'cliente', $5, $6)
+                    `INSERT INTO usuarios (nome, email, senha, telefone, tipo, qr_token, cpf, tenant_id)
+                     VALUES ($1, $2, $3, $4, 'cliente', $5, $6, $7)
                      RETURNING id, nome, email, telefone`,
-                    [nome, email, senhaHash, telefone, qrToken, cpf]
+                    [nome, email, senhaHash, telefone, qrToken, cpf, tenantId]
                 );
 
                 await client.query("RELEASE SAVEPOINT tentativa_qr_token");
@@ -44,14 +54,20 @@ async function cadastrar(req, res) {
             } catch (erroInsercao) {
                 await client.query("ROLLBACK TO SAVEPOINT tentativa_qr_token");
 
-                if (erroInsercao.code === "23505" && erroInsercao.constraint === "usuarios_email_key") {
+                // Nomes de constraint atualizados na Etapa 2 para incluir o
+                // tenant (email/cpf agora são únicos só DENTRO de um
+                // tenant, não mais globalmente) — os nomes antigos
+                // (usuarios_email_key/usuarios_cpf_key) não existem mais no
+                // schema desde então; corrigido aqui junto com o resto
+                // desta etapa por estar na mesma função.
+                if (erroInsercao.code === "23505" && erroInsercao.constraint === "usuarios_tenant_email_key") {
                     await client.query("ROLLBACK");
                     return res.status(409).json({
                         mensagem: "Este email já está cadastrado"
                     });
                 }
 
-                if (erroInsercao.code === "23505" && erroInsercao.constraint === "usuarios_cpf_key") {
+                if (erroInsercao.code === "23505" && erroInsercao.constraint === "usuarios_tenant_cpf_key") {
                     await client.query("ROLLBACK");
                     return res.status(409).json({
                         mensagem: "Este CPF já está cadastrado"
@@ -100,14 +116,23 @@ async function cadastrar(req, res) {
  * e tipo) — necessário para a tela de Perfil do cliente exibir o cabeçalho
  * e o próprio QR Code sem depender de GET /usuarios (admin-only, lista
  * todo mundo). Nunca inclui a coluna senha.
+ *
+ * ETAPA 3C-1 — também filtrado por tenant_id (req.usuario.tenant_id, do
+ * JWT, nunca de body/query/params). Na prática, `id` já é chave primária e
+ * sozinho bastaria para identificar a linha certa — mas não confiar só
+ * nisso aqui é deliberado: se um JWT antigo/corrompido/de outro tenant
+ * algum dia carregasse um `id` que hoje pertence a outro tenant (não deve
+ * acontecer com o fluxo normal de login, que sempre grava o tenant_id real
+ * do usuário encontrado), a dupla condição garante que a resposta nunca
+ * "vaza" dados de um usuário de outro tenant só porque o id bateu.
  */
 async function meuPerfil(req, res) {
     try {
         const resultado = await pool.query(
             `SELECT id, nome, email, telefone, qr_token
              FROM usuarios
-             WHERE id = $1`,
-            [req.usuario.id]
+             WHERE id = $1 AND tenant_id = $2`,
+            [req.usuario.id, req.usuario.tenant_id]
         );
 
         if (resultado.rows.length === 0) {
@@ -144,6 +169,12 @@ async function meuPerfil(req, res) {
  * uma query por cliente. Usuário sem nenhuma movimentação (o caso normal
  * para admin/funcionário, que não têm saldo de fidelidade) cai no LEFT
  * JOIN sem linha correspondente e o COALESCE resolve pra 0.
+ *
+ * ETAPA 3C-1 — filtrado por `u.tenant_id = req.usuario.tenant_id` (do JWT
+ * do admin autenticado, nunca de body/query/params). Antes desta etapa a
+ * query não tinha WHERE nenhum — listava usuários de TODOS os tenants.
+ * Continua trazendo todos os `tipo` (cliente/funcionario/admin), só o
+ * escopo por tenant mudou, exatamente como antes desta etapa.
  */
 async function listar(req, res) {
     try {
@@ -158,8 +189,10 @@ async function listar(req, res) {
                 ), 0) AS pontos
              FROM usuarios u
              LEFT JOIN movimentacoes_pontos mp ON mp.usuario_id = u.id
+             WHERE u.tenant_id = $1
              GROUP BY u.id
-             ORDER BY u.criado_em DESC`
+             ORDER BY u.criado_em DESC`,
+            [req.usuario.tenant_id]
         );
 
         const usuarios = resultado.rows.map(function (linha) {
@@ -186,6 +219,15 @@ async function listar(req, res) {
     }
 }
 
+/**
+ * ETAPA 3C-1 — `WHERE id = $5 AND tenant_id = $6` (tenant_id sempre de
+ * req.usuario.tenant_id, nunca de body/query/params). Antes desta etapa o
+ * UPDATE filtrava só por `id` — um admin do Tenant A que soubesse (ou
+ * adivinhasse) o id de um usuário do Tenant B conseguiria editá-lo. Um id
+ * de outro tenant agora simplesmente não bate com nenhuma linha (0 rows
+ * afetadas) e cai no mesmo 404 genérico de "não existe" — nunca revela que
+ * aquele id pertence a outro tenant.
+ */
 async function atualizar(req, res) {
     const id = Number(req.params.id);
 
@@ -208,9 +250,9 @@ async function atualizar(req, res) {
                  email = COALESCE($2, email),
                  telefone = COALESCE($3, telefone),
                  cpf = COALESCE($4, cpf)
-             WHERE id = $5
+             WHERE id = $5 AND tenant_id = $6
              RETURNING id, nome, email, telefone, tipo, qr_token, criado_em`,
-            [nome ?? null, email ?? null, telefone ?? null, cpf ?? null, id]
+            [nome ?? null, email ?? null, telefone ?? null, cpf ?? null, id, req.usuario.tenant_id]
         );
 
         if (resultado.rows.length === 0) {
@@ -224,13 +266,19 @@ async function atualizar(req, res) {
     } catch (erro) {
         console.log(erro);
 
-        if (erro.code === "23505" && erro.constraint === "usuarios_cpf_key") {
+        // Nomes de constraint corrigidos aqui pelo mesmo motivo já
+        // documentado em cadastrar(): renomeados na Etapa 2 para incluir o
+        // tenant, nunca ajustados neste controller até agora — o nome
+        // antigo "usuarios_cpf_key" não existe mais, então a checagem de
+        // CPF nunca disparava e toda colisão (CPF ou email) caía na
+        // mensagem genérica de email.
+        if (erro.code === "23505" && erro.constraint === "usuarios_tenant_cpf_key") {
             return res.status(409).json({
                 mensagem: "Este CPF já está cadastrado"
             });
         }
 
-        if (erro.code === "23505") {
+        if (erro.code === "23505" && erro.constraint === "usuarios_tenant_email_key") {
             return res.status(409).json({
                 mensagem: "Este email já está cadastrado"
             });
@@ -255,6 +303,17 @@ async function atualizar(req, res) {
  * nome/telefone/saldo pra atender o cliente no balcão — email é um dado a
  * mais que ele não usa nesse fluxo, então o backend nem devolve (não é só
  * uma questão de esconder no frontend).
+ *
+ * ETAPA 3C-1 — `qr_token` continua GLOBALMENTE único de propósito (ver
+ * plano de migração: no momento de escanear um QR ainda não se sabe a
+ * priori de qual tenant ele é, então a busca inicial não pode filtrar por
+ * tenant_id). A estratégia é buscar global e só DEPOIS comparar
+ * `usuario.tenant_id` com `req.usuario.tenant_id`: se não bater, a resposta
+ * é o mesmo 404 genérico de "não encontrado" usado para QR inexistente —
+ * nunca uma mensagem diferente que revelasse "esse QR existe, mas é de
+ * outro tenant". A consulta de saldo só roda DEPOIS dessa comparação, para
+ * nunca calcular (nem expor por timing) o saldo de um cliente de outro
+ * tenant.
  */
 async function buscarPorQrToken(req, res) {
     const { qr_token } = req.params;
@@ -267,13 +326,13 @@ async function buscarPorQrToken(req, res) {
 
     try {
         const usuarioResultado = await pool.query(
-            `SELECT id, nome, email, telefone
+            `SELECT id, nome, email, telefone, tenant_id
              FROM usuarios
              WHERE qr_token = $1 AND tipo = 'cliente'`,
             [qr_token]
         );
 
-        if (usuarioResultado.rows.length === 0) {
+        if (usuarioResultado.rows.length === 0 || usuarioResultado.rows[0].tenant_id !== req.usuario.tenant_id) {
             return res.status(404).json({
                 mensagem: "Cliente não encontrado para este QR Code"
             });
@@ -322,6 +381,11 @@ async function buscarPorQrToken(req, res) {
  * CLIENTES (nunca telefone, tipo, criado_em, nem outros funcionários ou
  * admins), então dá pra liberar pra funcionário sem expor a listagem
  * administrativa completa que GET /usuarios devolve.
+ *
+ * ETAPA 3C-1 — filtrado também por `tenant_id = req.usuario.tenant_id` (do
+ * JWT de quem está buscando, nunca de query/body). Antes desta etapa um
+ * funcionário do Tenant A conseguia encontrar (e depois lançar pontos
+ * para) um cliente do Tenant B só sabendo nome/e-mail dele.
  */
 async function buscarCliente(req, res) {
     const termo = typeof req.query.termo === "string" ? req.query.termo.trim() : "";
@@ -337,10 +401,11 @@ async function buscarCliente(req, res) {
             `SELECT id, nome, email, qr_token
              FROM usuarios
              WHERE tipo = 'cliente'
-               AND (nome ILIKE $1 OR email ILIKE $1)
+               AND tenant_id = $1
+               AND (nome ILIKE $2 OR email ILIKE $2)
              ORDER BY nome
              LIMIT 20`,
-            [`%${termo}%`]
+            [req.usuario.tenant_id, `%${termo}%`]
         );
 
         res.json(resultado.rows);

@@ -153,6 +153,15 @@ const MIGRATIONS = [
         // TEMPORÁRIA enquanto os controllers não informam tenant_id. Uma
         // tabela representativa basta pelo mesmo motivo (transação única).
         jaAplicada: () => colunaTemDefault("usuarios", "tenant_id")
+    },
+    {
+        nome: "migrate-tenant-id-remover-default.js",
+        // Etapa 3C-12 — auditoria confirmou que todo INSERT real já informa
+        // tenant_id explicitamente; o DEFAULT temporário acima deixou de
+        // ser necessário. "Aplicada" = a coluna NÃO tem mais DEFAULT
+        // nenhum (oposto exato da migration anterior). Uma tabela
+        // representativa basta pelo mesmo motivo (transação única).
+        jaAplicada: async () => !(await colunaTemDefault("usuarios", "tenant_id"))
     }
 ];
 

@@ -1,11 +1,17 @@
 /**
- * Cria um usuário funcionário no sistema.
+ * Cria um usuário funcionário diretamente no banco, SEMPRE no tenant
+ * Movement.
+ *
+ * ETAPA 3C-12 — AUDITORIA DE ISOLAMENTO: mesmo ajuste de create-admin.js —
+ * este script dependia do DEFAULT temporário de `tenant_id` (removido
+ * nesta etapa) para cair no Tenant 1 (Movement). Agora resolve o id de
+ * 'movement' explicitamente e informa `tenant_id` no INSERT.
  *
  * Não existe (e não deve existir) uma rota pública que aceite
  * tipo=funcionario — mesma decisão já tomada para admin (ver
- * create-admin.js). Este script é a única forma de criar um funcionário,
- * roda localmente por quem tem acesso ao banco/servidor, e nunca fica
- * exposto pela API.
+ * create-admin.js). Este script é uma das formas de criar um funcionário
+ * de Movement, roda localmente por quem tem acesso ao banco/servidor, e
+ * nunca fica exposto pela API.
  *
  * Uso:
  *   node scripts/create-funcionario.js "Nome Completo" "email@exemplo.com" "senhaSegura123"
@@ -78,6 +84,18 @@ async function criarFuncionario() {
         return;
     }
 
+    // Resolvido sempre por consulta, nunca um literal "1" escrito à mão —
+    // mesmo princípio de migrate-tenant-id-default-temporario.js.
+    const tenantResultado = await pool.query("SELECT id FROM tenants WHERE slug = 'movement'");
+
+    if (tenantResultado.rows.length === 0) {
+        console.error("Erro: tenant 'movement' não encontrado — nada foi criado.");
+        process.exitCode = 1;
+        return;
+    }
+
+    const tenantId = tenantResultado.rows[0].id;
+
     // Mesmo mecanismo de hash usado no cadastro público (bcrypt, 10 rounds) —
     // a senha em texto puro nunca é armazenada, só o hash.
     const senhaHash = await bcrypt.hash(dados.senha, 10);
@@ -91,19 +109,23 @@ async function criarFuncionario() {
 
         try {
             const resultado = await pool.query(
-                `INSERT INTO usuarios (nome, email, senha, tipo, qr_token)
-                 VALUES ($1, $2, $3, 'funcionario', $4)
+                `INSERT INTO usuarios (nome, email, senha, tipo, qr_token, tenant_id)
+                 VALUES ($1, $2, $3, 'funcionario', $4, $5)
                  RETURNING id, nome, email, tipo, criado_em`,
-                [dados.nome, dados.email, senhaHash, qrToken]
+                [dados.nome, dados.email, senhaHash, qrToken, tenantId]
             );
 
-            console.log("Funcionário criado com sucesso:");
+            console.log("Funcionário criado com sucesso (tenant Movement):");
             console.log(resultado.rows[0]);
             return;
 
         } catch (erro) {
-            if (erro.code === "23505" && erro.constraint === "usuarios_email_key") {
-                console.error("Erro: já existe um usuário cadastrado com este email.");
+            // Nome de constraint corrigido aqui: renomeado para incluir o
+            // tenant desde a Etapa 2 (usuarios_email_key ->
+            // usuarios_tenant_email_key) — o nome antigo nunca mais bate,
+            // então esta checagem nunca disparava até esta correção.
+            if (erro.code === "23505" && erro.constraint === "usuarios_tenant_email_key") {
+                console.error("Erro: já existe um usuário cadastrado com este email neste tenant.");
                 process.exitCode = 1;
                 return;
             }

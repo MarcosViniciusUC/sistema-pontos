@@ -66,8 +66,17 @@ async function verificarBloqueioGlobal(usuarioId) {
  *
  * Retorna a linha gravada em notificacoes_historico (com o `status` final:
  * 'enviado', 'falhou' ou 'bloqueado_por_limite').
+ *
+ * ETAPA 3C-7 — `tenantId` é obrigatório e deve vir sempre do PRÓPRIO
+ * registro do cliente processado (`contexto.cliente.tenant_id` — ver
+ * engine.js:processarAutomacoes), nunca de um tenant assumido/global.
+ * Antes desta etapa, nenhum dos dois INSERTs abaixo informava `tenant_id`,
+ * caindo sempre no DEFAULT temporário (Movement, id 1) — mesma classe de
+ * bug já encontrada e corrigida em resgateExpiracao.service.js na Etapa
+ * 3C-5: um cliente de qualquer outro tenant teria seu histórico de
+ * notificação gravado sob o tenant errado.
  */
-async function tentarEnviarComLimiteGlobal({ usuarioId, evento, automacaoNome, canal, mensagem, enviarFn }) {
+async function tentarEnviarComLimiteGlobal({ usuarioId, tenantId, evento, automacaoNome, canal, mensagem, enviarFn }) {
     const client = await pool.connect();
 
     try {
@@ -87,10 +96,10 @@ async function tentarEnviarComLimiteGlobal({ usuarioId, evento, automacaoNome, c
 
         if (bloqueio.rows.length > 0) {
             const registroBloqueado = await client.query(
-                `INSERT INTO notificacoes_historico (usuario_id, evento, automacao_nome, canal, status, mensagem)
-                 VALUES ($1, $2, $3, $4, 'bloqueado_por_limite', $5)
+                `INSERT INTO notificacoes_historico (usuario_id, evento, automacao_nome, canal, status, mensagem, tenant_id)
+                 VALUES ($1, $2, $3, $4, 'bloqueado_por_limite', $5, $6)
                  RETURNING *`,
-                [usuarioId, evento, automacaoNome || null, canal || null, mensagem || null]
+                [usuarioId, evento, automacaoNome || null, canal || null, mensagem || null, tenantId]
             );
 
             await client.query("COMMIT");
@@ -103,8 +112,8 @@ async function tentarEnviarComLimiteGlobal({ usuarioId, evento, automacaoNome, c
 
         const registro = await client.query(
             `INSERT INTO notificacoes_historico
-                (usuario_id, evento, automacao_nome, canal, status, mensagem, erro, identificador_externo)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+                (usuario_id, evento, automacao_nome, canal, status, mensagem, erro, identificador_externo, tenant_id)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
              RETURNING *`,
             [
                 usuarioId,
@@ -114,7 +123,8 @@ async function tentarEnviarComLimiteGlobal({ usuarioId, evento, automacaoNome, c
                 resultadoEnvio.sucesso ? "enviado" : "falhou",
                 mensagem || null,
                 resultadoEnvio.erro || null,
-                resultadoEnvio.identificadorExterno || null
+                resultadoEnvio.identificadorExterno || null,
+                tenantId
             ]
         );
 

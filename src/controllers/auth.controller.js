@@ -24,6 +24,14 @@ const HASH_DUMMY_PARA_IGUALAR_TEMPO = "$2b$10$bPBRitadSGg/sShKhd9qjuuPklzIsrV2NL
 async function login(req, res) {
     const { cpf, senha } = req.body;
 
+    // ETAPA 3B — req.tenantId já vem resolvido e validado como ativo por
+    // resolverTenantMiddleware/exigirTenantAtivoMiddleware (ver
+    // auth.routes.js), a partir de um slug explícito (header/query) ou do
+    // fallback fixo 'movement'. Nunca lido do body: o cliente não escolhe
+    // livremente um tenant_id, só (opcionalmente) um slug público, que
+    // ainda precisa bater com uma linha real em `tenants`.
+    const tenantId = req.tenantId;
+
     try {
         // Login normal é por CPF (coluna `cpf`, só dígitos). As 3 contas da
         // lista fechada em identificadoresLegado.js (nenhuma tem CPF
@@ -31,9 +39,14 @@ async function login(req, res) {
         // antigo, buscado por `email` — nunca as duas coisas ao mesmo tempo
         // para o mesmo valor, e nunca um fallback genérico "tenta CPF, se
         // não achar tenta email" para qualquer usuário fora dessa lista.
+        //
+        // AS DUAS QUERIES agora filtram também por tenant_id — email e cpf
+        // são únicos só DENTRO de um tenant (ver migration da Etapa 2), então
+        // sem esse filtro um usuário de outro tenant com o mesmo e-mail/CPF
+        // poderia ser encontrado por engano.
         const resultado = ehIdentificadorLegado(cpf)
-            ? await pool.query("SELECT * FROM usuarios WHERE email = $1", [cpf])
-            : await pool.query("SELECT * FROM usuarios WHERE cpf = $1", [normalizarCpf(cpf)]);
+            ? await pool.query("SELECT * FROM usuarios WHERE email = $1 AND tenant_id = $2", [cpf, tenantId])
+            : await pool.query("SELECT * FROM usuarios WHERE cpf = $1 AND tenant_id = $2", [normalizarCpf(cpf), tenantId]);
 
         const usuario = resultado.rows[0];
 
@@ -51,10 +64,18 @@ async function login(req, res) {
             });
         }
 
+        // tenant_id do JWT vem sempre da LINHA ENCONTRADA no banco
+        // (usuario.tenant_id), nunca de req.tenantId/tenantId repetido —
+        // ainda que hoje os dois valores sejam sempre iguais (a query WHERE
+        // já filtrou por tenant_id = tenantId, então só pode ter achado uma
+        // linha com esse mesmo tenant_id), usar o valor da linha real deixa
+        // explícito que o token reflete o dado do usuário autenticado, não
+        // um eco do que a requisição pediu.
         const token = jwt.sign(
             {
                 id: usuario.id,
-                tipo: usuario.tipo
+                tipo: usuario.tipo,
+                tenant_id: usuario.tenant_id
             },
             process.env.JWT_SECRET,
             {

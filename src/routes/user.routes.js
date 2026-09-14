@@ -4,10 +4,25 @@ const authMiddleware = require("../middlewares/authMiddleware");
 const roleMiddleware = require("../middlewares/roleMiddleware");
 const validateUser = require("../middlewares/validateUser");
 const validateUserUpdate = require("../middlewares/validateUserUpdate");
+const resolverTenantMiddleware = require("../middlewares/resolverTenantMiddleware");
+const exigirTenantAtivoMiddleware = require("../middlewares/exigirTenantAtivoMiddleware");
 
 const router = express.Router();
 
-router.post("/usuarios", validateUser, userController.cadastrar);
+// ETAPA 3B — cadastro é uma rota PÚBLICA (ainda não existe token/sessão
+// nesse momento), então o tenant não pode vir do JWT como nas rotas
+// autenticadas abaixo. Usa o mesmo mecanismo de login/esqueci-senha: slug
+// explícito (header X-Tenant-Slug / query ?tenantSlug=) resolvido e
+// validado ANTES do controller, com fallback fixo 'movement' — o frontend
+// atual não manda slug nenhum, então continua criando contas em Movement
+// sem precisar mudar nada na URL/chamada existente.
+router.post(
+    "/usuarios",
+    resolverTenantMiddleware,
+    exigirTenantAtivoMiddleware,
+    validateUser,
+    userController.cadastrar
+);
 
 // Dados do próprio usuário autenticado (qualquer papel) — nome, email,
 // telefone e qr_token para a tela de Perfil do cliente exibir o cabeçalho

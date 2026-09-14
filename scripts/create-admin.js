@@ -1,9 +1,27 @@
 /**
- * Cria o primeiro usuário administrador do sistema.
+ * Cria um usuário administrador diretamente no banco, SEMPRE no tenant
+ * Movement.
+ *
+ * ETAPA 3C-12 — AUDITORIA DE ISOLAMENTO: este script fazia
+ * `INSERT INTO usuarios` sem informar `tenant_id`, dependendo do DEFAULT
+ * temporário (ver migrate-tenant-id-default-temporario.js) para cair no
+ * Tenant 1 (Movement) — funcionava só porque, até hoje, Movement era o
+ * único tenant real. Agora resolve o id de 'movement' explicitamente
+ * (nunca um literal "1" escrito à mão, mesmo princípio de
+ * migrate-tenant-id-default-temporario.js) e informa `tenant_id` no
+ * INSERT — nunca mais depende do DEFAULT, que está sendo removido nesta
+ * mesma etapa.
+ *
+ * Para criar um admin de um TENANT DIFERENTE de Movement, use o painel da
+ * Maple Tech (POST /plataforma/tenants/:id/admin) — esse é o caminho
+ * correto e multi-tenant desde a Etapa 3C-9; este script continua
+ * existindo só para o caso legado de Movement (bootstrap local/scripts
+ * administrativos que já dependiam dele).
  *
  * Não existe (e não deve existir) uma rota pública que aceite tipo=admin —
- * este script é a única forma de criar um admin, roda localmente por quem
- * tem acesso ao banco/servidor, e nunca fica exposto pela API.
+ * este script é uma das formas de criar um admin de Movement, roda
+ * localmente por quem tem acesso ao banco/servidor, e nunca fica exposto
+ * pela API.
  *
  * Uso:
  *   node scripts/create-admin.js "Nome Completo" "email@exemplo.com" "senhaSegura123"
@@ -74,6 +92,18 @@ async function criarAdmin() {
         return;
     }
 
+    // Resolvido sempre por consulta, nunca um literal "1" escrito à mão —
+    // mesmo princípio de migrate-tenant-id-default-temporario.js.
+    const tenantResultado = await pool.query("SELECT id FROM tenants WHERE slug = 'movement'");
+
+    if (tenantResultado.rows.length === 0) {
+        console.error("Erro: tenant 'movement' não encontrado — nada foi criado.");
+        process.exitCode = 1;
+        return;
+    }
+
+    const tenantId = tenantResultado.rows[0].id;
+
     // Mesmo mecanismo de hash usado no cadastro público (bcrypt, 10 rounds) —
     // a senha em texto puro nunca é armazenada, só o hash.
     const senhaHash = await bcrypt.hash(dados.senha, 10);
@@ -87,19 +117,23 @@ async function criarAdmin() {
 
         try {
             const resultado = await pool.query(
-                `INSERT INTO usuarios (nome, email, senha, tipo, qr_token)
-                 VALUES ($1, $2, $3, 'admin', $4)
+                `INSERT INTO usuarios (nome, email, senha, tipo, qr_token, tenant_id)
+                 VALUES ($1, $2, $3, 'admin', $4, $5)
                  RETURNING id, nome, email, tipo, criado_em`,
-                [dados.nome, dados.email, senhaHash, qrToken]
+                [dados.nome, dados.email, senhaHash, qrToken, tenantId]
             );
 
-            console.log("Administrador criado com sucesso:");
+            console.log("Administrador criado com sucesso (tenant Movement):");
             console.log(resultado.rows[0]);
             return;
 
         } catch (erro) {
-            if (erro.code === "23505" && erro.constraint === "usuarios_email_key") {
-                console.error("Erro: já existe um usuário cadastrado com este email.");
+            // Nome de constraint corrigido aqui: renomeado para incluir o
+            // tenant desde a Etapa 2 (usuarios_email_key ->
+            // usuarios_tenant_email_key) — o nome antigo nunca mais bate,
+            // então esta checagem nunca disparava até esta correção.
+            if (erro.code === "23505" && erro.constraint === "usuarios_tenant_email_key") {
+                console.error("Erro: já existe um usuário cadastrado com este email neste tenant.");
                 process.exitCode = 1;
                 return;
             }

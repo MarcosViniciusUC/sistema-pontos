@@ -2,6 +2,8 @@ const express = require("express");
 const rateLimit = require("express-rate-limit");
 const authController = require("../controllers/auth.controller");
 const validateLogin = require("../middlewares/validateLogin");
+const resolverTenantMiddleware = require("../middlewares/resolverTenantMiddleware");
+const exigirTenantAtivoMiddleware = require("../middlewares/exigirTenantAtivoMiddleware");
 
 const router = express.Router();
 
@@ -32,6 +34,19 @@ const loginLimiter = rateLimit({
     }
 });
 
-router.post("/login", loginLimiter, validateLogin, authController.login);
+// ETAPA 3B — resolverTenantMiddleware roda ANTES do controller: resolve o
+// tenant (header X-Tenant-Slug / query ?tenantSlug=, com fallback fixo
+// 'movement' — ver src/services/tenantResolver.js) e bloqueia (404/403)
+// antes mesmo de tocar na tabela `usuarios`. O frontend atual não manda
+// nenhum slug, então continua caindo sempre no fallback Movement, sem
+// precisar mudar nada na URL/chamada existente.
+router.post(
+    "/login",
+    loginLimiter,
+    validateLogin,
+    resolverTenantMiddleware,
+    exigirTenantAtivoMiddleware,
+    authController.login
+);
 
 module.exports = router;

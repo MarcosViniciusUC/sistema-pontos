@@ -16,10 +16,17 @@
  * PERFORMANCE: as funções `coletarX(usuarioId)` fazem 1 consulta cada,
  * pensadas para UM cliente por vez (uso real: simulação sob demanda via
  * POST /admin/engajamento/simular). Para processar VÁRIOS clientes de uma
- * rodada (ver scheduler.js), use `coletarContextoEmLote(usuarioIds)` — ela
+ * rodada (ver scheduler.js), use `coletarContextoEmLote(clientes)` — ela
  * busca os mesmos dados para o lote inteiro em 4 consultas FIXAS (nunca
  * 4×N), agregando por `usuario_id` no Postgres em vez de repetir a mesma
  * consulta num loop do Node.
+ *
+ * ETAPA 3C-7 — TENANT: o scheduler processa clientes de TODOS os tenants
+ * na mesma rodada (não existe "o tenant desta execução"). Por isso, a
+ * partir desta etapa, cada registro carrega o PRÓPRIO `tenant_id` (do
+ * cliente, da recompensa) e nenhuma consulta aqui assume um tenant único
+ * para o lote inteiro — ver coletarContextoEmLote() para como isso é
+ * resolvido sem virar uma consulta por cliente.
  */
 const pool = require("../../config/database");
 
@@ -41,18 +48,29 @@ async function coletarSaldo(usuarioId) {
 
 // Mesmo critério de reward.controller.js:listar — só recompensas ativas,
 // mesmas colunas relevantes para os detectores (nome, custo, favorita).
-async function coletarRecompensasAtivas(usuarioId) {
+//
+// ETAPA 3C-7 — `tenantId` é obrigatório e vem sempre do PRÓPRIO REGISTRO do
+// cliente (ver coletarDadosCliente/engine.js:coletarContexto), nunca de um
+// tenant assumido/global. Antes desta etapa esta consulta buscava
+// recompensas ativas de TODOS os tenants — um cliente do Tenant A podia
+// receber um evento "RECOMPENSA_DESBLOQUEADA" sobre uma recompensa que, na
+// verdade, pertence ao Tenant B. `rf.tenant_id = $2` no EXISTS impede que
+// um favorito (sempre do mesmo tenant do usuário, desde a Etapa 3C-6)
+// marque `favorita=true` para uma recompensa que nem deveria estar nesta
+// lista, mas a proteção real aqui é o `r.tenant_id = $2` na cláusula WHERE
+// externa.
+async function coletarRecompensasAtivas(usuarioId, tenantId) {
     const resultado = await pool.query(
         `SELECT r.id, r.nome, r.pontos_necessarios, r.empresa_id, e.nome AS empresa_nome,
                 EXISTS (
                     SELECT 1 FROM recompensas_favoritas rf
-                    WHERE rf.recompensa_id = r.id AND rf.usuario_id = $1
+                    WHERE rf.recompensa_id = r.id AND rf.usuario_id = $1 AND rf.tenant_id = $2
                 ) AS favorita
          FROM recompensas r
          LEFT JOIN empresas e ON e.id = r.empresa_id
-         WHERE r.ativo = true
+         WHERE r.ativo = true AND r.tenant_id = $2
          ORDER BY r.pontos_necessarios ASC`,
-        [usuarioId]
+        [usuarioId, tenantId]
     );
 
     return resultado.rows;
@@ -107,9 +125,14 @@ async function coletarResgatesPendentes(usuarioId, horasParaExpirar) {
 // telefone confirmado nem data de nascimento com garantia de preenchimento
 // (telefone é opcional; data de nascimento não existe na tabela `usuarios`
 // — ver ANIVERSARIO em eventCatalog.js).
+//
+// ETAPA 3C-7 — `tenant_id` incluído no SELECT: esta é a fonte de verdade do
+// tenant de cada cliente para todo o motor de engajamento (ver
+// engine.js:coletarContexto, que usa `cliente.tenant_id` para buscar as
+// recompensas do tenant certo, nunca um tenant assumido).
 async function coletarDadosCliente(usuarioId) {
     const resultado = await pool.query(
-        `SELECT id, nome, email, tipo FROM usuarios WHERE id = $1`,
+        `SELECT id, nome, email, tipo, tenant_id FROM usuarios WHERE id = $1`,
         [usuarioId]
     );
 
@@ -119,11 +142,16 @@ async function coletarDadosCliente(usuarioId) {
 /**
  * Todos os clientes (tipo='cliente' — nunca admin/funcionário, que não têm
  * saldo de fidelidade) — usado pelo scheduler.js para saber quem processar.
- * Só as 3 colunas que o motor realmente usa (ver coletarDadosCliente).
+ * Só as colunas que o motor realmente usa (ver coletarDadosCliente).
+ *
+ * ETAPA 3C-7 — `tenant_id` incluído no SELECT: o scheduler processa
+ * clientes de TODOS os tenants na mesma rodada (não existe "tenant da
+ * rodada"), então cada cliente precisa carregar o próprio tenant consigo
+ * mesmo daqui em diante — nunca inferido de fora.
  */
 async function coletarClientesElegiveis() {
     const resultado = await pool.query(
-        `SELECT id, nome, email FROM usuarios WHERE tipo = 'cliente' ORDER BY id`
+        `SELECT id, nome, email, tenant_id FROM usuarios WHERE tipo = 'cliente' ORDER BY id`
     );
 
     return resultado.rows;
@@ -135,20 +163,37 @@ async function coletarClientesElegiveis() {
  * contexto de VÁRIOS clientes na mesma rodada. Em vez de repetir as 3
  * consultas por cliente (o que viraria 3×N consultas — exatamente o N+1
  * que este arquivo já alertava contra desde o Bloco 3), busca cada dado
- * UMA VEZ PARA TODOS os `usuarioIds` de uma vez (agregação/IN, nunca um
- * loop de queries) e devolve um Map<usuarioId, contexto> pronto para
+ * UMA VEZ PARA TODOS os clientes de uma vez (agregação/IN, nunca um loop
+ * de queries) e devolve um Map<usuarioId, contexto> pronto para
  * eventDetector.js — mesmo formato de dado que coletarSaldo/
  * coletarRecompensasAtivas/coletarResgatesPendentes produziam
  * individualmente, então nenhum detector precisou mudar.
  *
- * Total: sempre 4 consultas, não importa se `usuarioIds` tem 1 ou 10.000
- * elementos (a lista de recompensas ativas nem depende do lote de
- * usuários — é buscada uma vez só).
+ * Total: sempre 4 consultas, não importa se `clientes` tem 1 ou 10.000
+ * elementos.
+ *
+ * ETAPA 3C-7 — recebe `clientes` (objetos `{id, tenant_id, ...}`, vindos de
+ * coletarClientesElegiveis()), não mais uma lista de ids soltos: o lote
+ * quase sempre mistura clientes de tenants diferentes na mesma rodada, e
+ * cada um só pode enxergar recompensas do PRÓPRIO tenant.
+ *
+ * BUG CORRIGIDO NESTA ETAPA: a consulta de recompensas ativas buscava
+ * `WHERE r.ativo = true` sem filtro de tenant nenhum e aplicava essa MESMA
+ * lista global a todo cliente do lote — um cliente do Tenant A podia
+ * "desbloquear" (e receber evento sobre) uma recompensa que pertence, na
+ * verdade, ao Tenant B. Correção: a consulta agora também traz
+ * `r.tenant_id`, e as recompensas são agrupadas por tenant em memória
+ * (`recompensasPorTenant`) — continua sendo UMA consulta para o lote
+ * inteiro (nunca uma por tenant nem uma por cliente), só a distribuição
+ * final é que respeita `cliente.tenant_id` em vez de ser a mesma lista
+ * para todo mundo.
  */
-async function coletarContextoEmLote(usuarioIds, horasParaExpirar) {
-    if (usuarioIds.length === 0) {
+async function coletarContextoEmLote(clientes, horasParaExpirar) {
+    if (clientes.length === 0) {
         return new Map();
     }
+
+    const usuarioIds = clientes.map(function (c) { return c.id; });
 
     const [saldosResultado, recompensasResultado, favoritosResultado, resgatesResultado] = await Promise.all([
         pool.query(
@@ -160,10 +205,11 @@ async function coletarContextoEmLote(usuarioIds, horasParaExpirar) {
              GROUP BY usuario_id`,
             [usuarioIds]
         ),
-        // Recompensas ativas não dependem do usuário (só o "favorita" abaixo
-        // depende) — buscadas uma única vez para o lote inteiro.
+        // Recompensas ativas de TODOS os tenants presentes no lote, numa
+        // única consulta — o isolamento por tenant acontece na distribuição
+        // abaixo (recompensasPorTenant), nunca aqui no SELECT.
         pool.query(
-            `SELECT r.id, r.nome, r.pontos_necessarios, r.empresa_id, e.nome AS empresa_nome
+            `SELECT r.id, r.nome, r.pontos_necessarios, r.empresa_id, e.nome AS empresa_nome, r.tenant_id
              FROM recompensas r
              LEFT JOIN empresas e ON e.id = r.empresa_id
              WHERE r.ativo = true
@@ -186,6 +232,16 @@ async function coletarContextoEmLote(usuarioIds, horasParaExpirar) {
     ]);
 
     const saldoPorUsuario = new Map(saldosResultado.rows.map(function (l) { return [l.usuario_id, Number(l.saldo)]; }));
+
+    // Agrupamento por tenant — é isto que impede a recompensa de um tenant
+    // de "vazar" para o contexto de um cliente de outro tenant no lote.
+    const recompensasPorTenant = new Map();
+    recompensasResultado.rows.forEach(function (r) {
+        if (!recompensasPorTenant.has(r.tenant_id)) {
+            recompensasPorTenant.set(r.tenant_id, []);
+        }
+        recompensasPorTenant.get(r.tenant_id).push(r);
+    });
 
     const favoritosPorUsuario = new Map();
     favoritosResultado.rows.forEach(function (l) {
@@ -212,17 +268,19 @@ async function coletarContextoEmLote(usuarioIds, horasParaExpirar) {
 
     const contextoPorUsuario = new Map();
 
-    usuarioIds.forEach(function (usuarioId) {
-        const favoritosDoUsuario = favoritosPorUsuario.get(usuarioId) || new Set();
+    clientes.forEach(function (cliente) {
+        const favoritosDoUsuario = favoritosPorUsuario.get(cliente.id) || new Set();
+        const recompensasDoTenant = recompensasPorTenant.get(cliente.tenant_id) || [];
 
-        const recompensasAtivas = recompensasResultado.rows.map(function (r) {
+        const recompensasAtivas = recompensasDoTenant.map(function (r) {
             return { ...r, favorita: favoritosDoUsuario.has(r.id) };
         });
 
-        contextoPorUsuario.set(usuarioId, {
-            saldo: saldoPorUsuario.get(usuarioId) || 0,
+        contextoPorUsuario.set(cliente.id, {
+            tenantId: cliente.tenant_id,
+            saldo: saldoPorUsuario.get(cliente.id) || 0,
             recompensasAtivas: recompensasAtivas,
-            resgatesPendentes: resgatesPorUsuario.get(usuarioId) || []
+            resgatesPendentes: resgatesPorUsuario.get(cliente.id) || []
         });
     });
 

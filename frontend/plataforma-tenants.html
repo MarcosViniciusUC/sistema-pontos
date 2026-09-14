@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Maple Tech | Tenants</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@600;700;800;900&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
+
+    <link rel="stylesheet" href="assets/css/tokens.css">
+    <link rel="stylesheet" href="assets/css/base.css">
+    <link rel="stylesheet" href="assets/css/components.css">
+    <link rel="stylesheet" href="assets/css/admin.css">
+</head>
+<body>
+    <div class="admin-shell">
+        <header class="dash-header">
+            <span class="dash-header__brand">MAPLE TECH</span>
+
+            <div class="dash-header__user">
+                <button type="button" id="nav-menu-btn" class="nav-menu-btn" aria-haspopup="true" aria-expanded="false" aria-controls="main-nav">
+                    <span aria-hidden="true">☰</span> Menu
+                </button>
+                <span id="user-greeting" class="dash-header__greeting">Plataforma</span>
+                <button type="button" id="logout-btn" class="link-btn">Sair</button>
+            </div>
+        </header>
+
+        <div class="admin-body">
+            <nav class="admin-nav" id="main-nav" aria-label="Navegação da plataforma">
+                <a href="plataforma-dashboard.html" class="admin-nav__item">
+                    <svg class="admin-nav__icon" viewBox="0 0 24 24" fill="none" aria-hidden="true"><line x1="5" y1="19" x2="5" y2="11" stroke="currentColor" stroke-width="2.5"/><line x1="12" y1="19" x2="12" y2="6" stroke="currentColor" stroke-width="2.5"/><line x1="19" y1="19" x2="19" y2="14" stroke="currentColor" stroke-width="2.5"/></svg>
+                    <span class="admin-nav__label">Dashboard</span>
+                </a>
+                <a href="plataforma-tenants.html" class="admin-nav__item is-active" aria-current="page">
+                    <svg class="admin-nav__icon" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="3" y="3" width="7" height="7" stroke="currentColor" stroke-width="2"/><rect x="14" y="3" width="7" height="7" stroke="currentColor" stroke-width="2"/><rect x="3" y="14" width="7" height="7" stroke="currentColor" stroke-width="2"/><rect x="14" y="14" width="7" height="7" stroke="currentColor" stroke-width="2"/></svg>
+                    <span class="admin-nav__label">Tenants</span>
+                </a>
+            </nav>
+
+            <main class="admin-main">
+                <h1 class="admin-page-title">Tenants</h1>
+
+                <div id="page-message" class="form-message" role="status" aria-live="polite" tabindex="-1" hidden></div>
+
+                <div class="admin-toolbar">
+                    <p class="field-hint">
+                        Um tenant novo começa sempre vazio — nenhum dado da Movement ou de outro tenant é copiado.
+                    </p>
+                    <button type="button" id="novo-tenant-btn" class="btn btn--primary">Novo tenant</button>
+                </div>
+
+                <div id="tenants-container" aria-live="polite">
+                    <p class="dash-section__placeholder">Carregando...</p>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Modal: criar tenant -->
+    <div id="modal-tenant-overlay" class="modal-overlay" hidden>
+        <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-tenant-title">
+            <h2 id="modal-tenant-title" class="modal__title">Novo tenant</h2>
+
+            <form id="form-tenant" class="modal-form" novalidate>
+                <div class="field">
+                    <label for="tenant-nome">Nome</label>
+                    <input type="text" id="tenant-nome" name="nome" placeholder="Ex: Barbearia Central" required>
+                </div>
+                <div class="field">
+                    <label for="tenant-slug">Slug (gerado automaticamente)</label>
+                    <input type="text" id="tenant-slug" name="slug" placeholder="Ex: barbearia-central" required>
+                    <p class="field-hint">Preenchido a partir do nome. Só edite aqui se quiser um identificador diferente.</p>
+                </div>
+                <div class="field">
+                    <label for="tenant-plano">Plano</label>
+                    <select id="tenant-plano" name="plano">
+                        <option value="">Sem plano definido</option>
+                        <option value="founder">Founder</option>
+                        <option value="essencial">Essencial</option>
+                        <option value="pro">Pro</option>
+                        <option value="rede">Rede</option>
+                    </select>
+                    <p class="field-hint">Informação administrativa — não gera cobrança nem integra pagamento.</p>
+                </div>
+
+                <p id="modal-tenant-error" class="modal__error" hidden></p>
+
+                <div class="modal__actions">
+                    <button type="button" id="modal-tenant-cancelar" class="btn btn--ghost">Cancelar</button>
+                    <button type="submit" id="modal-tenant-confirmar" class="btn btn--primary">
+                        <span class="btn__spinner" aria-hidden="true"></span>
+                        <span class="btn__label">Criar tenant</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="assets/js/plataforma-api.js"></script>
+    <script src="assets/js/plataforma-auth.js"></script>
+    <script src="assets/js/ui.js"></script>
+    <script src="assets/js/plataforma-tenants.js"></script>
+</body>
+</html>
