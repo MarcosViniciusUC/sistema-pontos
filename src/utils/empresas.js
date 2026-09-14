@@ -31,6 +31,27 @@ async function empresaAtivaExiste(db, empresaId) {
 }
 
 /**
+ * ETAPA 3C-3 — versão tenant-aware de empresaAtivaExiste(), criada como
+ * função NOVA (em vez de alterar a assinatura da existente) de propósito:
+ * mudar empresaAtivaExiste() afetaria também points.controller.js, cujo
+ * domínio ainda não foi isolado por tenant (etapa futura separada) —
+ * alterá-la agora deixaria esse chamador quebrado ou com um comportamento
+ * parcialmente adaptado, exatamente o que se quer evitar. Usada só por
+ * reward.controller.js a partir desta etapa: além de existir e estar
+ * ativa, a empresa precisa pertencer ao MESMO tenant do usuário
+ * autenticado — um `empresa_id` de outro tenant (mesmo que exista e esteja
+ * ativo) é tratado como inválido, nunca aceito.
+ */
+async function empresaAtivaNoTenant(db, empresaId, tenantId) {
+    const resultado = await db.query(
+        "SELECT id FROM empresas WHERE id = $1 AND ativo = true AND tenant_id = $2",
+        [empresaId, tenantId]
+    );
+
+    return resultado.rows.length > 0;
+}
+
+/**
  * Normaliza um slug pro formato usado como identificador estável (nunca
  * exibido como o "nome" da empresa): minúsculo, sem acento, só
  * letras/números separados por hífen simples, sem hífen nas pontas.
@@ -58,4 +79,4 @@ function normalizarSlug(slug) {
         .replace(/^-+|-+$/g, "");
 }
 
-module.exports = { empresaAtivaExiste, normalizarSlug };
+module.exports = { empresaAtivaExiste, empresaAtivaNoTenant, normalizarSlug };
