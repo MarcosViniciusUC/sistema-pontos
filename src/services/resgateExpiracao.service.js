@@ -33,6 +33,19 @@ const HORAS_PARA_EXPIRAR = 5;
  *
  * Retorna a lista dos resgates efetivamente cancelados nesta chamada (usado
  * pelos testes e para log).
+ *
+ * ETAPA 3C-5 — este job roda GLOBALMENTE, sem contexto de req/tenant (é
+ * chamado por um timer e por várias rotas de tenants diferentes), então a
+ * consulta de candidatos permanece de propósito sem filtro de tenant —
+ * "uma possível consulta global continua segura" só é verdade porque cada
+ * resgate candidato é depois processado individualmente carregando o
+ * PRÓPRIO `tenant_id` (nunca um tenant assumido) e a devolução de pontos é
+ * gravada com esse mesmo `tenant_id`. Antes desta etapa, o INSERT de
+ * devolução não informava `tenant_id` nenhum e caía no DEFAULT temporário
+ * (Movement, id 1) — um resgate expirado de QUALQUER outro tenant teria a
+ * devolução gravada com tenant_id=1, nunca contabilizada no saldo real do
+ * usuário (que passou a ser calculado filtrando por tenant_id desde a
+ * Etapa 3C-4). Esse era um bug cross-tenant real, corrigido aqui.
  */
 async function cancelarResgatesExpirados() {
     const candidatos = await pool.query(
@@ -53,7 +66,7 @@ async function cancelarResgatesExpirados() {
             // o mesmo id bloqueia aqui até esta transação terminar (COMMIT ou
             // ROLLBACK), e só então lê o status já atualizado.
             const resgateResultado = await client.query(
-                `SELECT id, usuario_id, pontos, status, criado_em
+                `SELECT id, usuario_id, pontos, status, tenant_id, criado_em
                  FROM resgates
                  WHERE id = $1
                    AND status = 'pendente_validacao'
@@ -80,12 +93,13 @@ async function cancelarResgatesExpirados() {
             );
 
             await client.query(
-                `INSERT INTO movimentacoes_pontos (usuario_id, quantidade, tipo, descricao)
-                 VALUES ($1, $2, 'entrada', $3)`,
+                `INSERT INTO movimentacoes_pontos (usuario_id, quantidade, tipo, descricao, tenant_id)
+                 VALUES ($1, $2, 'entrada', $3, $4)`,
                 [
                     resgate.usuario_id,
                     resgate.pontos,
-                    `Pontos devolvidos pelo cancelamento do resgate #${resgate.id}`
+                    `Pontos devolvidos pelo cancelamento do resgate #${resgate.id}`,
+                    resgate.tenant_id
                 ]
             );
 

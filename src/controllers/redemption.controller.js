@@ -20,9 +20,26 @@ const MAX_TENTATIVAS_CODIGO = 5;
  * Segurança: usuario_id vem só de req.usuario.id (JWT); pontos vêm só do
  * valor de recompensas.pontos_necessarios lido agora do banco; status e
  * código são sempre definidos pelo servidor. Nada disso é lido do body.
+ *
+ * ETAPA 3C-5 — `tenant_id` vem exclusivamente de `req.usuario.tenant_id`
+ * (do JWT, nunca do body) e é gravado explicitamente tanto no `INSERT` de
+ * `resgates` quanto no `INSERT` de saída em `movimentacoes_pontos`, sem
+ * depender do DEFAULT temporário. A recompensa só é aceita se pertencer ao
+ * MESMO tenant (`r.tenant_id = $2`) — uma recompensa de outro tenant cai
+ * no mesmo 404 genérico "Recompensa não encontrada". `usuario_id` aqui
+ * NUNCA vem do body/cliente (sempre `req.usuario.id`, já validado pelo
+ * `authMiddleware` contra o tenant do próprio token), então não existe
+ * vetor de "usuario_id de outro tenant" nesta rota por construção — o lock
+ * do usuário ainda assim passa a exigir `tenant_id = $2`, por consistência
+ * e defesa em profundidade. `empresa_id` também nunca vem do body aqui —
+ * é sempre copiado de `recompensa.empresa_id` (já garantida do mesmo
+ * tenant pela checagem acima e pela Etapa 3C-3, que só permite recompensas
+ * apontarem para empresas do próprio tenant), nunca escolhido livremente.
+ * Toda a checagem cruzada continua dentro da MESMA transação já existente.
  */
 async function criar(req, res) {
     const usuario_id = req.usuario.id;
+    const tenantId = req.usuario.tenant_id;
     const { recompensa_id } = req.body;
 
     const client = await pool.connect();
@@ -37,8 +54,8 @@ async function criar(req, res) {
             `SELECT r.id, r.nome, r.pontos_necessarios, r.ativo, r.empresa_id, e.nome AS empresa_nome
              FROM recompensas r
              LEFT JOIN empresas e ON e.id = r.empresa_id
-             WHERE r.id = $1`,
-            [recompensa_id]
+             WHERE r.id = $1 AND r.tenant_id = $2`,
+            [recompensa_id, tenantId]
         );
 
         if (recompensaResultado.rows.length === 0) {
@@ -58,8 +75,8 @@ async function criar(req, res) {
         }
 
         const usuarioResultado = await client.query(
-            "SELECT id FROM usuarios WHERE id = $1 FOR UPDATE",
-            [usuario_id]
+            "SELECT id FROM usuarios WHERE id = $1 AND tenant_id = $2 FOR UPDATE",
+            [usuario_id, tenantId]
         );
 
         if (usuarioResultado.rows.length === 0) {
@@ -77,8 +94,8 @@ async function criar(req, res) {
                 END
             ), 0) AS saldo
              FROM movimentacoes_pontos
-             WHERE usuario_id = $1`,
-            [usuario_id]
+             WHERE usuario_id = $1 AND tenant_id = $2`,
+            [usuario_id, tenantId]
         );
 
         const saldoAtual = Number(saldoResultado.rows[0].saldo);
@@ -100,10 +117,10 @@ async function criar(req, res) {
 
             try {
                 const resgateResultado = await client.query(
-                    `INSERT INTO resgates (usuario_id, recompensa_id, pontos, codigo, status, empresa_id)
-                     VALUES ($1, $2, $3, $4, 'pendente_validacao', $5)
+                    `INSERT INTO resgates (usuario_id, recompensa_id, pontos, codigo, status, empresa_id, tenant_id)
+                     VALUES ($1, $2, $3, $4, 'pendente_validacao', $5, $6)
                      RETURNING id, usuario_id, recompensa_id, pontos, codigo, status, empresa_id, criado_em, atualizado_em`,
-                    [usuario_id, recompensa_id, pontosNecessarios, codigo, recompensa.empresa_id]
+                    [usuario_id, recompensa_id, pontosNecessarios, codigo, recompensa.empresa_id, tenantId]
                 );
 
                 await client.query("RELEASE SAVEPOINT tentativa_codigo");
@@ -135,9 +152,9 @@ async function criar(req, res) {
         // recompensa mudar de empresa depois, essa saída já registrada não
         // deve mudar junto.
         await client.query(
-            `INSERT INTO movimentacoes_pontos (usuario_id, quantidade, tipo, descricao, empresa_id)
-             VALUES ($1, $2, 'saida', $3, $4)`,
-            [usuario_id, pontosNecessarios, `Resgate de "${recompensa.nome}" (código ${resgateCriado.codigo})`, recompensa.empresa_id]
+            `INSERT INTO movimentacoes_pontos (usuario_id, quantidade, tipo, descricao, empresa_id, tenant_id)
+             VALUES ($1, $2, 'saida', $3, $4, $5)`,
+            [usuario_id, pontosNecessarios, `Resgate de "${recompensa.nome}" (código ${resgateCriado.codigo})`, recompensa.empresa_id, tenantId]
         );
 
         await client.query("COMMIT");
@@ -183,6 +200,10 @@ async function criar(req, res) {
  * resgateExpiracao.service.js): processa qualquer resgate expirado ANTES de
  * montar a resposta, para o admin nunca ver um "pendente_validacao" que já
  * deveria estar cancelado.
+ *
+ * ETAPA 3C-5 — filtrado também por `r.tenant_id = req.usuario.tenant_id`.
+ * Antes desta etapa não havia WHERE nenhum: um admin via resgates de TODOS
+ * os tenants nesta listagem.
  */
 async function listarAdmin(req, res) {
     try {
@@ -206,7 +227,9 @@ async function listarAdmin(req, res) {
              JOIN usuarios u ON u.id = r.usuario_id
              JOIN recompensas rec ON rec.id = r.recompensa_id
              LEFT JOIN empresas e ON e.id = r.empresa_id
-             ORDER BY r.criado_em DESC`
+             WHERE r.tenant_id = $1
+             ORDER BY r.criado_em DESC`,
+            [req.usuario.tenant_id]
         );
 
         res.json(resultado.rows);
@@ -232,6 +255,11 @@ async function listarAdmin(req, res) {
  * sem abrir o app e algum resgate dele expirou nesse meio tempo, ele já
  * aparece como cancelado (com os pontos devolvidos) na primeira consulta
  * depois de voltar, sem depender só da limpeza periódica em memória.
+ *
+ * ETAPA 3C-5 — filtrado também por `r.tenant_id = req.usuario.tenant_id`.
+ * Redundante em termos de resultado hoje (usuario_id já pertence a um
+ * único tenant), mas deixa a query correta por si só, consistente com a
+ * regra "toda leitura de resgates considera tenant_id".
  */
 async function listarMeus(req, res) {
     try {
@@ -252,9 +280,9 @@ async function listarMeus(req, res) {
              FROM resgates r
              JOIN recompensas rec ON rec.id = r.recompensa_id
              LEFT JOIN empresas e ON e.id = r.empresa_id
-             WHERE r.usuario_id = $1
+             WHERE r.usuario_id = $1 AND r.tenant_id = $2
              ORDER BY r.criado_em DESC`,
-            [req.usuario.id]
+            [req.usuario.id, req.usuario.tenant_id]
         );
 
         res.json(resultado.rows);
@@ -286,6 +314,17 @@ async function listarMeus(req, res) {
  * varrido pela limpeza periódica não pode ser validado como "utilizado" no
  * balcão — precisa primeiro virar "cancelado" (com a devolução de pontos),
  * e só então cair no caminho de erro 409 já existente abaixo.
+ *
+ * ETAPA 3C-5 — `resgates.codigo` continua GLOBALMENTE único de propósito
+ * (um scanner/funcionário não sabe o tenant a priori a partir só do
+ * código). A busca em si continua global (`WHERE codigo = $1`), mas
+ * código global NUNCA significa autorização global: depois de localizar a
+ * linha, `resgate.tenant_id` é comparado contra `req.usuario.tenant_id` —
+ * se não bater, a resposta é o MESMO 404 genérico "Código de resgate não
+ * encontrado" usado para código inexistente, nunca revelando que aquele
+ * código existe em outro tenant. O `UPDATE` final também passa a exigir
+ * `tenant_id = $2` como segunda camada de defesa (mesmo já tendo
+ * confirmado o tenant antes, dentro da mesma transação/lock).
  */
 async function validar(req, res) {
     const codigo = req.body.codigo.trim().toUpperCase();
@@ -298,14 +337,14 @@ async function validar(req, res) {
         await client.query("BEGIN");
 
         const resgateResultado = await client.query(
-            `SELECT id, usuario_id, recompensa_id, pontos, codigo, status, criado_em, atualizado_em
+            `SELECT id, usuario_id, recompensa_id, pontos, codigo, status, tenant_id, criado_em, atualizado_em
              FROM resgates
              WHERE codigo = $1
              FOR UPDATE`,
             [codigo]
         );
 
-        if (resgateResultado.rows.length === 0) {
+        if (resgateResultado.rows.length === 0 || resgateResultado.rows[0].tenant_id !== req.usuario.tenant_id) {
             await client.query("ROLLBACK");
             return res.status(404).json({
                 mensagem: "Código de resgate não encontrado"
@@ -331,14 +370,14 @@ async function validar(req, res) {
         const atualizadoResultado = await client.query(
             `UPDATE resgates
              SET status = 'utilizado', atualizado_em = NOW()
-             WHERE id = $1
+             WHERE id = $1 AND tenant_id = $2
              RETURNING id, recompensa_id, pontos, codigo, status, criado_em, atualizado_em`,
-            [resgate.id]
+            [resgate.id, req.usuario.tenant_id]
         );
 
         const recompensaResultado = await client.query(
-            "SELECT nome FROM recompensas WHERE id = $1",
-            [resgate.recompensa_id]
+            "SELECT nome FROM recompensas WHERE id = $1 AND tenant_id = $2",
+            [resgate.recompensa_id, req.usuario.tenant_id]
         );
 
         await client.query("COMMIT");
