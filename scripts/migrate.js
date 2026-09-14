@@ -63,6 +63,31 @@ async function tabelaExiste(tabela) {
     return resultado.rows.length > 0;
 }
 
+// Usado por migrations que só aplicam um DEFAULT (nunca mudam
+// nullable/NOT NULL) — checa se a coluna já tem qualquer valor padrão
+// definido, não importa qual.
+async function colunaTemDefault(tabela, coluna) {
+    const resultado = await pool.query(
+        `SELECT 1 FROM information_schema.columns
+         WHERE table_schema = 'public' AND table_name = $1 AND column_name = $2 AND column_default IS NOT NULL`,
+        [tabela, coluna]
+    );
+    return resultado.rows.length > 0;
+}
+
+// Diferente de colunaExiste: aqui importa que a coluna não só exista, mas
+// já esteja endurecida (NOT NULL) — usado por migrations com fase A
+// (nullable) e fase B (NOT NULL) na mesma transação, onde só o estado
+// final da fase B conta como "aplicada" de verdade.
+async function colunaNotNull(tabela, coluna) {
+    const resultado = await pool.query(
+        `SELECT 1 FROM information_schema.columns
+         WHERE table_schema = 'public' AND table_name = $1 AND column_name = $2 AND is_nullable = 'NO'`,
+        [tabela, coluna]
+    );
+    return resultado.rows.length > 0;
+}
+
 // Ordem real de dependência (ver seção 6 do docs/PROJETO-MOVEMENT-BENEFICIOS.md)
 // — não é a ordem alfabética dos arquivos. `jaAplicada` é o único jeito do
 // orquestrador saber, na primeira vez que vê uma migration sem registro, se
@@ -105,6 +130,29 @@ const MIGRATIONS = [
     {
         nome: "migrate-engajamento-historico.js",
         jaAplicada: () => tabelaExiste("notificacoes_historico")
+    },
+    {
+        nome: "migrate-tenants.js",
+        jaAplicada: () => tabelaExiste("tenants")
+    },
+    {
+        nome: "migrate-admins-plataforma.js",
+        jaAplicada: () => tabelaExiste("admins_plataforma")
+    },
+    {
+        nome: "migrate-tenant-id-dominio.js",
+        // Checa o estado FINAL (fase B — NOT NULL), não só a existência da
+        // coluna — uma tabela representativa basta porque a migration
+        // inteira roda numa única transação (ou todas as 8 tabelas chegam
+        // a NOT NULL juntas, ou nenhuma chega, por causa do ROLLBACK).
+        jaAplicada: () => colunaNotNull("usuarios", "tenant_id")
+    },
+    {
+        nome: "migrate-tenant-id-default-temporario.js",
+        // Correção de compatibilidade (ver comentário no próprio arquivo) —
+        // TEMPORÁRIA enquanto os controllers não informam tenant_id. Uma
+        // tabela representativa basta pelo mesmo motivo (transação única).
+        jaAplicada: () => colunaTemDefault("usuarios", "tenant_id")
     }
 ];
 
