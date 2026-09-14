@@ -63,6 +63,15 @@ async function criar(req, res) {
  * (do JWT autenticado, nunca de body/query/params). Antes desta etapa não
  * havia filtro de tenant: cliente/funcionário/admin de qualquer tenant
  * viam recompensas ativas de TODOS os tenants neste catálogo.
+ *
+ * ETAPA 3C-6 — o EXISTS de `favorita` passa a exigir também
+ * `rf.tenant_id = $2`. Já era seguro por construção (`rf.recompensa_id =
+ * r.id` só pode casar com a própria recompensa, já filtrada pelo tenant
+ * correto na cláusula WHERE externa, e favorito.controller.js agora
+ * impede qualquer linha cross-tenant em recompensas_favoritas), mas a
+ * condição explícita deixa esta query correta por si só, sem depender de
+ * uma garantia só externa a ela — mesmo padrão de defesa em profundidade
+ * já usado nos demais domínios isolados.
  */
 async function listar(req, res) {
     try {
@@ -71,7 +80,7 @@ async function listar(req, res) {
                     r.empresa_id, e.nome AS empresa_nome, r.imagem, r.destacada,
                     EXISTS (
                         SELECT 1 FROM recompensas_favoritas rf
-                        WHERE rf.recompensa_id = r.id AND rf.usuario_id = $1
+                        WHERE rf.recompensa_id = r.id AND rf.usuario_id = $1 AND rf.tenant_id = $2
                     ) AS favorita
              FROM recompensas r
              LEFT JOIN empresas e ON e.id = r.empresa_id

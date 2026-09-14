@@ -21,6 +21,14 @@ const pool = require("../config/database");
  * foi desativada continua aparecendo aqui (a relação de favorito persiste),
  * só que com ativo=false — o frontend decide, a partir desse campo, mostrar
  * como indisponível para resgate em vez de escondê-la da lista.
+ *
+ * ETAPA 3C-6 — filtrado também por `rf.tenant_id = req.usuario.tenant_id`
+ * (do JWT, nunca de body/query/params). Redundante em termos de resultado
+ * hoje (usuario_id já pertence a um único tenant, e favoritar() nesta
+ * etapa passa a impedir a criação de qualquer linha cross-tenant), mas
+ * deixa a query correta por si só, consistente com o padrão já usado nos
+ * outros domínios isolados (usuários, empresas, recompensas, pontos,
+ * resgates).
  */
 async function listar(req, res) {
     const usuario_id = req.usuario.id;
@@ -32,9 +40,9 @@ async function listar(req, res) {
              FROM recompensas_favoritas rf
              JOIN recompensas r ON r.id = rf.recompensa_id
              LEFT JOIN empresas e ON e.id = r.empresa_id
-             WHERE rf.usuario_id = $1
+             WHERE rf.usuario_id = $1 AND rf.tenant_id = $2
              ORDER BY rf.criado_em DESC`,
-            [usuario_id]
+            [usuario_id, req.usuario.tenant_id]
         );
 
         res.json(resultado.rows);
@@ -58,10 +66,23 @@ async function listar(req, res) {
  * id inexistente estouraria a FK como erro 500 em vez de um 404 legível.
  * Não exige ativo=true de propósito: nada nas regras impede favoritar algo
  * temporariamente indisponível.
+ *
+ * ETAPA 3C-6 — `tenant_id` vem exclusivamente de `req.usuario.tenant_id`
+ * (do JWT, nunca do body/query/params) e é gravado explicitamente no
+ * INSERT, sem depender do DEFAULT temporário. A checagem de existência da
+ * recompensa passa a exigir `tenant_id = $2` também: uma recompensa de
+ * outro tenant (mesmo que exista de verdade) recebe o MESMO 404 genérico
+ * "Recompensa não encontrada" usado para id inexistente, nunca revelando
+ * que aquele id pertence a outro tenant. A constraint UNIQUE
+ * (usuario_id, recompensa_id) não precisou incluir tenant_id: como
+ * usuario_id e recompensa_id já pertencem, cada um, a exatamente um
+ * tenant, essa dupla já é implicitamente única por tenant — não há
+ * alteração de schema nesta etapa.
  */
 async function favoritar(req, res) {
     const usuario_id = req.usuario.id;
     const recompensa_id = Number(req.params.id);
+    const tenantId = req.usuario.tenant_id;
 
     if (!Number.isInteger(recompensa_id)) {
         return res.status(400).json({
@@ -71,8 +92,8 @@ async function favoritar(req, res) {
 
     try {
         const recompensaResultado = await pool.query(
-            "SELECT id FROM recompensas WHERE id = $1",
-            [recompensa_id]
+            "SELECT id FROM recompensas WHERE id = $1 AND tenant_id = $2",
+            [recompensa_id, tenantId]
         );
 
         if (recompensaResultado.rows.length === 0) {
@@ -82,10 +103,10 @@ async function favoritar(req, res) {
         }
 
         await pool.query(
-            `INSERT INTO recompensas_favoritas (usuario_id, recompensa_id)
-             VALUES ($1, $2)
+            `INSERT INTO recompensas_favoritas (usuario_id, recompensa_id, tenant_id)
+             VALUES ($1, $2, $3)
              ON CONFLICT (usuario_id, recompensa_id) DO NOTHING`,
-            [usuario_id, recompensa_id]
+            [usuario_id, recompensa_id, tenantId]
         );
 
         res.status(201).json({
@@ -107,10 +128,18 @@ async function favoritar(req, res) {
  * desfavoritar algo que não era favorito não é erro, só confirma o estado
  * atual (mesmo princípio de ativar()/desativar() em empresa.controller.js).
  * Nunca apaga a recompensa em si — só a linha de associação, se existir.
+ *
+ * ETAPA 3C-6 — `WHERE usuario_id = $1 AND recompensa_id = $2 AND
+ * tenant_id = $3`. Redundante em termos de resultado hoje (uma linha
+ * cross-tenant nunca chega a existir, já que favoritar() passou a impedir
+ * isso), mas garante explicitamente que um usuário nunca afete uma linha
+ * de outro tenant só por adivinhar/enviar um `recompensa_id` alheio —
+ * defesa em profundidade, mesmo padrão já usado nos demais domínios.
  */
 async function desfavoritar(req, res) {
     const usuario_id = req.usuario.id;
     const recompensa_id = Number(req.params.id);
+    const tenantId = req.usuario.tenant_id;
 
     if (!Number.isInteger(recompensa_id)) {
         return res.status(400).json({
@@ -120,8 +149,8 @@ async function desfavoritar(req, res) {
 
     try {
         await pool.query(
-            "DELETE FROM recompensas_favoritas WHERE usuario_id = $1 AND recompensa_id = $2",
-            [usuario_id, recompensa_id]
+            "DELETE FROM recompensas_favoritas WHERE usuario_id = $1 AND recompensa_id = $2 AND tenant_id = $3",
+            [usuario_id, recompensa_id, tenantId]
         );
 
         res.json({
