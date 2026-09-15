@@ -1,0 +1,130 @@
+/**
+ * Onboarding de novos tenants — SOMENTE dentro de `.plataforma-shell`
+ * (mesmo escopo de plataforma.css), nunca vaza para telas do Movement.
+ * Reaproveita tokens/componentes já existentes (.field, .btn, .modal__error,
+ * .operacao-panel) — só o que é específico do wizard (passos, cards de
+ * plano, navegação entre etapas) é definido aqui.
+ */
+
+.plataforma-shell .onboarding-steps {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    list-style: none;
+    padding: 0;
+    margin: var(--space-4) 0;
+}
+
+.plataforma-shell .onboarding-steps__item {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    padding: 6px 12px;
+    border-radius: 999px;
+    background: var(--color-surface-2);
+    color: var(--color-text-secondary);
+    font-size: var(--text-sm);
+    border: 1px solid var(--color-border);
+}
+
+.plataforma-shell .onboarding-steps__number {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: var(--color-border);
+    color: var(--color-text-secondary);
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.plataforma-shell .onboarding-steps__item.is-current {
+    border-color: var(--mp-primary);
+    color: var(--color-text-primary);
+}
+
+.plataforma-shell .onboarding-steps__item.is-current .onboarding-steps__number {
+    background: var(--mp-primary);
+    color: #fff;
+}
+
+.plataforma-shell .onboarding-steps__item.is-done .onboarding-steps__number {
+    background: var(--mp-primary-surface-strong);
+    color: var(--mp-primary-bright);
+}
+
+.plataforma-shell .onboarding-panel {
+    max-width: 520px;
+    margin-bottom: var(--space-5);
+}
+
+.plataforma-shell .onboarding-nav {
+    display: flex;
+    gap: var(--space-3);
+    margin-top: var(--space-5);
+}
+
+.plataforma-shell .planos-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: var(--space-3);
+    max-width: 800px;
+}
+
+.plataforma-shell .plano-card {
+    border: 2px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    padding: var(--space-4);
+    background: var(--color-surface-2);
+    cursor: pointer;
+    text-align: left;
+    color: var(--color-text-primary);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+}
+
+.plataforma-shell .plano-card:hover {
+    border-color: var(--mp-primary);
+}
+
+.plataforma-shell .plano-card.is-selected {
+    border-color: var(--mp-primary);
+    background: var(--mp-primary-surface);
+    box-shadow: 0 0 0 3px var(--mp-primary-glow);
+}
+
+.plataforma-shell .plano-card__nome {
+    font-size: var(--text-lg);
+    font-weight: 700;
+    margin: 0;
+}
+
+.plataforma-shell .plano-card__limite {
+    font-size: var(--text-sm);
+    color: var(--color-text-secondary);
+    margin: 0;
+}
+
+.plataforma-shell .plano-card__lista {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: var(--text-sm);
+}
+
+.plataforma-shell .plano-card__lista li::before {
+    content: "✓ ";
+    color: var(--mp-primary-bright);
+}
+
+@media (max-width: 480px) {
+    .plataforma-shell .onboarding-nav {
+        flex-direction: column;
+    }
+}

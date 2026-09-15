@@ -4,13 +4,19 @@ const authMiddleware = require("../middlewares/authMiddleware");
 const roleMiddleware = require("../middlewares/roleMiddleware");
 const validateEmpresaCreate = require("../middlewares/validateEmpresaCreate");
 const validateEmpresaUpdate = require("../middlewares/validateEmpresaUpdate");
+const exigirLimiteDeEmpresasNaoAtingido = require("../middlewares/exigirLimiteDeEmpresasMiddleware");
 
 const router = express.Router();
 
+// Limite de empresas/unidades por plano (ver
+// src/services/planosFuncionalidades.service.js) — antes de validar/criar,
+// nunca depois: uma tentativa que já estouraria o limite nem chega a
+// validar o corpo da requisição.
 router.post(
     "/empresas",
     authMiddleware,
     roleMiddleware("admin"),
+    exigirLimiteDeEmpresasNaoAtingido,
     validateEmpresaCreate,
     empresaController.criar
 );

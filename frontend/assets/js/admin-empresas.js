@@ -227,10 +227,40 @@
         containerEl.appendChild(wrap);
     }
 
+    // Limite de empresas/unidades por plano (ver
+    // src/services/planosFuncionalidades.service.js) — só desabilita o
+    // botão e explica o motivo no title; quem impede de verdade uma
+    // tentativa direta à API continua sendo
+    // exigirLimiteDeEmpresasMiddleware.js no backend.
+    function atualizarBotaoNovaEmpresa(empresas) {
+        const limite = window.Funcionalidades.limiteEmpresas();
+        const botao = document.getElementById("nova-empresa-btn");
+
+        if (limite === null) {
+            botao.disabled = false;
+            botao.title = "";
+            return;
+        }
+
+        const quantidadeAtiva = empresas.filter(function (empresa) { return empresa.ativo; }).length;
+        const atingiuLimite = quantidadeAtiva >= limite;
+
+        botao.disabled = atingiuLimite;
+        botao.title = atingiuLimite
+            ? `Limite de ${limite} empresa(s)/unidade(s) do plano atual já foi atingido`
+            : "";
+    }
+
     async function carregarEmpresas() {
+        // Precisa das funcionalidades do plano já resolvidas ANTES de
+        // decidir se o botão "Nova empresa" fica habilitado — ver
+        // funcionalidades.js.
+        await window.Funcionalidades.pronto;
+
         try {
             const empresas = await window.api("/empresas/admin");
             renderizarTabela(empresas);
+            atualizarBotaoNovaEmpresa(empresas);
 
         } catch (erro) {
             const mensagem = window.UI.mensagemDeErro(erro, "Não foi possível carregar as empresas agora.");

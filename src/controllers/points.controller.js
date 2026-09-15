@@ -32,8 +32,8 @@ const { empresaAtivaNoTenant } = require("../utils/empresas");
  *     `tipo = 'cliente'` — um `usuario_id` de outro tenant não bate com
  *     nenhuma linha e cai no mesmo 404 genérico de "Usuário não
  *     encontrado", nunca revelando que aquele id existe em outro tenant;
- *   - a checagem de empresa passa a usar `empresaAtivaNoTenant()` (em vez
- *     de `empresaAtivaExiste()`): uma empresa de outro tenant, mesmo que
+ *   - a checagem de empresa (`empresaAtivaNoTenant()`, ver src/utils/empresas.js)
+ *     passa a considerar o tenant: uma empresa de outro tenant, mesmo que
  *     exista e esteja ativa, é tratada como "Empresa inválida".
  * O recálculo de saldo (ainda dentro da transação) também passa a filtrar
  * por `tenant_id`, por consistência com a regra "toda leitura de

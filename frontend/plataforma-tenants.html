@@ -13,9 +13,10 @@
     <link rel="stylesheet" href="assets/css/base.css">
     <link rel="stylesheet" href="assets/css/components.css">
     <link rel="stylesheet" href="assets/css/admin.css">
+    <link rel="stylesheet" href="assets/css/plataforma.css">
 </head>
 <body>
-    <div class="admin-shell">
+    <div class="admin-shell plataforma-shell">
         <header class="dash-header">
             <span class="dash-header__brand">MAPLE TECH</span>
 
@@ -49,53 +50,13 @@
                     <p class="field-hint">
                         Um tenant novo começa sempre vazio — nenhum dado da Movement ou de outro tenant é copiado.
                     </p>
-                    <button type="button" id="novo-tenant-btn" class="btn btn--primary">Novo tenant</button>
+                    <a href="plataforma-onboarding.html" id="novo-tenant-btn" class="btn btn--primary">+ Novo tenant</a>
                 </div>
 
                 <div id="tenants-container" aria-live="polite">
                     <p class="dash-section__placeholder">Carregando...</p>
                 </div>
             </main>
-        </div>
-    </div>
-
-    <!-- Modal: criar tenant -->
-    <div id="modal-tenant-overlay" class="modal-overlay" hidden>
-        <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-tenant-title">
-            <h2 id="modal-tenant-title" class="modal__title">Novo tenant</h2>
-
-            <form id="form-tenant" class="modal-form" novalidate>
-                <div class="field">
-                    <label for="tenant-nome">Nome</label>
-                    <input type="text" id="tenant-nome" name="nome" placeholder="Ex: Barbearia Central" required>
-                </div>
-                <div class="field">
-                    <label for="tenant-slug">Slug (gerado automaticamente)</label>
-                    <input type="text" id="tenant-slug" name="slug" placeholder="Ex: barbearia-central" required>
-                    <p class="field-hint">Preenchido a partir do nome. Só edite aqui se quiser um identificador diferente.</p>
-                </div>
-                <div class="field">
-                    <label for="tenant-plano">Plano</label>
-                    <select id="tenant-plano" name="plano">
-                        <option value="">Sem plano definido</option>
-                        <option value="founder">Founder</option>
-                        <option value="essencial">Essencial</option>
-                        <option value="pro">Pro</option>
-                        <option value="rede">Rede</option>
-                    </select>
-                    <p class="field-hint">Informação administrativa — não gera cobrança nem integra pagamento.</p>
-                </div>
-
-                <p id="modal-tenant-error" class="modal__error" hidden></p>
-
-                <div class="modal__actions">
-                    <button type="button" id="modal-tenant-cancelar" class="btn btn--ghost">Cancelar</button>
-                    <button type="submit" id="modal-tenant-confirmar" class="btn btn--primary">
-                        <span class="btn__spinner" aria-hidden="true"></span>
-                        <span class="btn__label">Criar tenant</span>
-                    </button>
-                </div>
-            </form>
         </div>
     </div>
 

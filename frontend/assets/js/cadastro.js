@@ -31,6 +31,11 @@
         return;
     }
 
+    // Mesmo mecanismo do login (app.js): sem isto, um cadastro feito a
+    // partir de "cadastro.html?tenantSlug=nome-do-tenant" cairia no
+    // fallback 'movement' do backend e criaria a conta no tenant errado.
+    const tenantSlugAtual = window.Tenant.obterSlugDaUrl();
+
     const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
     const form = document.getElementById("cadastro-form");
@@ -166,6 +171,7 @@
         try {
             await window.api("/usuarios", {
                 method: "POST",
+                headers: tenantSlugAtual ? { "X-Tenant-Slug": tenantSlugAtual } : undefined,
                 body: {
                     nome: nome,
                     cpf: cpf,

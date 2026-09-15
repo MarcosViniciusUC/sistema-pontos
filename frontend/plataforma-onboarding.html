@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Maple Tech | Novo tenant</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@600;700;800;900&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
+
+    <link rel="stylesheet" href="assets/css/tokens.css">
+    <link rel="stylesheet" href="assets/css/base.css">
+    <link rel="stylesheet" href="assets/css/components.css">
+    <link rel="stylesheet" href="assets/css/admin.css">
+    <link rel="stylesheet" href="assets/css/plataforma.css">
+    <link rel="stylesheet" href="assets/css/plataforma-onboarding.css">
+</head>
+<body>
+    <div class="admin-shell plataforma-shell">
+        <header class="dash-header">
+            <span class="dash-header__brand">MAPLE TECH</span>
+
+            <div class="dash-header__user">
+                <button type="button" id="nav-menu-btn" class="nav-menu-btn" aria-haspopup="true" aria-expanded="false" aria-controls="main-nav">
+                    <span aria-hidden="true">☰</span> Menu
+                </button>
+                <span id="user-greeting" class="dash-header__greeting">Plataforma</span>
+                <button type="button" id="logout-btn" class="link-btn">Sair</button>
+            </div>
+        </header>
+
+        <div class="admin-body">
+            <nav class="admin-nav" id="main-nav" aria-label="Navegação da plataforma">
+                <a href="plataforma-dashboard.html" class="admin-nav__item">
+                    <svg class="admin-nav__icon" viewBox="0 0 24 24" fill="none" aria-hidden="true"><line x1="5" y1="19" x2="5" y2="11" stroke="currentColor" stroke-width="2.5"/><line x1="12" y1="19" x2="12" y2="6" stroke="currentColor" stroke-width="2.5"/><line x1="19" y1="19" x2="19" y2="14" stroke="currentColor" stroke-width="2.5"/></svg>
+                    <span class="admin-nav__label">Dashboard</span>
+                </a>
+                <a href="plataforma-tenants.html" class="admin-nav__item is-active" aria-current="page">
+                    <svg class="admin-nav__icon" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="3" y="3" width="7" height="7" stroke="currentColor" stroke-width="2"/><rect x="14" y="3" width="7" height="7" stroke="currentColor" stroke-width="2"/><rect x="3" y="14" width="7" height="7" stroke="currentColor" stroke-width="2"/><rect x="14" y="14" width="7" height="7" stroke="currentColor" stroke-width="2"/></svg>
+                    <span class="admin-nav__label">Tenants</span>
+                </a>
+            </nav>
+
+            <main class="admin-main">
+                <p class="dash-section__link"><a href="plataforma-tenants.html">&larr; Voltar para Tenants</a></p>
+                <h1 class="admin-page-title">Novo tenant</h1>
+                <p class="field-hint">O tenant nasce sempre vazio — nenhum dado da Movement ou de outro tenant é copiado.</p>
+
+                <div id="page-message" class="form-message" role="status" aria-live="polite" tabindex="-1" hidden></div>
+
+                <ol class="onboarding-steps" aria-label="Etapas do onboarding">
+                    <li class="onboarding-steps__item is-current" data-step="1"><span class="onboarding-steps__number">1</span> Negócio</li>
+                    <li class="onboarding-steps__item" data-step="2"><span class="onboarding-steps__number">2</span> Plano</li>
+                    <li class="onboarding-steps__item" data-step="3"><span class="onboarding-steps__number">3</span> Administrador</li>
+                    <li class="onboarding-steps__item" data-step="4"><span class="onboarding-steps__number">4</span> Empresa</li>
+                    <li class="onboarding-steps__item" data-step="5"><span class="onboarding-steps__number">5</span> Revisão</li>
+                </ol>
+
+                <form id="form-onboarding" novalidate>
+                    <!-- Etapa 1 — dados do negócio -->
+                    <section class="onboarding-panel" id="painel-1" data-panel="1">
+                        <h2 class="dash-section__title">Dados do negócio</h2>
+
+                        <div class="field">
+                            <label for="tenant-nome">Nome do negócio/cliente</label>
+                            <input type="text" id="tenant-nome" name="tenant-nome" placeholder="Ex: Academia XP" required>
+                        </div>
+                        <div class="field">
+                            <label for="tenant-slug">Slug</label>
+                            <input type="text" id="tenant-slug" name="tenant-slug" placeholder="Ex: academia-xp" required>
+                            <p class="field-hint">Preenchido a partir do nome. Só edite se quiser um identificador diferente. Usado na URL lógica do tenant.</p>
+                        </div>
+                        <p id="erro-passo-1" class="modal__error" hidden></p>
+                    </section>
+
+                    <!-- Etapa 2 — plano -->
+                    <section class="onboarding-panel" id="painel-2" data-panel="2" hidden>
+                        <h2 class="dash-section__title">Escolha o plano</h2>
+                        <p class="field-hint">Programa de pontos, QR Code, recompensas, resgates, funcionários, histórico e recuperação de senha estão incluídos em todos os planos.</p>
+                        <div id="planos-cards" class="planos-grid" aria-live="polite">
+                            <p class="dash-section__placeholder">Carregando planos...</p>
+                        </div>
+                        <p id="erro-passo-2" class="modal__error" hidden></p>
+                    </section>
+
+                    <!-- Etapa 3 — administrador inicial -->
+                    <section class="onboarding-panel" id="painel-3" data-panel="3" hidden>
+                        <h2 class="dash-section__title">Administrador inicial</h2>
+
+                        <div class="field">
+                            <label for="admin-nome">Nome</label>
+                            <input type="text" id="admin-nome" name="admin-nome" placeholder="Nome completo" required>
+                        </div>
+                        <div class="field">
+                            <label for="admin-email">Email</label>
+                            <input type="email" id="admin-email" name="admin-email" placeholder="email@tenant.com" required>
+                        </div>
+                        <div class="field">
+                            <label for="admin-cpf">CPF</label>
+                            <input type="text" id="admin-cpf" name="admin-cpf" placeholder="000.000.000-00" required>
+                        </div>
+                        <div class="field">
+                            <label for="admin-telefone">Telefone (opcional)</label>
+                            <input type="text" id="admin-telefone" name="admin-telefone" placeholder="(00) 00000-0000">
+                        </div>
+                        <div class="field">
+                            <label for="admin-senha">Senha inicial</label>
+                            <input type="password" id="admin-senha" name="admin-senha" placeholder="Mínimo 6 caracteres" required>
+                        </div>
+                        <p id="erro-passo-3" class="modal__error" hidden></p>
+                    </section>
+
+                    <!-- Etapa 4 — empresa/unidade inicial -->
+                    <section class="onboarding-panel" id="painel-4" data-panel="4" hidden>
+                        <h2 class="dash-section__title">Empresa/unidade inicial</h2>
+                        <p class="field-hint">Todo tenant pode ter pelo menos 1 empresa/unidade, em qualquer plano.</p>
+
+                        <div class="field">
+                            <label for="empresa-nome">Nome da empresa/unidade</label>
+                            <input type="text" id="empresa-nome" name="empresa-nome" placeholder="Ex: Unidade Centro" required>
+                        </div>
+                        <div class="field">
+                            <label for="empresa-slug">Slug</label>
+                            <input type="text" id="empresa-slug" name="empresa-slug" placeholder="Ex: unidade-centro" required>
+                        </div>
+                        <p id="erro-passo-4" class="modal__error" hidden></p>
+                    </section>
+
+                    <!-- Etapa 5 — revisão -->
+                    <section class="onboarding-panel" id="painel-5" data-panel="5" hidden>
+                        <h2 class="dash-section__title">Revisão</h2>
+                        <div id="revisao-container" class="operacao-panel"></div>
+                        <p id="erro-passo-5" class="modal__error" hidden></p>
+                    </section>
+
+                    <!-- Resultado final -->
+                    <section class="onboarding-panel" id="painel-resultado" data-panel="resultado" hidden>
+                        <h2 class="dash-section__title">Tenant pronto para uso</h2>
+                        <div id="resultado-container" class="operacao-panel"></div>
+                    </section>
+
+                    <div class="onboarding-nav">
+                        <button type="button" id="btn-voltar" class="btn btn--ghost" hidden>Voltar</button>
+                        <button type="button" id="btn-avancar" class="btn btn--primary">Próximo</button>
+                        <button type="submit" id="btn-confirmar" class="btn btn--primary" hidden>
+                            <span class="btn__spinner" aria-hidden="true"></span>
+                            <span class="btn__label">Criar tenant</span>
+                        </button>
+                        <a href="plataforma-tenants.html" id="btn-ver-tenants" class="btn btn--primary" hidden>Ver tenants</a>
+                    </div>
+                </form>
+            </main>
+        </div>
+    </div>
+
+    <script src="assets/js/plataforma-api.js"></script>
+    <script src="assets/js/plataforma-auth.js"></script>
+    <script src="assets/js/ui.js"></script>
+    <script src="assets/js/plataforma-onboarding.js"></script>
+</body>
+</html>

@@ -13,9 +13,10 @@
     <link rel="stylesheet" href="assets/css/base.css">
     <link rel="stylesheet" href="assets/css/components.css">
     <link rel="stylesheet" href="assets/css/admin.css">
+    <link rel="stylesheet" href="assets/css/plataforma.css">
 </head>
 <body>
-    <div class="admin-shell">
+    <div class="admin-shell plataforma-shell">
         <header class="dash-header">
             <span class="dash-header__brand">MAPLE TECH</span>
 
@@ -49,12 +50,83 @@
                 <div id="tenant-detalhe-container" aria-live="polite">
                     <p class="dash-section__placeholder">Carregando...</p>
                 </div>
+
+                <!--
+                    "Editar tenant" — MUDANÇA DE ARQUITETURA: identidade
+                    comercial (nome/cor/telefone/whatsapp/plano/status) passa
+                    a ser exclusiva da Maple Tech (antes: editável pelo
+                    próprio admin do tenant, ver PATCH /tenant/config,
+                    removido). Fica FORA de #tenant-detalhe-container de
+                    propósito — nunca é recriada a cada `carregar()` (só
+                    repopulada), então não perde foco/estado do usuário nem
+                    reanexa listeners a cada reload.
+
+                    Logo NUNCA aparece aqui — não é mais configurável por
+                    ninguém nesta fase (ver validatePlataformaTenantEdit.js
+                    no backend, que nem aceita essa chave). A identidade
+                    visual deste formulário é sempre a da Maple Tech
+                    (plataforma.css) — nunca a cor do tenant sendo editado.
+                -->
+                <section class="dash-section">
+                    <h2 class="dash-section__title">Editar tenant</h2>
+
+                    <form id="form-editar-tenant" class="operacao-panel" novalidate>
+                        <div class="field">
+                            <label for="editar-nome">Nome do negócio</label>
+                            <input type="text" id="editar-nome" name="nome" required>
+                        </div>
+
+                        <div class="field">
+                            <label for="editar-cor-primaria">Cor principal</label>
+                            <div class="config-cor-linha">
+                                <input type="color" id="editar-cor-picker" aria-label="Selecionar cor">
+                                <input type="text" id="editar-cor-primaria" name="corPrimaria" placeholder="#7C3AED" maxlength="7">
+                            </div>
+                            <p class="field-hint">Usada só nas telas do próprio tenant. Não afeta a Maple Tech nem outros tenants.</p>
+                        </div>
+
+                        <div class="field">
+                            <label for="editar-telefone">Telefone</label>
+                            <input type="text" id="editar-telefone" name="telefone" placeholder="(00) 0000-0000">
+                        </div>
+
+                        <div class="field">
+                            <label for="editar-whatsapp">WhatsApp</label>
+                            <input type="text" id="editar-whatsapp" name="whatsapp" placeholder="(00) 00000-0000">
+                        </div>
+
+                        <div class="field">
+                            <label for="editar-plano">Plano</label>
+                            <select id="editar-plano" name="plano">
+                                <option value="">Sem plano definido (legado)</option>
+                                <option value="essencial">Essencial</option>
+                                <option value="profissional">Profissional</option>
+                                <option value="premium">Premium</option>
+                            </select>
+                        </div>
+
+                        <div class="field">
+                            <label for="editar-status">Status</label>
+                            <select id="editar-status" name="status">
+                                <option value="ativo">Ativo</option>
+                                <option value="inativo">Inativo</option>
+                            </select>
+                        </div>
+
+                        <p id="editar-tenant-erro" class="modal__error" hidden></p>
+
+                        <button type="submit" id="btn-salvar-editar-tenant" class="btn btn--primary">
+                            <span class="btn__spinner" aria-hidden="true"></span>
+                            <span class="btn__label">Salvar alterações</span>
+                        </button>
+                    </form>
+                </section>
             </main>
         </div>
     </div>
 
     <!-- Modal: confirmar ativação/desativação -->
-    <div id="modal-status-overlay" class="modal-overlay" hidden>
+    <div id="modal-status-overlay" class="modal-overlay plataforma-shell" hidden>
         <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-status-title">
             <h2 id="modal-status-title" class="modal__title">Alterar status</h2>
             <p id="modal-status-nome" class="modal__reward-name"></p>
@@ -73,7 +145,7 @@
     </div>
 
     <!-- Modal: criar administrador inicial -->
-    <div id="modal-admin-overlay" class="modal-overlay" hidden>
+    <div id="modal-admin-overlay" class="modal-overlay plataforma-shell" hidden>
         <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-admin-title">
             <h2 id="modal-admin-title" class="modal__title">Criar administrador</h2>
 

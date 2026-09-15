@@ -271,7 +271,11 @@
         seloDestaque.appendChild(document.createTextNode("Destaque"));
         media.appendChild(seloDestaque);
 
-        media.appendChild(criarBotaoFavorito(recompensa));
+        // Funcionalidade opcional por plano — sem ela, o card de destaque
+        // continua mostrando tudo, só sem a estrela de favorito.
+        if (window.Funcionalidades.habilitada("favoritos")) {
+            media.appendChild(criarBotaoFavorito(recompensa));
+        }
 
         card.appendChild(media);
 
@@ -392,8 +396,20 @@
         progressAreaEl.appendChild(faltamTexto);
     }
 
+    // Funcionalidade opcional por plano ("gamificação/progresso" —
+    // dashboard completo vs básico, ver
+    // src/services/planosFuncionalidades.service.js). Um tenant sem essa
+    // funcionalidade nunca vê a área de progresso — não é possível, mesmo
+    // por engano, mostrar algo que o backend recusaria numa ação real,
+    // porque isto é puramente apresentação sobre dados já autorizados (ver
+    // comentário no topo do arquivo).
     function atualizarAreaProgresso(recompensas) {
         progressAreaEl.innerHTML = "";
+
+        if (!window.Funcionalidades.habilitada("gamificacao_progresso")) {
+            progressAreaEl.hidden = true;
+            return;
+        }
 
         const ativas = recompensas.filter(function (r) { return r.ativo; });
 
@@ -427,6 +443,11 @@
     }
 
     async function carregarSaldoERecompensas() {
+        // Precisa das funcionalidades do plano já resolvidas ANTES de
+        // decidir o que mostrar abaixo (progresso/destaque) — ver
+        // funcionalidades.js.
+        await window.Funcionalidades.pronto;
+
         // Promise.allSettled: uma falha em qualquer uma das duas chamadas não
         // apaga o que a outra já carregou com sucesso.
         const [saldoResultado, recompensasResultado] = await Promise.allSettled([
@@ -458,6 +479,14 @@
         // resto da tela: o erro do saldo já apareceu acima, em balanceErrorEl).
         if (saldoConhecido) {
             atualizarAreaProgresso(recompensasResultado.value);
+        }
+
+        // Funcionalidade opcional por plano — a seção inteira já está
+        // escondida via [data-funcionalidade] (ver dashboard.html e
+        // funcionalidades.js); isto evita também o trabalho de montar os
+        // cards à toa.
+        if (!window.Funcionalidades.habilitada("recompensas_destaque")) {
+            return;
         }
 
         // "Recompensas em destaque" mostra só o que admin/funcionário

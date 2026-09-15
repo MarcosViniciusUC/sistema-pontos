@@ -9,11 +9,11 @@ const { empresaAtivaNoTenant } = require("../utils/empresas");
  * ETAPA 3C-3 — `tenant_id` vem exclusivamente de `req.usuario.tenant_id`
  * (do JWT do admin autenticado, nunca de um campo do body) e é gravado
  * explicitamente no INSERT, sem depender do DEFAULT temporário (Etapa 2).
- * A checagem de empresa passa a usar `empresaAtivaNoTenant()` (em vez de
- * `empresaAtivaExiste()`): além de existir e estar ativa, a empresa
- * precisa pertencer ao MESMO tenant do usuário — um `empresa_id` de outro
- * tenant recebe a mesma mensagem genérica "Empresa inválida" (nunca revela
- * que aquele id existe em outro tenant), e a recompensa nunca chega a ser
+ * A checagem de empresa (`empresaAtivaNoTenant()`, ver src/utils/empresas.js)
+ * considera o tenant: além de existir e estar ativa, a empresa precisa
+ * pertencer ao MESMO tenant do usuário — um `empresa_id` de outro tenant
+ * recebe a mesma mensagem genérica "Empresa inválida" (nunca revela que
+ * aquele id existe em outro tenant), e a recompensa nunca chega a ser
  * criada apontando pra ele.
  */
 async function criar(req, res) {

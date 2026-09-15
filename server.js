@@ -12,14 +12,38 @@ const adminRoutes = require("./src/routes/admin.routes");
 const empresaRoutes = require("./src/routes/empresa.routes");
 const favoritoRoutes = require("./src/routes/favorito.routes");
 const engagementRoutes = require("./src/routes/engagement.routes");
+const tenantRoutes = require("./src/routes/tenant.routes");
 const plataformaRoutes = require("./src/routes/plataforma.routes");
+const tenantDiagnosticoRoutes = require("./src/routes/tenantDiagnostico.routes");
 const errorHandler = require("./src/middlewares/errorHandler");
 const { iniciarLimpezaPeriodica } = require("./src/services/resgateExpiracao.service");
 const engagementScheduler = require("./src/services/engagement/scheduler");
 
 const app = express();
 
-// Mesmas diretivas padrão do Helmet, com dois ajustes pontuais:
+// ETAPA de preparação para subdomínios/produção — necessário para rodar
+// atrás de um proxy reverso (Render, ou qualquer outro provedor real,
+// sempre termina TLS num proxy na frente da aplicação). Sem isto:
+//   - req.protocol sempre voltaria "http", mesmo quando o visitante usou
+//     https:// de verdade (o proxy conversa com esta aplicação por HTTP
+//     puro por trás) — quebraria a URL de redefinição de senha (ver
+//     auth.controller.js:esqueciSenha, que monta a URL a partir de
+//     req.protocol) e qualquer outro uso futuro do protocolo real;
+//   - express-rate-limit (globalLimiter/loginLimiter/etc. abaixo) enxergaria
+//     o IP do PRÓPRIO proxy em vez do IP de cada visitante — todo mundo
+//     atrás do mesmo proxy compartilharia a MESMA cota de tentativas, um
+//     único usuário abusivo bloquearia todos os outros.
+// `1` (não `true`) confia em exatamente UM salto de proxy — o padrão de
+// qualquer PaaS que forneça uma única camada de load balancer/proxy na
+// frente da aplicação (Render, Railway, Heroku, etc.); nunca "confie em
+// qualquer proxy" (`true`), que permitiria a quem fizer a requisição
+// forjar o próprio IP/protocolo via cabeçalho X-Forwarded-*.
+// Local (sem nenhum proxy na frente): não muda nada — sem cabeçalho
+// X-Forwarded-*, o Express cai no comportamento de sempre (Host/protocolo
+// da própria conexão).
+app.set("trust proxy", 1);
+
+// Mesmas diretivas padrão do Helmet, com três ajustes pontuais:
 //
 // - "upgrade-insecure-requests" desativada, só pra permitir acessar o
 //   servidor por HTTP via IP local (ex: http://192.168.12.105:3000) durante
@@ -32,6 +56,21 @@ const app = express();
 //   ficam em branco sem erro visível. Lista fechada nesses dois domínios
 //   específicos (não "https:" genérico, que liberaria qualquer host HTTPS).
 //
+// - "img-src" ganha "https:" genérico (além do padrão 'self' data:) —
+//   herdado da ETAPA de identidade do tenant, quando `tenants.logo_url`
+//   ainda podia ser uma URL http(s):// arbitrária definida via API. Essa
+//   coluna deixou de ser editável por qualquer rota (MUDANÇA DE
+//   ARQUITETURA — configuração do tenant passou pra Maple Tech, que também
+//   não a expõe em nenhum formulário — ver validatePlataformaTenantEdit.js
+//   e plataformaTenant.controller.js:atualizarConfiguracao), mas a exceção
+//   de CSP foi mantida de propósito: dado já gravado antes desta mudança
+//   (ex: o próprio Movement, com um caminho relativo) continua precisando
+//   carregar, e não há upload/edição nova que a reintroduza. Risco bem
+//   menor que liberar "script-src" genérico: uma tag <img> cross-origin não
+//   executa código nem lê cookies de outro site. Continua sem afetar
+//   "script-src"/"connect-src"/etc, que seguem com o padrão restrito de
+//   sempre.
+//
 // Todas as outras diretivas e as demais proteções do Helmet (HSTS,
 // X-Frame-Options, etc.) continuam nos valores padrão, sem nenhuma mudança.
 app.use(helmet({
@@ -39,7 +78,8 @@ app.use(helmet({
         directives: {
             ...helmet.contentSecurityPolicy.getDefaultDirectives(),
             "upgrade-insecure-requests": null,
-            "script-src": ["'self'", "https://cdnjs.cloudflare.com", "https://cdn.jsdelivr.net"]
+            "script-src": ["'self'", "https://cdnjs.cloudflare.com", "https://cdn.jsdelivr.net"],
+            "img-src": ["'self'", "data:", "https:"]
         }
     }
 }));
@@ -88,11 +128,22 @@ app.use(empresaRoutes);
 app.use(favoritoRoutes);
 app.use(engagementRoutes);
 
+// ETAPA 2 (remoção da dependência do Movement, parte 2) — GET /tenant/config,
+// única fonte oficial de nome/slug do tenant atual para o frontend. Ver
+// src/routes/tenant.routes.js.
+app.use(tenantRoutes);
+
 // ETAPA 3C-8 — autenticação de PLATAFORMA (Maple Tech), separada da
 // autenticação de tenant (authRoutes acima). Só a rota de login existe
 // nesta etapa (ver plataforma.routes.js) — nenhum painel visual, nenhuma
 // outra rota de plataforma ainda.
 app.use(plataformaRoutes);
+
+// Rota de DIAGNÓSTICO da ETAPA 3A (fundação multi-tenant) — só prova que a
+// camada resolverTenant/exigirTenantAtivo funciona ponta a ponta (ver
+// src/routes/tenantDiagnostico.routes.js). Nenhuma rota de negócio acima
+// foi alterada; nenhum controller passou a usar req.tenantId ainda.
+app.use(tenantDiagnosticoRoutes);
 
 app.use((req, res) => {
     res.status(404).json({
@@ -102,8 +153,16 @@ app.use((req, res) => {
 
 app.use(errorHandler);
 
-app.listen(3000, () => {
-    console.log("Servidor rodando na porta 3000");
+// ETAPA de preparação para produção — a maioria dos provedores reais
+// (Render incluso) atribui a porta dinamicamente via a variável de ambiente
+// PORT e espera a aplicação escutar exatamente nela; escutar sempre em 3000
+// faria a plataforma nunca conseguir rotear tráfego pra este processo.
+// `|| 3000` preserva 100% do comportamento local de sempre (sem PORT
+// definida no .env, continua escutando em 3000).
+const PORT = process.env.PORT || 3000;
+
+app.listen(PORT, () => {
+    console.log(`Servidor rodando na porta ${PORT}`);
 });
 
 // Mecanismo A da expiração de resgates pendentes (5h) — roda uma vez

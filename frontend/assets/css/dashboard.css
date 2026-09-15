@@ -53,6 +53,16 @@
     border-top-color: transparent;
 }
 
+/* BUG CORRIGIDO — mesmo motivo de `.balance-card__progress[hidden]` acima:
+   `display: flex` aqui empatava em especificidade com `[hidden]` do
+   navegador e vencia por ordem de cascata, deixando um item de navegação
+   escondido via `el.hidden = true` (ver funcionalidades.js) visualmente
+   visível mesmo assim. Só passou a importar agora que a navegação pode
+   esconder um item conforme o plano do tenant (ex: "Favoritos"). */
+.bottom-nav__item[hidden] {
+    display: none;
+}
+
 /* ==========================================================================
    Conteúdo
    ========================================================================== */
@@ -162,6 +172,20 @@
     flex-direction: column;
     align-items: center;
     gap: var(--space-1);
+}
+
+/* BUG CORRIGIDO — etapa de planos/funcionalidades: `.balance-card__progress`
+   e o atributo `[hidden]` do HTML têm a MESMA especificidade CSS (0,1,0), e
+   esta regra (carregada depois do estilo padrão do navegador) sempre
+   vencia, deixando `progressAreaEl.hidden = true` sem nenhum efeito visual
+   (dashboard.js). Nunca dava problema antes porque nada dinamicamente
+   escondia esta área de novo depois de mostrada; a funcionalidade
+   "gamificação/progresso" (ver funcionalidades.js) foi o primeiro caso real
+   que precisa disso funcionar de verdade. Especificidade maior
+   (atributo + classe) garante que `hidden` sempre vence, sem mudar nada de
+   como a área aparece quando NÃO está escondida. */
+.balance-card__progress[hidden] {
+    display: none;
 }
 
 .balance-card__progress-title {

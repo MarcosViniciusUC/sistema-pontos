@@ -5,12 +5,11 @@
  * recompensa individual aparece aqui (isso é responsabilidade da tela de
  * detalhe, e mesmo lá só como contagem agregada).
  *
- * ETAPA 3C-11 — adiciona a criação de tenant pela interface (modal "Novo
- * tenant" → POST /plataforma/tenants, endpoint já existente desde a Etapa
- * 3C-9, nenhuma rota nova). `id`/`tenant_id`/`status` nunca são lidos do
- * formulário — o corpo enviado só tem `nome`, `slug` e `plano` (opcional);
- * `status` é sempre decidido pelo backend na criação (ver
- * plataformaTenant.controller.js:criar).
+ * ETAPA de onboarding — "+ Novo tenant" deixou de ser um modal que só
+ * criava a linha em `tenants` (sem admin nem empresa, deixando o tenant
+ * incompleto) e virou um link para o wizard completo em
+ * plataforma-onboarding.html (tenant + administrador + empresa inicial,
+ * numa única transação). Nenhuma lógica de criação continua aqui.
  */
 (function () {
     if (!window.PlataformaAuth.protegerPagina()) {
@@ -23,51 +22,6 @@
     const containerEl = document.getElementById("tenants-container");
     const pageMessageEl = document.getElementById("page-message");
 
-    // ---- Modal: criar tenant ----
-    const formTenant = document.getElementById("form-tenant");
-    const nomeInput = document.getElementById("tenant-nome");
-    const slugInput = document.getElementById("tenant-slug");
-    const planoSelect = document.getElementById("tenant-plano");
-    const modalTenantErrorEl = document.getElementById("modal-tenant-error");
-    const modalTenantConfirmarBtn = document.getElementById("modal-tenant-confirmar");
-    const modalTenantConfirmarLabel = modalTenantConfirmarBtn.querySelector(".btn__label");
-
-    const controladorTenant = window.UI.criarControladorModal(
-        document.getElementById("modal-tenant-overlay"),
-        { podeFechar: function () { return !modalTenantConfirmarBtn.disabled; } }
-    );
-    document.getElementById("modal-tenant-cancelar").addEventListener("click", controladorTenant.fechar);
-
-    // Mesma prévia local de slugify já usada em admin-empresas.js — quem
-    // decide de verdade continua sendo o backend (normalizarSlug, ver
-    // src/utils/empresas.js, reaproveitado por plataformaTenant.controller.js).
-    const REGEX_MARCAS_DIACRITICAS = new RegExp(
-        "[" + String.fromCharCode(0x0300) + "-" + String.fromCharCode(0x036f) + "]",
-        "g"
-    );
-
-    function slugifyLocal(texto) {
-        return texto
-            .normalize("NFD")
-            .replace(REGEX_MARCAS_DIACRITICAS, "")
-            .trim()
-            .toLowerCase()
-            .replace(/[^a-z0-9]+/g, "-")
-            .replace(/^-+|-+$/g, "");
-    }
-
-    let slugEditadoManualmente = false;
-
-    nomeInput.addEventListener("input", function () {
-        if (!slugEditadoManualmente) {
-            slugInput.value = slugifyLocal(nomeInput.value);
-        }
-    });
-
-    slugInput.addEventListener("input", function () {
-        slugEditadoManualmente = true;
-    });
-
     function mostrarMensagemPagina(html, tipo) {
         pageMessageEl.innerHTML = html;
         pageMessageEl.className = "form-message form-message--" + tipo;
@@ -78,73 +32,6 @@
     function mostrarErroDaPagina(texto) {
         mostrarMensagemPagina(texto, "erro");
     }
-
-    function abrirModalCriar() {
-        formTenant.reset();
-        slugEditadoManualmente = false;
-        modalTenantErrorEl.hidden = true;
-        modalTenantErrorEl.textContent = "";
-
-        controladorTenant.abrir(document.getElementById("novo-tenant-btn"));
-        nomeInput.focus();
-    }
-
-    document.getElementById("novo-tenant-btn").addEventListener("click", abrirModalCriar);
-
-    formTenant.addEventListener("submit", async function (evento) {
-        evento.preventDefault();
-
-        const nome = nomeInput.value.trim();
-        const slug = slugInput.value.trim();
-        const plano = planoSelect.value;
-
-        if (nome.length === 0) {
-            modalTenantErrorEl.textContent = "Informe o nome do tenant.";
-            modalTenantErrorEl.hidden = false;
-            return;
-        }
-
-        if (slug.length === 0) {
-            modalTenantErrorEl.textContent = "Não foi possível gerar um slug a partir desse nome — informe um manualmente.";
-            modalTenantErrorEl.hidden = false;
-            return;
-        }
-
-        modalTenantConfirmarBtn.disabled = true;
-        modalTenantConfirmarBtn.classList.add("is-loading");
-        modalTenantConfirmarLabel.textContent = "Criando...";
-        modalTenantErrorEl.hidden = true;
-
-        try {
-            // Corpo enviado explicitamente com só estes 3 campos — nunca
-            // id/tenant_id/status, mesmo que alguém tente adicionar isso
-            // depois neste arquivo por engano (não há variável nenhuma
-            // guardando esses valores aqui para vazar no body).
-            const novoTenant = await window.plataformaApi("/plataforma/tenants", {
-                method: "POST",
-                body: { nome: nome, slug: slug, plano: plano || undefined }
-            });
-
-            controladorTenant.fechar(true);
-
-            const linkDetalhe = "plataforma-tenant-detalhe.html?id=" + encodeURIComponent(novoTenant.id);
-            mostrarMensagemPagina(
-                "Tenant criado com sucesso. <a href=\"" + linkDetalhe + "\">Abrir " + novoTenant.nome + "</a>",
-                "sucesso"
-            );
-
-            carregar();
-
-        } catch (erro) {
-            modalTenantErrorEl.textContent = window.plataformaMensagemDeErro(erro, "Não foi possível criar o tenant agora.");
-            modalTenantErrorEl.hidden = false;
-
-        } finally {
-            modalTenantConfirmarBtn.disabled = false;
-            modalTenantConfirmarBtn.classList.remove("is-loading");
-            modalTenantConfirmarLabel.textContent = "Criar tenant";
-        }
-    });
 
     function renderizarTabela(lista) {
         if (lista.length === 0) {

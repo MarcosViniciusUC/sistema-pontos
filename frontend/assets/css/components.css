@@ -122,6 +122,34 @@
     gap: var(--space-4);
 }
 
+/* Mesmo problema já documentado em .field[hidden] logo abaixo: sem isto,
+   [hidden] perderia pro display:flex acima (mesma especificidade, e a
+   regra do autor vem depois da regra padrão do navegador) — relevante
+   agora que redefinir-senha.html alterna três blocos `.auth-form`
+   (formulário / token inválido / sucesso) via JS, coisa que login/cadastro
+   nunca precisaram fazer. */
+.auth-form[hidden] {
+    display: none;
+}
+
+/* Texto de contexto no topo do formulário — usado nas telas de recuperação
+   de senha, onde faz falta explicar o que vai acontecer antes do campo
+   (login/cadastro não precisam disto, são autoexplicativos). */
+.auth-form__intro {
+    font-size: var(--text-sm);
+    line-height: 1.5;
+    color: var(--color-text-secondary);
+}
+
+/* Link "Esqueci minha senha" — logo abaixo do campo de senha, alinhado à
+   direita (convenção comum de login), discreto o bastante para não competir
+   com o botão "Entrar" logo abaixo. */
+.auth-form__forgot-link {
+    margin-top: calc(-1 * var(--space-2));
+    text-align: right;
+    font-size: var(--text-sm);
+}
+
 .field {
     display: flex;
     flex-direction: column;

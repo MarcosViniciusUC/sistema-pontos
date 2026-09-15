@@ -1075,6 +1075,32 @@ a.kpi-card:hover::after {
     .admin-identificar-page #busca-resultados-container .data-table td:nth-child(2) { grid-column: 1 / -1; grid-row: 2; font-size: var(--text-sm); color: var(--color-text-tertiary); }
     .admin-identificar-page #busca-resultados-container .data-table td:nth-child(3) { grid-column: 1 / -1; grid-row: 3; margin-top: var(--space-2); }
     .admin-identificar-page #busca-resultados-container .data-table td:nth-child(3) .btn { width: 100%; }
+
+    /* ---- #tenants-atividade-container (dashboard da plataforma): Tenant, Plano, Status, Usuários, Empresas, Recompensas, Resgates ----
+       As 4 colunas numéricas (thead escondido no mobile) usam data-label
+       (definido em plataforma-dashboard.js) + ::before pra não perder o
+       rótulo de qual contagem é qual. */
+    #tenants-atividade-container .data-table td:nth-child(1) { grid-column: 1; grid-row: 1; font-weight: 700; font-size: var(--text-base); color: var(--white); }
+    #tenants-atividade-container .data-table td:nth-child(3) { grid-column: 2; grid-row: 1; text-align: right; }
+    #tenants-atividade-container .data-table td:nth-child(2) { grid-column: 1 / -1; grid-row: 2; font-size: var(--text-sm); }
+    #tenants-atividade-container .data-table td:nth-child(4),
+    #tenants-atividade-container .data-table td:nth-child(5),
+    #tenants-atividade-container .data-table td:nth-child(6),
+    #tenants-atividade-container .data-table td:nth-child(7) {
+        grid-column: 1 / -1;
+        display: flex;
+        justify-content: space-between;
+        font-size: var(--text-sm);
+        color: var(--color-text-secondary);
+    }
+    #tenants-atividade-container .data-table td:nth-child(4) { grid-row: 3; }
+    #tenants-atividade-container .data-table td:nth-child(5) { grid-row: 4; }
+    #tenants-atividade-container .data-table td:nth-child(6) { grid-row: 5; }
+    #tenants-atividade-container .data-table td:nth-child(7) { grid-row: 6; }
+    #tenants-atividade-container .data-table td[data-label]::before {
+        content: attr(data-label);
+        color: var(--color-text-tertiary);
+    }
 }
 
 /* --------------------------------------------------------------------------
@@ -1309,4 +1335,35 @@ a.kpi-card:hover::after {
 .empresa-detalhe__atividade-texto {
     font-size: var(--text-sm);
     color: var(--color-text-secondary);
+}
+
+/* ==========================================================================
+   Edição de identidade do tenant pela Maple Tech
+   (plataforma-tenant-detalhe.html, seção "Editar tenant") — genérico, sem
+   cor de marca nenhuma aqui: este painel é sempre da própria Maple Tech
+   (--color-red* aqui é o roxo definido em plataforma.css), nunca a cor do
+   tenant sendo editado (essa só é aplicada nas telas DO tenant, via
+   tenant.js:aplicarCorNaPagina — nunca carregado em página de plataforma).
+   Usada anteriormente por admin-configuracoes.html (removida — MUDANÇA DE
+   ARQUITETURA: configuração deixou de ser editável pelo admin do tenant).
+   ========================================================================== */
+
+.config-cor-linha {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+}
+
+.config-cor-linha input[type="color"] {
+    width: 44px;
+    height: 40px;
+    padding: 2px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    background: transparent;
+    cursor: pointer;
+}
+
+.config-cor-linha input[type="text"] {
+    flex: 1;
 }

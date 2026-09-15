@@ -740,7 +740,10 @@
         info.appendChild(pontos);
         linha.appendChild(info);
 
-        linha.appendChild(criarBotaoDestaqueFuncionario(recompensa));
+        // Funcionalidade opcional por plano (ver funcionalidades.js).
+        if (window.Funcionalidades.habilitada("recompensas_destaque")) {
+            linha.appendChild(criarBotaoDestaqueFuncionario(recompensa));
+        }
 
         return linha;
     }
@@ -753,6 +756,10 @@
             return;
         }
         recompensasFuncionarioCarregadas = true;
+
+        // Precisa das funcionalidades do plano já resolvidas ANTES de
+        // montar as linhas (botão de destaque) — ver funcionalidades.js.
+        await window.Funcionalidades.pronto;
 
         try {
             const recompensas = await window.api("/recompensas");

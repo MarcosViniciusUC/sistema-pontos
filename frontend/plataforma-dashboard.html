@@ -13,9 +13,10 @@
     <link rel="stylesheet" href="assets/css/base.css">
     <link rel="stylesheet" href="assets/css/components.css">
     <link rel="stylesheet" href="assets/css/admin.css">
+    <link rel="stylesheet" href="assets/css/plataforma.css">
 </head>
 <body>
-    <div class="admin-shell">
+    <div class="admin-shell plataforma-shell">
         <header class="dash-header">
             <span class="dash-header__brand">MAPLE TECH</span>
 
@@ -48,6 +49,22 @@
                 <div id="kpi-grid" class="kpi-grid" aria-live="polite">
                     <p class="dash-section__placeholder">Carregando...</p>
                 </div>
+
+                <section class="dash-section">
+                    <h2 class="dash-section__title">Distribuição por plano</h2>
+                    <div class="origem-panel">
+                        <div id="planos-lista" class="origem-list" aria-live="polite">
+                            <p class="dash-section__placeholder">Carregando...</p>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="dash-section">
+                    <h2 class="dash-section__title">Tenants</h2>
+                    <div id="tenants-atividade-container" aria-live="polite">
+                        <p class="dash-section__placeholder">Carregando...</p>
+                    </div>
+                </section>
             </main>
         </div>
     </div>

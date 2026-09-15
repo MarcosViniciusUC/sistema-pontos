@@ -24,6 +24,28 @@
         return;
     }
 
+    // BUG CORRIGIDO — admin de um tenant novo (criado pelo painel da Maple
+    // Tech) não conseguia logar aqui: esta tela sempre chamava POST /login
+    // sem nenhum indício de tenant, e resolverTenantMiddleware (backend)
+    // cai no fallback fixo 'movement' quando não recebe nada — ou seja,
+    // login só era possível pra contas do tenant Movement, mesmo com
+    // CPF/senha corretos de outro tenant. O mecanismo de resolver por slug
+    // (header X-Tenant-Slug / query ?tenantSlug=) já existia no backend
+    // desde a Etapa 3B — só nunca tinha sido conectado a nenhuma tela de
+    // login real.
+    //
+    // Lido direto da URL a cada carregamento da página via
+    // Tenant.obterSlugDaUrl() (nunca guardado entre sessões/recarregamentos
+    // antes do login — de propósito: persistir isso arriscaria um teste
+    // cruzado, ex. alguém loga num tenant B, depois recarrega a tela sem o
+    // parâmetro pra logar como Maria/Movement, e o valor antigo "vazaria"
+    // pra essa tentativa, fazendo um CPF certo falhar por procurar no
+    // tenant errado). A Maple Tech compartilha com o tenant novo um link
+    // como "index.html?tenantSlug=nome-do-tenant" pra ele entrar. Sem esse
+    // parâmetro (uso normal de hoje, inclusive um F5 nesta mesma tela),
+    // nada muda — cai no mesmo fallback 'movement' de sempre.
+    const tenantSlugAtual = window.Tenant.obterSlugDaUrl();
+
     const form = document.getElementById("login-form");
     const cpfInput = document.getElementById("cpf");
     const senhaInput = document.getElementById("senha");
@@ -125,11 +147,21 @@
         try {
             const resposta = await window.api("/login", {
                 method: "POST",
+                headers: tenantSlugAtual ? { "X-Tenant-Slug": tenantSlugAtual } : undefined,
                 body: { cpf, senha }
             });
 
             const payload = window.Auth.decodificarToken(resposta.token);
             window.Auth.salvarSessao(resposta.token, payload ? payload.tipo : null);
+
+            // Guarda o slug totalmente resolvido no momento do login
+            // (hostname > ?tenantSlug= > fallback 'movement' — ver
+            // Tenant.obterSlugAtual em tenant.js). Só importa de verdade
+            // quando o tenant foi resolvido via ?tenantSlug= sem hostname
+            // próprio ainda: com hostname (ex: academia-x.localhost), toda
+            // página seguinte já resolve sozinha pelo próprio endereço,
+            // sem precisar deste valor salvo.
+            window.Tenant.salvarSlugDaSessaoLogada(window.Tenant.obterSlugAtual());
 
             // Nunca guarda o valor digitado no login para a saudação "Olá,
             // ...": desde que o login passou a ser por CPF, esse valor pode

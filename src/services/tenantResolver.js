@@ -14,34 +14,126 @@
  * nenhuma linha em `tenants`, o resultado é sempre NAO_ENCONTRADO,
  * mesmo que o texto pareça plausível.
  *
- * ESTRATÉGIA DESTA ETAPA (mínima complexidade — ver plano de migração
- * SaaS): o tenant é identificado por um "tenantSlug" explícito, vindo do
- * header `X-Tenant-Slug` ou do query param `?tenantSlug=` — SEM nenhuma
- * dependência de subdomínio ainda. Ausência de slug usa o fallback
- * 'movement' (único tenant real hoje), centralizado bem aqui — nenhum
- * controller precisa saber disso.
+ * ETAPA 3 (subdomínio) — o tenant agora é identificado, em ordem de
+ * prioridade: (1) hostname da requisição (ex: `academia-x.mapletech.com.br`
+ * -> slug `academia-x`), (2) header `X-Tenant-Slug`, (3) query param
+ * `?tenantSlug=`. Header e query continuam existindo de propósito — são o
+ * fallback de desenvolvimento/compatibilidade enquanto nenhum domínio real
+ * está configurado (`?tenantSlug=` é como o frontend/testes continuam
+ * funcionando em `localhost:3000` puro, sem subdomínio nenhum).
  *
- * COMO EVOLUIR PARA SUBDOMÍNIO DEPOIS: trocar só `obterSlugDaRequisicao`
- * para ler `req.hostname` em vez de header/query. Nenhum outro código
- * muda, porque tudo consome só o resultado já resolvido
- * (`req.tenantId`/`req.tenant`, ver resolverTenantMiddleware.js) — nunca
- * a forma como o slug chegou até aqui.
+ * ETAPA de fortalecimento para produção — o que acontece quando NENHUM dos
+ * três (hostname/header/query) identifica nada passou a depender do
+ * ambiente (ver `fallbackParaMovementHabilitado` abaixo):
+ *   - DESENVOLVIMENTO (NODE_ENV=development, o valor usado em todo o resto
+ *     do projeto para esta mesma distinção — ver loginLimiter em
+ *     auth.routes.js): cai no fallback fixo 'movement', exatamente como
+ *     sempre — preserva `localhost:3000` puro funcionando sem nenhum
+ *     parâmetro extra.
+ *   - PRODUÇÃO (qualquer outro valor de NODE_ENV, allow-list nunca
+ *     deny-list, mesmo princípio de auth.routes.js): NUNCA cai em
+ *     Movement silenciosamente — um hostname desconhecido (o domínio
+ *     padrão do provedor, uma entrada de DNS errada, uma tentativa de
+ *     acessar sem nenhum dos três mecanismos) devolve NAO_ENCONTRADO. Um
+ *     hostname que JÁ identifica um slug candidato (ex:
+ *     "errado.mapletech.com.br" -> slug "errado") sempre passou por
+ *     NAO_ENCONTRADO se esse slug não existir — isso nunca dependeu do
+ *     ambiente, e continua exatamente igual; a mudança aqui é só para o
+ *     caso de NENHUM slug ser identificado.
+ *
+ * AVISO OPERACIONAL — sequenciamento do primeiro deploy: esta mudança só é
+ * segura para o Movement se `movement.mapletech.com.br` (ou o mecanismo de
+ * compatibilidade via header/query) já estiver resolvendo corretamente NO
+ * MOMENTO em que este código for pra produção com NODE_ENV != development.
+ * Fazer o deploy deste código em produção ANTES do DNS de
+ * `*.mapletech.com.br` apontar pra esta aplicação bloquearia o acesso via
+ * qualquer hostname atual do Movement (ex: o domínio padrão do provedor)
+ * com "tenant não encontrado" — ver checklist no relatório desta etapa.
  *
  * Esta etapa NÃO altera nenhuma query de negócio existente — nenhum
- * controller atual chama isto ainda.
+ * controller atual chama isto diretamente; tudo consome só o resultado já
+ * resolvido (`req.tenantId`/`req.tenant`, ver resolverTenantMiddleware.js).
  */
 const pool = require("../config/database");
 
 const SLUG_FALLBACK = "movement";
+const NODE_ENV_DESENVOLVIMENTO = "development";
 
 /**
- * Extrai o slug explícito da requisição, se houver. Header tem
- * prioridade sobre query param (header é a forma mais comum de metadado
- * de contexto em APIs REST; query fica como forma alternativa/conveniente
- * para testes manuais). Nunca lê de `req.body` — o corpo da requisição é
- * dos controllers de negócio, não desta camada.
+ * Allow-list explícita (nunca deny-list) — mesmo princípio já usado em
+ * auth.routes.js/plataforma.routes.js para os limites de rate limit: só
+ * relaxa o comportamento (aqui, permitir o fallback pra Movement) quando o
+ * ambiente é EXPLICITAMENTE "development". Qualquer outro valor de
+ * NODE_ENV (incluindo vazio/indefinido, o caso mais comum de um provedor
+ * que nunca configurou essa variável) é tratado como produção — o lado
+ * mais seguro por padrão.
+ */
+function fallbackParaMovementHabilitado() {
+    return process.env.NODE_ENV === NODE_ENV_DESENVOLVIMENTO;
+}
+
+// Domínios-base sob os quais um subdomínio identifica um tenant (ex:
+// "academia-x.mapletech.com.br" ou, em teste local, "academia-x.localhost").
+// "localhost" cobre o teste local sem precisar de DNS/hosts real — todo
+// navegador/SO moderno já resolve qualquer "*.localhost" para o loopback
+// (RFC 6761), então "http://academia-x.localhost:3000" funciona hoje sem
+// nenhuma configuração adicional. "mapletech.local" fica disponível para
+// quem preferir configurar isso via hosts file local. Nenhum DNS real nem
+// domínio comprado é exigido nesta etapa — isto só entra em ação quando um
+// desses domínios de fato aparecer no Host da requisição; fora deles
+// (ex: o domínio atual do Render), o comportamento de hoje continua
+// idêntico (cai em header/query/fallback, exatamente como antes).
+const DOMINIOS_BASE_SUBDOMINIO = ["mapletech.com.br", "mapletech.local", "localhost"];
+
+/**
+ * Extrai o slug a partir do hostname da requisição, se ele for um
+ * subdomínio de um dos DOMINIOS_BASE_SUBDOMINIO. Só o PRIMEIRO rótulo do
+ * hostname vira slug (ex: "academia-x" de "academia-x.mapletech.com.br");
+ * um hostname com mais de um nível de subdomínio (ex:
+ * "www.academia-x.mapletech.com.br") não é tratado como um slug válido
+ * (haveria ambiguidade sobre qual rótulo é o tenant) — retorna `null` e a
+ * resolução cai para header/query/fallback, nunca lança erro. O próprio
+ * domínio base sem nenhum subdomínio (ex: "mapletech.com.br" ou
+ * "localhost") também retorna `null` pelo mesmo motivo (não há tenant
+ * nenhum identificado por aí).
+ */
+function obterSlugDoHostname(req) {
+    const hostname = req.hostname;
+
+    if (typeof hostname !== "string" || hostname.length === 0) {
+        return null;
+    }
+
+    const hostnameNormalizado = hostname.toLowerCase();
+
+    for (const dominioBase of DOMINIOS_BASE_SUBDOMINIO) {
+        const sufixo = "." + dominioBase;
+
+        if (hostnameNormalizado.length > sufixo.length && hostnameNormalizado.endsWith(sufixo)) {
+            const subdominio = hostnameNormalizado.slice(0, -sufixo.length);
+            return subdominio.length > 0 && !subdominio.includes(".") ? subdominio : null;
+        }
+    }
+
+    return null;
+}
+
+/**
+ * Extrai o slug da requisição, nesta ordem: (1) hostname — ver
+ * `obterSlugDoHostname`; (2) header `X-Tenant-Slug`; (3) query param
+ * `?tenantSlug=`. Header e query só são considerados quando o hostname não
+ * identificou nenhum tenant — mantidos como fallback de
+ * desenvolvimento/compatibilidade (ver comentário no topo do arquivo).
+ * Nunca lê de `req.body` — o corpo da requisição é dos controllers de
+ * negócio, não desta camada.
  */
 function obterSlugDaRequisicao(req) {
+    const doHostname = obterSlugDoHostname(req);
+
+    if (doHostname) {
+        return doHostname;
+    }
+
     const doHeader = req.headers && req.headers["x-tenant-slug"];
 
     if (typeof doHeader === "string" && doHeader.trim().length > 0) {
@@ -75,10 +167,22 @@ function obterSlugDaRequisicao(req) {
  */
 async function resolverTenant(req) {
     const slugSolicitado = obterSlugDaRequisicao(req);
+
+    if (!slugSolicitado && !fallbackParaMovementHabilitado()) {
+        // Produção, nenhum dos três mecanismos identificou um tenant —
+        // nunca cai em Movement silenciosamente (ver comentário no topo do
+        // arquivo). Mesmo formato de retorno de "slug não encontrado" — o
+        // middleware não precisa saber a diferença entre os dois casos.
+        return { erro: "NAO_ENCONTRADO" };
+    }
+
     const slugParaBuscar = slugSolicitado || SLUG_FALLBACK;
 
+    // Inclui as colunas de identidade (etapa de identidade/configuração do
+    // tenant) — todas dado público de branding, mesmo raciocínio de
+    // nome/slug (ver GET /tenant/config em tenant.routes.js).
     const resultado = await pool.query(
-        "SELECT id, nome, slug, status FROM tenants WHERE slug = $1",
+        "SELECT id, nome, slug, status, logo_url, cor_primaria, telefone, whatsapp FROM tenants WHERE slug = $1",
         [slugParaBuscar]
     );
 
@@ -102,14 +206,23 @@ async function resolverTenant(req) {
  * confiável sozinho): aqui o `tenantId` já veio de dentro de um JWT
  * validado — ele só precisa ser confirmado contra o banco, não
  * "descoberto". Retorna `null` se o id não existir (nunca lança).
+ *
+ * Inclui `plano` e `limite_empresas_override` (etapa de planos/
+ * funcionalidades) e as colunas de identidade (logo_url/cor_primaria/
+ * telefone/whatsapp) — authMiddleware.js já expõe o resultado inteiro como
+ * `req.tenant`, então isto dá a src/services/planosFuncionalidades.service.js
+ * tudo que precisa sem nenhuma consulta extra por requisição. `logo_url`
+ * continua aqui só por leitura (Movement ainda a usa) — não é mais
+ * configurável por ninguém (ver PATCH /plataforma/tenants/:id em
+ * plataforma.routes.js, que nem aceita essa chave).
  */
 async function buscarTenantPorId(tenantId) {
     const resultado = await pool.query(
-        "SELECT id, nome, slug, status FROM tenants WHERE id = $1",
+        "SELECT id, nome, slug, status, plano, limite_empresas_override, logo_url, cor_primaria, telefone, whatsapp FROM tenants WHERE id = $1",
         [tenantId]
     );
 
     return resultado.rows[0] || null;
 }
 
-module.exports = { resolverTenant, buscarTenantPorId, obterSlugDaRequisicao, SLUG_FALLBACK };
+module.exports = { resolverTenant, buscarTenantPorId, obterSlugDaRequisicao, obterSlugDoHostname, fallbackParaMovementHabilitado, SLUG_FALLBACK };

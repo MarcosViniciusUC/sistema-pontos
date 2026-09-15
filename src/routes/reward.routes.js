@@ -4,6 +4,7 @@ const authMiddleware = require("../middlewares/authMiddleware");
 const roleMiddleware = require("../middlewares/roleMiddleware");
 const validateRewardCreate = require("../middlewares/validateRewardCreate");
 const validateRewardUpdate = require("../middlewares/validateRewardUpdate");
+const exigirFuncionalidade = require("../middlewares/exigirFuncionalidadeMiddleware");
 
 const router = express.Router();
 
@@ -58,10 +59,15 @@ router.patch(
 // arquivo, admin-only); cliente não tem papel liberado nestas duas rotas,
 // então uma tentativa dele recebe 403 do roleMiddleware. Não confundir com
 // /favoritos/:id (favorito.routes.js), que é o oposto: só cliente.
+// Funcionalidade opcional por plano (ver
+// src/services/planosFuncionalidades.service.js) — um tenant sem
+// "recompensas_destaque" no plano recebe 403 mesmo com papel admin/funcionário
+// correto.
 router.patch(
     "/recompensas/:id/destacar",
     authMiddleware,
     roleMiddleware("admin", "funcionario"),
+    exigirFuncionalidade("recompensas_destaque"),
     rewardController.destacar
 );
 
@@ -69,6 +75,7 @@ router.patch(
     "/recompensas/:id/remover-destaque",
     authMiddleware,
     roleMiddleware("admin", "funcionario"),
+    exigirFuncionalidade("recompensas_destaque"),
     rewardController.removerDestaque
 );
 

@@ -185,8 +185,9 @@ async function atualizar(req, res) {
 /**
  * Desativa a empresa (ativo -> false). Ela some do GET /empresas usado
  * pelos selects — não pode mais ser escolhida em novo lançamento de
- * pontos ou nova recompensa (ver empresaAtivaExiste em pontos/recompensas)
- * — mas nenhuma linha de movimentacoes_pontos/recompensas/resgates que já
+ * pontos ou nova recompensa (ver empresaAtivaNoTenant em
+ * src/utils/empresas.js) — mas nenhuma linha de
+ * movimentacoes_pontos/recompensas/resgates que já
  * aponta pra ela é tocada: continuam com o mesmo empresa_id de sempre, e
  * as listagens administrativas continuam mostrando o nome dela via
  * LEFT JOIN, ativa ou não. Idempotente: desativar de novo só confirma o
@@ -286,13 +287,21 @@ async function ativar(req, res) {
  * trazido), não uma segunda consulta, então não tem como os dois números
  * divergirem entre si.
  *
- * ETAPA 3C-2 — a busca da EMPRESA em si agora exige `tenant_id = $2`: um id
- * de empresa de outro tenant cai no mesmo 404 genérico, antes mesmo de
- * chegar nas sub-consultas. As sub-consultas por `empresa_id` em
- * recompensas/resgates/movimentacoes_pontos permanecem SEM filtro de
- * tenant_id de propósito — esses domínios ainda não foram isolados (etapas
- * futuras separadas); ver nota em src/utils/empresas.js sobre `empresa_id`
- * não substituir `tenant_id`.
+ * ETAPA 3C-2 — a busca da EMPRESA em si exige `tenant_id = $2`: um id de
+ * empresa de outro tenant cai no mesmo 404 genérico, antes mesmo de chegar
+ * nas sub-consultas.
+ *
+ * ETAPA de consolidação de empresas/tenant — as sub-consultas por
+ * `empresa_id` (recompensas/resgates/movimentacoes_pontos) passam a
+ * filtrar também por `tenant_id = $2`. Comentário antigo desta função dizia
+ * que esses domínios "ainda não tinham sido isolados" — isso já não é
+ * verdade há várias etapas (ver reward.controller.js/redemption.controller.js/
+ * pontos.controller.js, todos filtrados por tenant_id desde a Etapa 3C-3+);
+ * o `empresaResultado` acima já garante que `id` pertence ao tenant
+ * autenticado, então isto nunca foi um vazamento de verdade (mesma proteção
+ * adicional da política RLS `tenant_isolation`, que já filtrava essas 5
+ * linhas de forma transparente mesmo sem o WHERE explícito) — só estava
+ * inconsistente com o padrão de defesa em profundidade do resto do projeto.
  */
 async function detalhar(req, res) {
     const id = Number(req.params.id);
@@ -325,9 +334,9 @@ async function detalhar(req, res) {
             pool.query(
                 `SELECT id, nome, pontos_necessarios, ativo, imagem, destacada
                  FROM recompensas
-                 WHERE empresa_id = $1
+                 WHERE empresa_id = $1 AND tenant_id = $2
                  ORDER BY ativo DESC, pontos_necessarios ASC`,
-                [id]
+                [id, req.usuario.tenant_id]
             ),
 
             pool.query(
@@ -337,8 +346,8 @@ async function detalhar(req, res) {
                     COUNT(*) FILTER (WHERE status = 'utilizado')::int AS utilizados,
                     COUNT(*) FILTER (WHERE status = 'cancelado')::int AS cancelados
                  FROM resgates
-                 WHERE empresa_id = $1`,
-                [id]
+                 WHERE empresa_id = $1 AND tenant_id = $2`,
+                [id, req.usuario.tenant_id]
             ),
 
             pool.query(
@@ -347,8 +356,8 @@ async function detalhar(req, res) {
                     COALESCE(SUM(CASE WHEN tipo = 'saida' THEN quantidade ELSE 0 END), 0) AS pontos_utilizados,
                     COUNT(*)::int AS total_movimentacoes
                  FROM movimentacoes_pontos
-                 WHERE empresa_id = $1`,
-                [id]
+                 WHERE empresa_id = $1 AND tenant_id = $2`,
+                [id, req.usuario.tenant_id]
             ),
 
             pool.query(
@@ -356,10 +365,10 @@ async function detalhar(req, res) {
                  FROM resgates r
                  JOIN recompensas rec ON rec.id = r.recompensa_id
                  JOIN usuarios u ON u.id = r.usuario_id
-                 WHERE r.empresa_id = $1
+                 WHERE r.empresa_id = $1 AND r.tenant_id = $2
                  ORDER BY r.criado_em DESC
                  LIMIT 1`,
-                [id]
+                [id, req.usuario.tenant_id]
             ),
 
             // GROUP BY recompensa — cada recompensa conta suas próprias
@@ -370,11 +379,11 @@ async function detalhar(req, res) {
                 `SELECT rec.nome, COUNT(*)::int AS vezes
                  FROM resgates r
                  JOIN recompensas rec ON rec.id = r.recompensa_id
-                 WHERE r.empresa_id = $1
+                 WHERE r.empresa_id = $1 AND r.tenant_id = $2
                  GROUP BY rec.id, rec.nome
                  ORDER BY vezes DESC, rec.nome ASC
                  LIMIT 1`,
-                [id]
+                [id, req.usuario.tenant_id]
             )
         ]);
 

@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Movement | Esqueci minha senha</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@600;700;800&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
+
+    <link rel="stylesheet" href="assets/css/tokens.css">
+    <link rel="stylesheet" href="assets/css/base.css">
+    <link rel="stylesheet" href="assets/css/components.css">
+</head>
+<body>
+    <main class="auth-screen">
+        <div class="auth-card">
+            <div class="brand">
+                <img class="brand__mark" src="assets/img/logo.png" alt="Movement">
+                <div class="brand__lockup">
+                    <h1 class="brand__name">MOVEMENT</h1>
+                    <p class="brand__tagline">Vamos ajudar você a recuperar seu acesso.</p>
+                </div>
+            </div>
+
+            <form id="esqueci-senha-form" class="auth-form" novalidate>
+                <p class="auth-form__intro">
+                    Informe o e-mail cadastrado na sua conta. Se ele estiver correto, você vai receber um link para
+                    criar uma nova senha.
+                </p>
+
+                <div class="field">
+                    <label for="email">Email</label>
+                    <input
+                        type="email"
+                        id="email"
+                        name="email"
+                        autocomplete="email"
+                        placeholder="voce@email.com"
+                        required
+                    >
+                </div>
+
+                <div
+                    id="form-message"
+                    class="form-message"
+                    role="alert"
+                    aria-live="polite"
+                    hidden
+                ></div>
+
+                <button type="submit" class="btn btn--primary btn--block" id="submit-btn">
+                    <span class="btn__spinner" aria-hidden="true"></span>
+                    <span class="btn__label">Enviar link de recuperação</span>
+                </button>
+            </form>
+
+            <p class="auth-form__footer">Lembrou sua senha? <a href="index.html">Voltar para o login</a></p>
+        </div>
+    </main>
+
+    <script src="assets/js/api.js"></script>
+    <script src="assets/js/tenant.js"></script>
+    <script src="assets/js/esqueci-senha.js"></script>
+</body>
+</html>

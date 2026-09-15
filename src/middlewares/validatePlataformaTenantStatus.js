@@ -15,4 +15,9 @@ function validatePlataformaTenantStatus(req, res, next) {
     next();
 }
 
+// Mesmo padrão de validatePlataformaTenantCreate.PLANOS_VALIDOS — permite
+// validatePlataformaTenantEdit.js reaproveitar a MESMA lista, em vez de
+// duplicá-la.
+validatePlataformaTenantStatus.STATUS_VALIDOS = STATUS_VALIDOS;
+
 module.exports = validatePlataformaTenantStatus;

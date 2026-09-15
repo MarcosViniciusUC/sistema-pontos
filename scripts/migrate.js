@@ -120,6 +120,14 @@ async function politicaExiste(tabela, nomePolitica) {
 // o efeito dela já existe no banco (reconciliação) ou se precisa executar
 // de verdade. Cada checagem olha só a MUDANÇA PRINCIPAL daquela migration —
 // não precisa reproduzir o schema inteiro, só o suficiente pra decidir.
+//
+// `usaPoolRuntime: true` — marca as migrations que fazem
+// `require("../src/config/database")` (a partir desta etapa, esse pool
+// conecta como `APP_RUNTIME_DB_USER`, não mais como `postgres`/`DB_USER`).
+// Existe só para resolverEnvDaMigration() (abaixo) saber quais migrations
+// precisam de tratamento especial ENQUANTO `app_runtime` ainda não existe —
+// nunca para nenhuma outra decisão. As migrations 16+ (todas
+// `databaseAdmin.js`) nunca levam essa marca.
 const MIGRATIONS = [
     {
         nome: "migrate-empresas.js",
@@ -158,12 +166,19 @@ const MIGRATIONS = [
         jaAplicada: () => tabelaExiste("notificacoes_historico")
     },
     {
+        nome: "migrate-password-reset-tokens.js",
+        jaAplicada: () => tabelaExiste("password_reset_tokens"),
+        usaPoolRuntime: true
+    },
+    {
         nome: "migrate-tenants.js",
-        jaAplicada: () => tabelaExiste("tenants")
+        jaAplicada: () => tabelaExiste("tenants"),
+        usaPoolRuntime: true
     },
     {
         nome: "migrate-admins-plataforma.js",
-        jaAplicada: () => tabelaExiste("admins_plataforma")
+        jaAplicada: () => tabelaExiste("admins_plataforma"),
+        usaPoolRuntime: true
     },
     {
         nome: "migrate-tenant-id-dominio.js",
@@ -171,14 +186,16 @@ const MIGRATIONS = [
         // coluna — uma tabela representativa basta porque a migration
         // inteira roda numa única transação (ou todas as 8 tabelas chegam
         // a NOT NULL juntas, ou nenhuma chega, por causa do ROLLBACK).
-        jaAplicada: () => colunaNotNull("usuarios", "tenant_id")
+        jaAplicada: () => colunaNotNull("usuarios", "tenant_id"),
+        usaPoolRuntime: true
     },
     {
         nome: "migrate-tenant-id-default-temporario.js",
         // Correção de compatibilidade (ver comentário no próprio arquivo) —
         // TEMPORÁRIA enquanto os controllers não informam tenant_id. Uma
         // tabela representativa basta pelo mesmo motivo (transação única).
-        jaAplicada: () => colunaTemDefault("usuarios", "tenant_id")
+        jaAplicada: () => colunaTemDefault("usuarios", "tenant_id"),
+        usaPoolRuntime: true
     },
     {
         nome: "migrate-tenant-id-remover-default.js",
@@ -187,7 +204,8 @@ const MIGRATIONS = [
         // ser necessário. "Aplicada" = a coluna NÃO tem mais DEFAULT
         // nenhum (oposto exato da migration anterior). Uma tabela
         // representativa basta pelo mesmo motivo (transação única).
-        jaAplicada: async () => !(await colunaTemDefault("usuarios", "tenant_id"))
+        jaAplicada: async () => !(await colunaTemDefault("usuarios", "tenant_id")),
+        usaPoolRuntime: true
     },
     {
         nome: "migrate-rls-role.js",
@@ -228,6 +246,24 @@ const MIGRATIONS = [
         // SELECT) — tabela sensível, sem tenant_id, sem exceção de leitura
         // aberta como em 'tenants'.
         jaAplicada: () => politicaExiste("admins_plataforma", "admins_plataforma_bypass_only")
+    },
+    {
+        nome: "migrate-planos-funcionalidades.js",
+        // Base de planos comerciais + funcionalidades por tenant (catálogo
+        // 'funcionalidades'/'planos'/'plano_funcionalidades' +
+        // 'tenant_funcionalidades_override' + coluna
+        // 'tenants.limite_empresas_override'). Uma tabela representativa
+        // basta pelo mesmo motivo de sempre (transação única, tudo aplicado
+        // junto ou nada).
+        jaAplicada: () => tabelaExiste("planos")
+    },
+    {
+        nome: "migrate-tenant-identidade.js",
+        // Colunas de identidade (logo_url/cor_primaria/telefone/whatsapp)
+        // em 'tenants' + RLS de UPDATE passando a aceitar também o próprio
+        // tenant (não só bypass). Uma coluna representativa basta pelo
+        // mesmo motivo de sempre (transação única).
+        jaAplicada: () => colunaExiste("tenants", "cor_primaria")
     }
 ];
 
@@ -250,15 +286,72 @@ async function registrar(nome) {
     await pool.query("INSERT INTO migration_history (nome) VALUES ($1)", [nome]);
 }
 
-// Roda a migration como processo filho, herdando as mesmas variáveis de
-// ambiente do processo pai (é assim que a mesma lista funciona local e no
-// Render — nunca há lógica de "qual banco" aqui, só o env que já decide
-// isso em src/config/database.js). stdio "inherit" deixa o log de cada
-// migration aparecer em tempo real, igual a rodar manualmente.
-function executarComoProcesso(nomeArquivo) {
+// BOOTSTRAP de `app_runtime` para start command único (Render Free, sem
+// Pre-Deploy Command: `npm run migrate && node server.js`) — ver relatório
+// da etapa "adaptar migration para Render Free".
+//
+// PROBLEMA: migrations 10–15 (usaPoolRuntime: true) conectam via
+// `database.js`, ou seja, como `APP_RUNTIME_DB_USER`. Num banco novo,
+// `app_runtime` ainda não existe (só nasce na migration 16, mais abaixo
+// nesta mesma lista) — sem tratamento especial, a 10 falharia por
+// autenticação (role inexistente) e `node server.js` nunca chegaria a
+// rodar, travando o deploy inteiro.
+//
+// SOLUÇÃO: só para o `env` do PROCESSO FILHO de uma migration marcada
+// `usaPoolRuntime`, e só enquanto `roleExiste("app_runtime")` for falso,
+// empresta `DB_USER`/`DB_PASSWORD` (a mesma credencial que databaseAdmin.js
+// já usa — nunca um valor novo) no lugar de `APP_RUNTIME_DB_USER`/
+// `APP_RUNTIME_DB_PASSWORD`. Isso é suficiente porque essas 6 migrations só
+// fazem CREATE TABLE/ALTER TABLE em tabelas que `DB_USER` já é dono (ou cujo
+// schema ele já pode criar) — nunca precisam de `app_runtime` de verdade
+// para nada.
+//
+// `process.env` do processo PAI nunca é alterado (`{ ...process.env, ... }`
+// cria um objeto novo, só para este `spawn`) — nenhuma outra migration,
+// nem o restante deste próprio processo, enxerga a substituição. Nada é
+// gravado em disco nem logado: a troca vive só neste objeto, em memória,
+// pelo tempo de vida de um único processo filho.
+//
+// A partir da migration 16 (`migrate-rls-role.js`, sem `usaPoolRuntime`),
+// `resolverEnvDaMigration` devolve `process.env` sem nenhuma alteração —
+// essa migration precisa ler o `APP_RUNTIME_DB_PASSWORD` REAL (a senha
+// definitiva já configurada no ambiente), nunca a credencial emprestada,
+// porque é o valor que vai virar a senha de verdade do papel.
+//
+// Em qualquer boot onde `app_runtime` já existir (todo boot depois do
+// primeiro bem-sucedido) ou para qualquer migration sem a marca, esta
+// função é um passthrough puro — comportamento local e o de qualquer banco
+// já bootstrapado continuam idênticos a antes desta mudança.
+async function resolverEnvDaMigration(migration) {
+    if (!migration.usaPoolRuntime) {
+        return process.env;
+    }
+
+    const appRuntimeExiste = await roleExiste("app_runtime");
+
+    if (appRuntimeExiste) {
+        return process.env;
+    }
+
+    console.log(`   ('${migration.nome}' rodando com credencial de bootstrap — 'app_runtime' ainda não existe)`);
+
+    return {
+        ...process.env,
+        APP_RUNTIME_DB_USER: process.env.DB_USER,
+        APP_RUNTIME_DB_PASSWORD: process.env.DB_PASSWORD
+    };
+}
+
+// Roda a migration como processo filho. Fora do bootstrap acima, sempre
+// herda as mesmas variáveis de ambiente do processo pai (é assim que a
+// mesma lista funciona local e no Render — nunca há lógica de "qual banco"
+// aqui, só o env que já decide isso em src/config/database.js). stdio
+// "inherit" deixa o log de cada migration aparecer em tempo real, igual a
+// rodar manualmente.
+function executarComoProcesso(nomeArquivo, env) {
     return new Promise((resolve, reject) => {
         const caminho = path.join(__dirname, nomeArquivo);
-        const processo = spawn(process.execPath, [caminho], { stdio: "inherit", env: process.env });
+        const processo = spawn(process.execPath, [caminho], { stdio: "inherit", env });
 
         processo.on("error", reject);
         processo.on("exit", function (codigo) {
@@ -289,7 +382,8 @@ async function executarTudo() {
         console.log(`[executando] ${migration.nome}...`);
 
         try {
-            await executarComoProcesso(migration.nome);
+            const env = await resolverEnvDaMigration(migration);
+            await executarComoProcesso(migration.nome, env);
         } catch (erro) {
             console.error(`\nERRO: ${migration.nome} falhou (${erro.message}).`);
             console.error("Interrompido — nenhuma migration seguinte foi executada, e esta não foi registrada como aplicada.");

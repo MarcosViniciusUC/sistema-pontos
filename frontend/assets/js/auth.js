@@ -49,6 +49,13 @@ function removerSessao() {
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(TIPO_KEY);
     localStorage.removeItem(EMAIL_KEY);
+
+    // tenant.js pode não estar carregado em toda página que chama
+    // removerSessao (ex: nenhuma hoje, mas evita acoplar a ordem dos
+    // <script> entre os dois arquivos).
+    if (window.Tenant) {
+        window.Tenant.limparSlugDaSessaoLogada();
+    }
 }
 
 function possuiSessao() {

@@ -11,36 +11,15 @@
  * que precisa ver o estado dentro da própria transação). Por isso não tem
  * um default silencioso: cada chamador decide explicitamente qual usar.
  *
- * ATENÇÃO (ETAPA 3C-2) — esta checagem NÃO valida `tenant_id`, de
- * propósito: os domínios que a chamam hoje (pontos, recompensas) ainda não
- * foram isolados por tenant (etapas futuras separadas), e mudar a
- * assinatura aqui exigiria também alterar esses controllers, fora do
- * escopo desta etapa. Ou seja: `empresa_id` identifica UMA empresa, mas
- * **não substitui** `tenant_id` — um `empresa_id` de outro tenant passa
- * despercebido por esta função até que pontos/recompensas recebam sua
- * própria etapa de isolamento (quando esta função deve passar a receber e
- * checar `tenant_id` também).
- */
-async function empresaAtivaExiste(db, empresaId) {
-    const resultado = await db.query(
-        "SELECT id FROM empresas WHERE id = $1 AND ativo = true",
-        [empresaId]
-    );
-
-    return resultado.rows.length > 0;
-}
-
-/**
- * ETAPA 3C-3 — versão tenant-aware de empresaAtivaExiste(), criada como
- * função NOVA (em vez de alterar a assinatura da existente) de propósito:
- * mudar empresaAtivaExiste() afetaria também points.controller.js, cujo
- * domínio ainda não foi isolado por tenant (etapa futura separada) —
- * alterá-la agora deixaria esse chamador quebrado ou com um comportamento
- * parcialmente adaptado, exatamente o que se quer evitar. Usada só por
- * reward.controller.js a partir desta etapa: além de existir e estar
- * ativa, a empresa precisa pertencer ao MESMO tenant do usuário
- * autenticado — um `empresa_id` de outro tenant (mesmo que exista e esteja
- * ativo) é tratado como inválido, nunca aceito.
+ * Única checagem de "empresa existe e está ativa" do projeto — SEMPRE
+ * valida também `tenant_id`, nunca aceita um `empresa_id` de outro tenant
+ * (mesmo que exista e esteja ativa). `empresa_id` identifica UMA empresa,
+ * mas nunca substitui `tenant_id` como autorização.
+ *
+ * (Uma versão anterior sem checagem de tenant existiu entre as Etapas
+ * 3C-2 e 3C-4, enquanto pontos/recompensas ainda não tinham sido isolados
+ * por tenant — removida depois que os dois domínios migraram para esta
+ * função, que passou a ser a única.)
  */
 async function empresaAtivaNoTenant(db, empresaId, tenantId) {
     const resultado = await db.query(
@@ -79,4 +58,4 @@ function normalizarSlug(slug) {
         .replace(/^-+|-+$/g, "");
 }
 
-module.exports = { empresaAtivaExiste, empresaAtivaNoTenant, normalizarSlug };
+module.exports = { empresaAtivaNoTenant, normalizarSlug };

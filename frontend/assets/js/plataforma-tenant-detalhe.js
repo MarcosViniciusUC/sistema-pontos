@@ -9,8 +9,7 @@
  * ESTATÍSTICAS AGREGADAS (contagens) — nunca uma lista de usuários,
  * recompensas ou resgates individuais desse tenant.
  *
- * ETAPA 3C-11 — duas ações passam a existir aqui, ambas usando endpoints
- * JÁ EXISTENTES (nenhuma rota nova):
+ * ETAPA 3C-11 — três ações existem aqui:
  *   - Ativar/Desativar (PATCH /plataforma/tenants/:id/status), com
  *     confirmação antes de desativar;
  *   - Criar administrador inicial (POST /plataforma/tenants/:id/admin),
@@ -20,6 +19,13 @@
  *     formulário nem é lido dele: o tenant vem sempre do `:id` da própria
  *     URL da API, que por sua vez vem do `?id=` já resolvido nesta página
  *     (nunca de um campo editável).
+ *
+ * MUDANÇA DE ARQUITETURA — "Editar tenant" (nome/cor/telefone/whatsapp/
+ * plano/status, PATCH /plataforma/tenants/:id): substitui o que antes era
+ * `PATCH /tenant/config`, editável pelo próprio admin do tenant (removido).
+ * Logo NUNCA aparece neste formulário — não é mais configurável por
+ * ninguém nesta fase. Ver preencherFormularioEditarTenant()/o listener de
+ * `submit` de #form-editar-tenant, abaixo.
  */
 (function () {
     if (!window.PlataformaAuth.protegerPagina()) {
@@ -63,6 +69,101 @@
         { podeFechar: function () { return !modalAdminConfirmarBtn.disabled; } }
     );
     document.getElementById("modal-admin-cancelar").addEventListener("click", controladorAdmin.fechar);
+
+    // ---- "Editar tenant" (MUDANÇA DE ARQUITETURA — ver comentário no HTML) ----
+    const formEditarTenant = document.getElementById("form-editar-tenant");
+    const editarNomeInput = document.getElementById("editar-nome");
+    const editarCorPickerInput = document.getElementById("editar-cor-picker");
+    const editarCorPrimariaInput = document.getElementById("editar-cor-primaria");
+    const editarTelefoneInput = document.getElementById("editar-telefone");
+    const editarWhatsappInput = document.getElementById("editar-whatsapp");
+    const editarPlanoSelect = document.getElementById("editar-plano");
+    const editarStatusSelect = document.getElementById("editar-status");
+    const editarTenantErroEl = document.getElementById("editar-tenant-erro");
+    const btnSalvarEditarTenant = document.getElementById("btn-salvar-editar-tenant");
+    const btnSalvarEditarTenantLabel = btnSalvarEditarTenant.querySelector(".btn__label");
+
+    // Color picker e campo de texto ficam sincronizados nos dois sentidos —
+    // quem valida de verdade o formato final continua sendo o backend
+    // (mesmo padrão já usado pela extinta admin-configuracoes.js).
+    editarCorPickerInput.addEventListener("input", function () {
+        editarCorPrimariaInput.value = editarCorPickerInput.value.toUpperCase();
+    });
+    editarCorPrimariaInput.addEventListener("input", function () {
+        if (/^#[0-9A-Fa-f]{6}$/.test(editarCorPrimariaInput.value)) {
+            editarCorPickerInput.value = editarCorPrimariaInput.value;
+        }
+    });
+
+    function preencherFormularioEditarTenant(tenant) {
+        editarNomeInput.value = tenant.nome || "";
+        editarCorPrimariaInput.value = tenant.corPrimaria || "";
+        editarCorPickerInput.value = /^#[0-9A-Fa-f]{6}$/.test(tenant.corPrimaria) ? tenant.corPrimaria : "#7C3AED";
+        editarTelefoneInput.value = tenant.telefone || "";
+        editarWhatsappInput.value = tenant.whatsapp || "";
+        editarPlanoSelect.value = tenant.plano || "";
+        editarStatusSelect.value = tenant.status || "ativo";
+    }
+
+    formEditarTenant.addEventListener("submit", async function (evento) {
+        evento.preventDefault();
+
+        const nome = editarNomeInput.value.trim();
+        const corPrimaria = editarCorPrimariaInput.value.trim();
+        const telefone = editarTelefoneInput.value.trim();
+        const whatsapp = editarWhatsappInput.value.trim();
+        const plano = editarPlanoSelect.value;
+        const status = editarStatusSelect.value;
+
+        if (!nome) {
+            editarTenantErroEl.textContent = "Informe o nome do negócio.";
+            editarTenantErroEl.hidden = false;
+            return;
+        }
+
+        // Whitelist explícita, montada aqui (nunca um spread do form inteiro):
+        // "logoUrl"/"tenant_id"/"id" nunca podem chegar ao corpo da
+        // requisição por construção. "plano" só é enviado quando um valor
+        // real do catálogo foi escolhido — "Sem plano definido (legado)"
+        // significa "não alterar", nunca "limpar para NULL" (a option vazia
+        // existe só para refletir o estado atual quando o tenant ainda não
+        // tem plano, ver preencherFormularioEditarTenant acima).
+        const corpo = { nome: nome, status: status };
+        if (corPrimaria) corpo.corPrimaria = corPrimaria;
+        if (telefone) corpo.telefone = telefone;
+        if (whatsapp) corpo.whatsapp = whatsapp;
+        if (plano) corpo.plano = plano;
+
+        btnSalvarEditarTenant.disabled = true;
+        btnSalvarEditarTenant.classList.add("is-loading");
+        btnSalvarEditarTenantLabel.textContent = "Salvando...";
+        editarTenantErroEl.hidden = true;
+
+        try {
+            // WHERE id = :id no backend — só este tenant é afetado; não há
+            // campo nenhum aqui que pudesse apontar para outro id.
+            await window.plataformaApi("/plataforma/tenants/" + tenantAtual.id, {
+                method: "PATCH",
+                body: corpo
+            });
+
+            mostrarMensagemPagina("Tenant atualizado com sucesso.", "sucesso");
+
+            // Recarrega os dados (nunca location.reload()) — atualiza
+            // "Dados do tenant"/"Identidade" com o valor já salvo, sem
+            // perder o resto da página.
+            carregar();
+
+        } catch (erro) {
+            editarTenantErroEl.textContent = window.plataformaMensagemDeErro(erro, "Não foi possível salvar agora.");
+            editarTenantErroEl.hidden = false;
+
+        } finally {
+            btnSalvarEditarTenant.disabled = false;
+            btnSalvarEditarTenant.classList.remove("is-loading");
+            btnSalvarEditarTenantLabel.textContent = "Salvar alterações";
+        }
+    });
 
     let tenantAtual = null;
     let acaoStatusPendente = null; // "ativar" | "desativar"
@@ -289,6 +390,75 @@
         secaoDados.appendChild(painelDados);
         containerEl.appendChild(secaoDados);
 
+        // Identidade — exibição (edição de verdade acontece na seção
+        // "Editar tenant", fora deste container — ver
+        // preencherFormularioEditarTenant abaixo). Logo continua só LEITURA
+        // aqui, de propósito: não é mais configurável por ninguém nesta
+        // fase. Mesmo dado devolvido por
+        // plataformaTenant.controller.js:detalhar, nunca uma segunda
+        // consulta/lógica aqui.
+        const secaoIdentidade = document.createElement("section");
+        secaoIdentidade.className = "dash-section";
+
+        const tituloIdentidade = document.createElement("h2");
+        tituloIdentidade.className = "dash-section__title";
+        tituloIdentidade.textContent = "Identidade";
+        secaoIdentidade.appendChild(tituloIdentidade);
+
+        const painelIdentidade = document.createElement("div");
+        painelIdentidade.className = "operacao-panel";
+
+        if (tenant.logoUrl) {
+            const linhaLogo = document.createElement("div");
+            linhaLogo.className = "receipt-row";
+            const labelLogo = document.createElement("span");
+            labelLogo.className = "receipt-row__label";
+            labelLogo.textContent = "Logo";
+            const imgLogo = document.createElement("img");
+            imgLogo.src = tenant.logoUrl;
+            imgLogo.alt = tenant.nome;
+            imgLogo.style.maxWidth = "120px";
+            imgLogo.style.maxHeight = "60px";
+            linhaLogo.appendChild(labelLogo);
+            linhaLogo.appendChild(imgLogo);
+            painelIdentidade.appendChild(linhaLogo);
+        } else {
+            painelIdentidade.appendChild(criarReceiptRow("Logo", "Não definida"));
+        }
+
+        if (tenant.corPrimaria) {
+            const linhaCor = document.createElement("div");
+            linhaCor.className = "receipt-row";
+            const labelCor = document.createElement("span");
+            labelCor.className = "receipt-row__label";
+            labelCor.textContent = "Cor principal";
+            const valorCor = document.createElement("span");
+            valorCor.className = "receipt-row__value";
+            const amostraCor = document.createElement("span");
+            amostraCor.style.display = "inline-block";
+            amostraCor.style.width = "14px";
+            amostraCor.style.height = "14px";
+            amostraCor.style.borderRadius = "3px";
+            amostraCor.style.marginRight = "6px";
+            amostraCor.style.verticalAlign = "middle";
+            amostraCor.style.background = tenant.corPrimaria;
+            valorCor.appendChild(amostraCor);
+            valorCor.appendChild(document.createTextNode(tenant.corPrimaria));
+            linhaCor.appendChild(labelCor);
+            linhaCor.appendChild(valorCor);
+            painelIdentidade.appendChild(linhaCor);
+        } else {
+            painelIdentidade.appendChild(criarReceiptRow("Cor principal", "Não definida"));
+        }
+
+        painelIdentidade.appendChild(criarReceiptRow("Telefone", tenant.telefone || "Não definido"));
+        painelIdentidade.appendChild(criarReceiptRow("WhatsApp", tenant.whatsapp || "Não definido"));
+
+        secaoIdentidade.appendChild(painelIdentidade);
+        containerEl.appendChild(secaoIdentidade);
+
+        preencherFormularioEditarTenant(tenant);
+
         const secaoStats = document.createElement("section");
         secaoStats.className = "dash-section";
 
@@ -325,6 +495,51 @@
 
         secaoStats.appendChild(kpiGrid);
         containerEl.appendChild(secaoStats);
+
+        // Plano/funcionalidades — mesma fonte central de verdade do
+        // backend (src/services/planosFuncionalidades.service.js), nunca
+        // uma segunda lógica no frontend. `dados.funcionalidades`/
+        // `dados.limiteEmpresas` já vêm resolvidos por
+        // plataformaTenant.controller.js:detalhar.
+        const ROTULOS_FUNCIONALIDADE = {
+            favoritos: "Favoritos",
+            recompensas_destaque: "Recompensas em destaque",
+            gamificacao_progresso: "Gamificação/progresso"
+        };
+
+        const secaoPlano = document.createElement("section");
+        secaoPlano.className = "dash-section";
+
+        const tituloPlano = document.createElement("h2");
+        tituloPlano.className = "dash-section__title";
+        tituloPlano.textContent = "Plano e funcionalidades";
+        secaoPlano.appendChild(tituloPlano);
+
+        const painelPlano = document.createElement("div");
+        painelPlano.className = "operacao-panel";
+
+        painelPlano.appendChild(criarReceiptRow(
+            "Limite de empresas",
+            dados.limiteEmpresas === null ? "Sem limite (tenant legado)" : String(dados.limiteEmpresas)
+        ));
+
+        Object.keys(ROTULOS_FUNCIONALIDADE).forEach(function (chave) {
+            const linha = document.createElement("div");
+            linha.className = "receipt-row";
+            const label = document.createElement("span");
+            label.className = "receipt-row__label";
+            label.textContent = ROTULOS_FUNCIONALIDADE[chave];
+            const badge = document.createElement("span");
+            const ligada = Boolean(dados.funcionalidades[chave]);
+            badge.className = "status-badge " + (ligada ? "status-badge--aprovado" : "status-badge--recusado");
+            badge.textContent = ligada ? "Habilitada" : "Desabilitada";
+            linha.appendChild(label);
+            linha.appendChild(badge);
+            painelPlano.appendChild(linha);
+        });
+
+        secaoPlano.appendChild(painelPlano);
+        containerEl.appendChild(secaoPlano);
 
         // "Criar administrador" só faz sentido para um tenant que ainda não
         // tem NENHUM usuário — é o cenário de bootstrap que

@@ -513,8 +513,13 @@
             badge.textContent = recompensa.ativo ? "Ativa" : "Inativa";
             tdStatus.appendChild(badge);
 
+            // Funcionalidade opcional por plano (ver funcionalidades.js) —
+            // sem ela, a célula fica vazia em vez de mostrar um controle que
+            // o backend recusaria (403) em qualquer tentativa real de uso.
             const tdDestaque = document.createElement("td");
-            tdDestaque.appendChild(criarBotaoDestaque(recompensa));
+            if (window.Funcionalidades.habilitada("recompensas_destaque")) {
+                tdDestaque.appendChild(criarBotaoDestaque(recompensa));
+            }
 
             const tdAcoes = document.createElement("td");
             const acoes = document.createElement("div");
@@ -619,6 +624,10 @@
     }
 
     async function carregarRecompensas() {
+        // Precisa das funcionalidades do plano já resolvidas ANTES de
+        // montar a tabela (coluna de destaque) — ver funcionalidades.js.
+        await window.Funcionalidades.pronto;
+
         try {
             const recompensas = await window.api("/recompensas/admin");
             renderizarTabela(recompensas);

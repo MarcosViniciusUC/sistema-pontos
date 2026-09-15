@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Movement | Redefinir senha</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@600;700;800&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
+
+    <link rel="stylesheet" href="assets/css/tokens.css">
+    <link rel="stylesheet" href="assets/css/base.css">
+    <link rel="stylesheet" href="assets/css/components.css">
+</head>
+<body>
+    <main class="auth-screen">
+        <div class="auth-card">
+            <div class="brand">
+                <img class="brand__mark" src="assets/img/logo.png" alt="Movement">
+                <div class="brand__lockup">
+                    <h1 class="brand__name">MOVEMENT</h1>
+                    <p class="brand__tagline">Crie uma nova senha para sua conta.</p>
+                </div>
+            </div>
+
+            <!-- Estado: token ausente/inválido/expirado (checado assim que a página carrega, antes de mostrar o formulário) -->
+            <div id="token-invalido" class="auth-form" hidden>
+                <div class="form-message form-message--erro" role="alert">
+                    <span class="form-message__icon" aria-hidden="true">!</span>
+                    <span>Este link é inválido ou já expirou. Solicite uma nova recuperação de senha.</span>
+                </div>
+                <a href="esqueci-senha.html" class="btn btn--primary btn--block">Solicitar novo link</a>
+            </div>
+
+            <!-- Estado: sucesso -->
+            <div id="sucesso" class="auth-form" hidden>
+                <div class="form-message form-message--sucesso" role="status">
+                    <span class="form-message__icon" aria-hidden="true">✓</span>
+                    <span>Senha redefinida com sucesso! Você já pode entrar com a nova senha.</span>
+                </div>
+                <a href="index.html" class="btn btn--primary btn--block">Ir para o login</a>
+            </div>
+
+            <form id="redefinir-senha-form" class="auth-form" novalidate>
+                <div class="field">
+                    <label for="senha">Nova senha</label>
+                    <input
+                        type="password"
+                        id="senha"
+                        name="senha"
+                        autocomplete="new-password"
+                        placeholder="Mínimo de 6 caracteres"
+                        required
+                    >
+                </div>
+
+                <div class="field">
+                    <label for="confirmar-senha">Confirmar nova senha</label>
+                    <input
+                        type="password"
+                        id="confirmar-senha"
+                        name="confirmar_senha"
+                        autocomplete="new-password"
+                        placeholder="Repita a nova senha"
+                        required
+                    >
+                </div>
+
+                <div
+                    id="form-message"
+                    class="form-message"
+                    role="alert"
+                    aria-live="polite"
+                    hidden
+                ></div>
+
+                <button type="submit" class="btn btn--primary btn--block" id="submit-btn">
+                    <span class="btn__spinner" aria-hidden="true"></span>
+                    <span class="btn__label">Redefinir senha</span>
+                </button>
+            </form>
+
+            <p class="auth-form__footer">Lembrou sua senha? <a href="index.html">Voltar para o login</a></p>
+        </div>
+    </main>
+
+    <script src="assets/js/api.js"></script>
+    <script src="assets/js/tenant.js"></script>
+    <script src="assets/js/redefinir-senha.js"></script>
+</body>
+</html>

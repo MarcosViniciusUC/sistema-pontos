@@ -520,7 +520,10 @@
             media.appendChild(seloDestaque);
         }
 
-        media.appendChild(criarBotaoFavorito(recompensa));
+        // Funcionalidade opcional por plano (ver funcionalidades.js).
+        if (window.Funcionalidades.habilitada("favoritos")) {
+            media.appendChild(criarBotaoFavorito(recompensa));
+        }
 
         card.appendChild(media);
 
@@ -632,6 +635,10 @@
     }
 
     async function carregarTudo() {
+        // Precisa das funcionalidades do plano já resolvidas ANTES de
+        // montar os cards (estrela de favorito) — ver funcionalidades.js.
+        await window.Funcionalidades.pronto;
+
         // Promise.allSettled (em vez de Promise.all): uma falha em qualquer
         // uma dessas três chamadas não pode apagar o que as outras já
         // carregaram com sucesso — cada seção falha de forma independente.

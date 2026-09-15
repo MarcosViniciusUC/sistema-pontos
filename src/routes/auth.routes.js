@@ -2,6 +2,8 @@ const express = require("express");
 const rateLimit = require("express-rate-limit");
 const authController = require("../controllers/auth.controller");
 const validateLogin = require("../middlewares/validateLogin");
+const validateForgotPassword = require("../middlewares/validateForgotPassword");
+const validateResetPassword = require("../middlewares/validateResetPassword");
 const resolverTenantMiddleware = require("../middlewares/resolverTenantMiddleware");
 const exigirTenantAtivoMiddleware = require("../middlewares/exigirTenantAtivoMiddleware");
 
@@ -48,5 +50,48 @@ router.post(
     exigirTenantAtivoMiddleware,
     authController.login
 );
+
+// Mesmo mecanismo de rate limit do login (express-rate-limit, mesmo padrão
+// allow-list de NODE_ENV), instância PRÓPRIA — não a mesma de `loginLimiter`
+// porque são ações diferentes (uma tentativa de login não deveria consumir
+// a cota de pedidos de recuperação, e vice-versa), mas a MESMA ferramenta,
+// nunca uma estratégia paralela. Mais restrita que o login porque este
+// endpoint pode ser usado para mandar e-mail de spam para terceiros (o
+// atacante não precisa saber a senha de ninguém pra abusar dele).
+const ESQUECI_SENHA_LIMITE_DEV = 1000;
+const ESQUECI_SENHA_LIMITE_PRODUCAO = 5;
+
+const esqueciSenhaLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    limit: process.env.NODE_ENV === "development" ? ESQUECI_SENHA_LIMITE_DEV : ESQUECI_SENHA_LIMITE_PRODUCAO,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: {
+        mensagem: "Muitas solicitações. Tente novamente mais tarde."
+    }
+});
+
+// Mesmo motivo do /login: resolve o tenant (fallback Movement) antes de
+// procurar o usuário pelo e-mail, para que "Tenant A + e-mail X" nunca
+// encontre um usuário de outro tenant que por coincidência tenha o mesmo
+// e-mail (email agora é único só POR TENANT, não mais globalmente).
+router.post(
+    "/login/esqueci-senha",
+    esqueciSenhaLimiter,
+    validateForgotPassword,
+    resolverTenantMiddleware,
+    exigirTenantAtivoMiddleware,
+    authController.esqueciSenha
+);
+
+// /login/redefinir-senha NÃO precisa de resolverTenantMiddleware: o único
+// credencial aqui é o próprio token de reset (256 bits, uso único), que já
+// foi emitido para exatamente um `usuario_id` (e portanto exatamente um
+// tenant) lá em esqueciSenha() — não há slug/identificador ambíguo para
+// resolver nesta rota, então não há nada que um tenant "errado" pudesse
+// fazer confundir com outro. Continua sem limiter dedicado pelo mesmo
+// motivo de sempre (força bruta contra um token de 256 bits é inviável;
+// globalLimiter da API já cobre esta rota).
+router.post("/login/redefinir-senha", validateResetPassword, authController.redefinirSenha);
 
 module.exports = router;

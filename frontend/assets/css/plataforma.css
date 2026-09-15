@@ -1,0 +1,169 @@
+/* ==========================================================================
+   Identidade visual da MAPLE TECH — exclusiva do painel de plataforma.
+
+   ESCOPO: toda regra aqui é prefixada por `.plataforma-shell` (a classe
+   adicionada ao wrapper de topo — `.auth-screen` no login, `.admin-shell`
+   nas outras 3 telas — em plataforma-login.html, plataforma-dashboard.html,
+   plataforma-tenants.html e plataforma-tenant-detalhe.html, e SOMENTE
+   nelas). Isso é o que garante que nada aqui alcance nenhuma tela do
+   Movement (cliente, funcionário, admin do tenant, login/cadastro do
+   tenant) — todas continuam usando exatamente os tokens/cores originais
+   de tokens.css, nunca tocados por este arquivo.
+
+   ESTRATÉGIA: em vez de reescrever cada componente (botão, badge, campo,
+   navegação...), este arquivo só REDEFINE um pequeno conjunto de variáveis
+   novas (--mp-*, nunca as variáveis de vermelho compartilhadas) e depois
+   aponta as MESMAS classes que admin.css/components.css já usam
+   (.btn--primary, .status-badge--aprovado, .origem-item__preenchimento
+   etc.) para essas variáveis nesta única cascata. Nenhuma classe foi
+   renomeada, nenhum HTML/JS precisou mudar, nenhuma estrutura foi alterada
+   — só a cor. `.form-message--erro`/`.modal__error`/`.btn--danger`
+   (vermelho semântico de erro/perigo) foram DELIBERADAMENTE deixados de
+   fora — erro continua vermelho aqui como em qualquer outro lugar do
+   sistema; só a cor de MARCA (ações, destaques, elementos ativos) vira
+   roxo.
+
+   Paleta nova (--mp-primary-*) segue a MESMA estrutura das variáveis de
+   vermelho em tokens.css (base, dark para hover, bright para texto e
+   ícone sobre fundo escuro, glow e surface translúcidos para sombra e
+   fundo sutil) — só a matiz muda, de vermelho para roxo.
+   ========================================================================== */
+
+.plataforma-shell {
+    --mp-primary: #7C3AED;
+    --mp-primary-dark: #6024C4;
+    --mp-primary-bright: #A78BFA;
+    --mp-primary-glow: rgba(124, 58, 237, 0.35);
+    --mp-primary-surface: rgba(124, 58, 237, 0.1);
+    --mp-primary-surface-strong: rgba(124, 58, 237, 0.16);
+}
+
+/* --------------------------------------------------------------------------
+   Link genérico — base.css define `a { color: var(--color-red-bright) }`
+   globalmente (usado por links como "← Voltar para Tenants", que não têm
+   nenhuma classe própria de botão). `:not(.btn)` evita pegar os links que
+   já são estilizados como botão (.btn--primary/.btn--ghost, ex: "Ver
+   detalhes"), que têm suas próprias regras de cor mais abaixo.
+   -------------------------------------------------------------------------- */
+
+.plataforma-shell a:not(.btn) {
+    color: var(--mp-primary-bright);
+}
+
+/* --------------------------------------------------------------------------
+   Tela de login — mesma estrutura de .auth-screen/.auth-card
+   (components.css), só o brilho de fundo e o corte diagonal do canto do
+   card (a "assinatura visual" ali documentada como vermelha) trocam pra
+   roxo. Nada de gradiente novo, nada de camada extra — mesmo raio, mesma
+   opacidade, mesma forma.
+   -------------------------------------------------------------------------- */
+
+.plataforma-shell.auth-screen {
+    background:
+        radial-gradient(circle at 85% -10%, var(--mp-primary-glow) 0%, transparent 45%),
+        var(--color-bg);
+}
+
+.plataforma-shell .auth-card::before {
+    background: var(--mp-primary);
+}
+
+/* --------------------------------------------------------------------------
+   Botões — ação principal, ghost e ícone. Perigo/destrutivo (.btn--danger)
+   não é tocado de propósito: continua vermelho, é estado semântico, não
+   decoração de marca.
+   -------------------------------------------------------------------------- */
+
+.plataforma-shell .btn--primary {
+    background: var(--mp-primary);
+    box-shadow: 0 8px 28px var(--mp-primary-glow);
+}
+
+.plataforma-shell .btn--primary:hover:not(:disabled) {
+    background: var(--mp-primary-dark);
+    box-shadow: 0 10px 28px var(--mp-primary-glow);
+}
+
+.plataforma-shell .btn--ghost:hover:not(:disabled) {
+    border-color: var(--mp-primary);
+    color: var(--mp-primary-bright);
+}
+
+.plataforma-shell .btn--icon:hover:not(:disabled) {
+    border-color: var(--mp-primary);
+    color: var(--mp-primary-bright);
+}
+
+.plataforma-shell .btn--text:hover:not(:disabled) {
+    color: var(--mp-primary-bright);
+}
+
+/* --------------------------------------------------------------------------
+   Campos de formulário — foco usa a cor de marca, mesmo padrão de
+   .field input:focus-visible em components.css.
+   -------------------------------------------------------------------------- */
+
+.plataforma-shell .field input:focus-visible,
+.plataforma-shell .field select:focus-visible {
+    border-color: var(--mp-primary);
+    outline-color: var(--mp-primary);
+    box-shadow: 0 0 0 3px var(--mp-primary-glow);
+}
+
+/* --------------------------------------------------------------------------
+   Cabeçalho / navegação / links de ação
+   -------------------------------------------------------------------------- */
+
+.plataforma-shell .link-btn:hover {
+    color: var(--mp-primary-bright);
+}
+
+.plataforma-shell .nav-menu-btn[aria-expanded="true"] {
+    color: var(--mp-primary-bright);
+    border-color: var(--mp-primary);
+}
+
+.plataforma-shell .dash-section__link:hover {
+    color: var(--mp-primary-bright);
+}
+
+.plataforma-shell .admin-nav__item.is-active {
+    background: var(--mp-primary-surface);
+    color: var(--mp-primary-bright);
+}
+
+@media (min-width: 768px) {
+    .plataforma-shell .admin-nav__item.is-active {
+        border-left-color: var(--mp-primary);
+    }
+}
+
+/* --------------------------------------------------------------------------
+   Cards de KPI — seta de "ver mais" em roxo no hover (a cor de fundo/borda
+   do card continua neutra, como já é).
+   -------------------------------------------------------------------------- */
+
+.plataforma-shell a.kpi-card:hover::after {
+    color: var(--mp-primary-bright);
+}
+
+/* --------------------------------------------------------------------------
+   Barras de distribuição (Distribuição por plano) — mesma barra de
+   .origem-item__preenchimento, só a cor de preenchimento muda.
+   -------------------------------------------------------------------------- */
+
+.plataforma-shell .origem-item__preenchimento {
+    background: var(--mp-primary);
+}
+
+/* --------------------------------------------------------------------------
+   Badge de status "Ativo" — vermelho em Movement significa "aprovado";
+   aqui, "elemento ativo" é exatamente o que a marca Maple usa roxo para
+   destacar. "Inativo" (.status-badge--recusado) já é neutro/cinza, sem
+   mudança.
+   -------------------------------------------------------------------------- */
+
+.plataforma-shell .status-badge--aprovado {
+    background: var(--mp-primary);
+    border-color: var(--mp-primary);
+}

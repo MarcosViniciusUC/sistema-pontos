@@ -5,9 +5,12 @@ const plataformaTenantController = require("../controllers/plataformaTenant.cont
 const validatePlataformaLogin = require("../middlewares/validatePlataformaLogin");
 const validatePlataformaTenantCreate = require("../middlewares/validatePlataformaTenantCreate");
 const validatePlataformaTenantStatus = require("../middlewares/validatePlataformaTenantStatus");
+const validatePlataformaTenantEdit = require("../middlewares/validatePlataformaTenantEdit");
 const validatePlataformaTenantAdmin = require("../middlewares/validatePlataformaTenantAdmin");
+const validateOnboarding = require("../middlewares/validateOnboarding");
 const authPlataformaMiddleware = require("../middlewares/authPlataformaMiddleware");
 const exigirEscopoPlataforma = require("../middlewares/exigirEscopoPlataforma");
+const { listarCatalogoDePlanos } = require("../services/planosFuncionalidades.service");
 
 const router = express.Router();
 
@@ -75,6 +78,23 @@ router.patch(
     plataformaTenantController.atualizarStatus
 );
 
+// MUDANÇA DE ARQUITETURA — "Editar tenant": nome/cor/telefone/whatsapp/
+// plano/status passam a ser editáveis exclusivamente pela Maple Tech.
+// Substitui `PATCH /tenant/config` (removido de tenant.routes.js), que
+// deixava o próprio admin do tenant alterar essa identidade. `logoUrl`
+// nunca faz parte da whitelist (ver validatePlataformaTenantEdit.js) — não
+// é configurável por ninguém nesta fase. Coexiste sem conflito com
+// `PATCH /plataforma/tenants/:id/status` acima (ação rápida dedicada de
+// ativar/desativar, usada pelo botão da tela de detalhe) — os dois
+// endpoints escrevem a mesma coluna `status`, nenhum invalida o outro.
+router.patch(
+    "/plataforma/tenants/:id",
+    authPlataformaMiddleware,
+    exigirEscopoPlataforma,
+    validatePlataformaTenantEdit,
+    plataformaTenantController.atualizarConfiguracao
+);
+
 // Cria o primeiro admin do tenant — ver avaliação de escopo no relatório
 // desta etapa. `tenant_id` vem sempre de `:id` (a URL), nunca do body.
 router.post(
@@ -83,6 +103,40 @@ router.post(
     exigirEscopoPlataforma,
     validatePlataformaTenantAdmin,
     plataformaTenantController.criarAdmin
+);
+
+// Catálogo de planos + funcionalidades — fonte central de verdade (ver
+// planosFuncionalidades.service.js) para o onboarding renderizar a
+// comparação de planos sem duplicar regras manualmente no frontend. Só
+// leitura, sem nenhum dado de tenant específico envolvido.
+router.get(
+    "/plataforma/planos",
+    authPlataformaMiddleware,
+    exigirEscopoPlataforma,
+    async function (req, res) {
+        try {
+            const planos = await listarCatalogoDePlanos();
+            res.json(planos);
+        } catch (erro) {
+            console.log(erro);
+            res.status(500).json({ mensagem: "Erro ao listar planos" });
+        }
+    }
+);
+
+// Onboarding — cria tenant + administrador inicial + empresa/unidade
+// inicial numa única transação (ver plataformaTenant.controller.js:onboarding).
+// Substitui, para o fluxo de "novo cliente pronto para uso", a combinação
+// manual de POST /plataforma/tenants + POST /plataforma/tenants/:id/admin
+// (que continuam existindo, sem nenhuma mudança de comportamento, para
+// quem precisar criar um tenant e adicionar o admin em momentos
+// separados).
+router.post(
+    "/plataforma/onboarding",
+    authPlataformaMiddleware,
+    exigirEscopoPlataforma,
+    validateOnboarding,
+    plataformaTenantController.onboarding
 );
 
 module.exports = router;
