@@ -53,13 +53,22 @@
 
                 <!--
                     "Editar tenant" — MUDANÇA DE ARQUITETURA: identidade
-                    comercial (nome/cor/telefone/whatsapp/plano/status) passa
-                    a ser exclusiva da Maple Tech (antes: editável pelo
-                    próprio admin do tenant, ver PATCH /tenant/config,
-                    removido). Fica FORA de #tenant-detalhe-container de
-                    propósito — nunca é recriada a cada `carregar()` (só
-                    repopulada), então não perde foco/estado do usuário nem
-                    reanexa listeners a cada reload.
+                    comercial (nome/cor/telefone/whatsapp/status) passa a ser
+                    exclusiva da Maple Tech (antes: editável pelo próprio
+                    admin do tenant, ver PATCH /tenant/config, removido).
+                    Fica FORA de #tenant-detalhe-container de propósito —
+                    nunca é recriada a cada `carregar()` (só repopulada),
+                    então não perde foco/estado do usuário nem reanexa
+                    listeners a cada reload.
+
+                    "Plano" NÃO está mais aqui — ganhou sua própria ação
+                    dedicada "Alterar plano" (ver renderizar() em
+                    plataforma-tenant-detalhe.js, dentro da seção "Plano e
+                    funcionalidades"), pedida explicitamente como ação
+                    visível separada, em vez de um campo a mais num
+                    formulário genérico. Mesmo endpoint de sempre
+                    (PATCH /plataforma/tenants/:id), só um corpo diferente
+                    ({ plano } sozinho).
 
                     Logo NUNCA aparece aqui — não é mais configurável por
                     ninguém nesta fase (ver validatePlataformaTenantEdit.js
@@ -93,16 +102,6 @@
                         <div class="field">
                             <label for="editar-whatsapp">WhatsApp</label>
                             <input type="text" id="editar-whatsapp" name="whatsapp" placeholder="(00) 00000-0000">
-                        </div>
-
-                        <div class="field">
-                            <label for="editar-plano">Plano</label>
-                            <select id="editar-plano" name="plano">
-                                <option value="">Sem plano definido (legado)</option>
-                                <option value="essencial">Essencial</option>
-                                <option value="profissional">Profissional</option>
-                                <option value="premium">Premium</option>
-                            </select>
                         </div>
 
                         <div class="field">

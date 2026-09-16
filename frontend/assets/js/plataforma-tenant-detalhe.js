@@ -77,7 +77,6 @@
     const editarCorPrimariaInput = document.getElementById("editar-cor-primaria");
     const editarTelefoneInput = document.getElementById("editar-telefone");
     const editarWhatsappInput = document.getElementById("editar-whatsapp");
-    const editarPlanoSelect = document.getElementById("editar-plano");
     const editarStatusSelect = document.getElementById("editar-status");
     const editarTenantErroEl = document.getElementById("editar-tenant-erro");
     const btnSalvarEditarTenant = document.getElementById("btn-salvar-editar-tenant");
@@ -101,7 +100,6 @@
         editarCorPickerInput.value = /^#[0-9A-Fa-f]{6}$/.test(tenant.corPrimaria) ? tenant.corPrimaria : "#7C3AED";
         editarTelefoneInput.value = tenant.telefone || "";
         editarWhatsappInput.value = tenant.whatsapp || "";
-        editarPlanoSelect.value = tenant.plano || "";
         editarStatusSelect.value = tenant.status || "ativo";
     }
 
@@ -112,7 +110,6 @@
         const corPrimaria = editarCorPrimariaInput.value.trim();
         const telefone = editarTelefoneInput.value.trim();
         const whatsapp = editarWhatsappInput.value.trim();
-        const plano = editarPlanoSelect.value;
         const status = editarStatusSelect.value;
 
         if (!nome) {
@@ -121,18 +118,15 @@
             return;
         }
 
-        // Whitelist explícita, montada aqui (nunca um spread do form inteiro):
-        // "logoUrl"/"tenant_id"/"id" nunca podem chegar ao corpo da
-        // requisição por construção. "plano" só é enviado quando um valor
-        // real do catálogo foi escolhido — "Sem plano definido (legado)"
-        // significa "não alterar", nunca "limpar para NULL" (a option vazia
-        // existe só para refletir o estado atual quando o tenant ainda não
-        // tem plano, ver preencherFormularioEditarTenant acima).
+        // Whitelist explícita, montada aqui (nunca um spread do form
+        // inteiro): "logoUrl"/"plano"/"tenant_id"/"id" nunca podem chegar ao
+        // corpo desta requisição por construção. "plano" tem sua própria
+        // ação dedicada agora ("Alterar plano", ver renderizar() abaixo) —
+        // nunca enviado por este formulário.
         const corpo = { nome: nome, status: status };
         if (corPrimaria) corpo.corPrimaria = corPrimaria;
         if (telefone) corpo.telefone = telefone;
         if (whatsapp) corpo.whatsapp = whatsapp;
-        if (plano) corpo.plano = plano;
 
         btnSalvarEditarTenant.disabled = true;
         btnSalvarEditarTenant.classList.add("is-loading");
@@ -539,6 +533,100 @@
         });
 
         secaoPlano.appendChild(painelPlano);
+
+        // "Alterar plano" — ação dedicada e visível, separada do formulário
+        // genérico "Editar tenant" (pedido explícito desta etapa). Mesmo
+        // endpoint de sempre (PATCH /plataforma/tenants/:id), só que com um
+        // corpo mínimo ({ plano } sozinho) — nunca mexe em
+        // nome/cor/telefone/whatsapp/status ao salvar. Reconstruída a cada
+        // renderizar() (como o resto deste container), então sempre reflete
+        // o plano mais recente sem precisar de sincronização manual com o
+        // formulário "Editar tenant".
+        const painelAlterarPlano = document.createElement("div");
+        painelAlterarPlano.className = "operacao-panel";
+
+        const campoPlano = document.createElement("div");
+        campoPlano.className = "field";
+
+        const labelPlano = document.createElement("label");
+        labelPlano.setAttribute("for", "alterar-plano-select");
+        labelPlano.textContent = "Plano atual";
+        campoPlano.appendChild(labelPlano);
+
+        const selectPlano = document.createElement("select");
+        selectPlano.id = "alterar-plano-select";
+
+        // Tenant "legado" (plano NULL — hoje só o Movement): mostra uma
+        // opção informativa própria, selecionada por padrão, para nunca dar
+        // a entender que "Essencial" já é o plano atual dele. Escolher
+        // qualquer uma das 3 opções reais é sempre uma ação deliberada de
+        // quem está usando o painel — nunca pré-selecionada sozinha.
+        if (!tenant.plano) {
+            const optLegado = document.createElement("option");
+            optLegado.value = "";
+            optLegado.textContent = "Sem plano definido (legado)";
+            selectPlano.appendChild(optLegado);
+        }
+
+        [["essencial", "Essencial"], ["profissional", "Profissional"], ["premium", "Premium"]].forEach(function ([codigo, rotulo]) {
+            const opt = document.createElement("option");
+            opt.value = codigo;
+            opt.textContent = rotulo;
+            selectPlano.appendChild(opt);
+        });
+
+        selectPlano.value = tenant.plano || "";
+        campoPlano.appendChild(selectPlano);
+        painelAlterarPlano.appendChild(campoPlano);
+
+        const erroPlanoEl = document.createElement("p");
+        erroPlanoEl.className = "modal__error";
+        erroPlanoEl.hidden = true;
+        painelAlterarPlano.appendChild(erroPlanoEl);
+
+        const btnSalvarPlano = document.createElement("button");
+        btnSalvarPlano.type = "button";
+        btnSalvarPlano.className = "btn btn--primary";
+        btnSalvarPlano.textContent = "Salvar plano";
+        btnSalvarPlano.addEventListener("click", async function () {
+            const novoPlano = selectPlano.value;
+
+            if (!novoPlano) {
+                erroPlanoEl.textContent = "Escolha um plano (Essencial, Profissional ou Premium) para salvar.";
+                erroPlanoEl.hidden = false;
+                return;
+            }
+
+            erroPlanoEl.hidden = true;
+            btnSalvarPlano.disabled = true;
+            const rotuloOriginal = btnSalvarPlano.textContent;
+            btnSalvarPlano.textContent = "Salvando...";
+
+            try {
+                // WHERE id = :id no backend, corpo só com "plano" — nunca
+                // toca em tenant_id/id/nome/cor/telefone/whatsapp/status, e
+                // nunca em overrides (tenant_funcionalidades_override/
+                // limite_empresas_override): a troca de plano só atualiza
+                // tenants.plano, exatamente como o resto da arquitetura de
+                // planos/funcionalidades já espera.
+                await window.plataformaApi("/plataforma/tenants/" + tenantAtual.id, {
+                    method: "PATCH",
+                    body: { plano: novoPlano }
+                });
+
+                mostrarMensagemPagina("Plano atualizado com sucesso.", "sucesso");
+                carregar();
+
+            } catch (erro) {
+                erroPlanoEl.textContent = window.plataformaMensagemDeErro(erro, "Não foi possível salvar o plano agora.");
+                erroPlanoEl.hidden = false;
+                btnSalvarPlano.disabled = false;
+                btnSalvarPlano.textContent = rotuloOriginal;
+            }
+        });
+        painelAlterarPlano.appendChild(btnSalvarPlano);
+
+        secaoPlano.appendChild(painelAlterarPlano);
         containerEl.appendChild(secaoPlano);
 
         // "Criar administrador" só faz sentido para um tenant que ainda não
