@@ -23,12 +23,25 @@ require("dotenv").config();
 
 const { Pool } = require("pg");
 
+// TLS — só em produção (Render, ou qualquer Postgres gerenciado externo,
+// normalmente exige SSL em conexões de fora da própria rede interna dele;
+// o Postgres local de desenvolvimento nunca exigiu isso, e continua sem
+// exigir). `rejectUnauthorized` fica no padrão seguro do Node (`true` —
+// verifica a cadeia de certificado do servidor contra as CAs confiáveis do
+// próprio sistema) — nunca desabilitado aqui, mesmo que o motivo original
+// desta mudança tenha sido um erro de conexão (ECONNRESET): a causa era
+// ausência de SSL, não um certificado inválido, e habilitar verificação
+// insegura (`rejectUnauthorized: false`) esconderia um problema real de
+// certificado em vez de resolver a causa raiz.
+const SSL_HABILITADO = process.env.NODE_ENV === "production";
+
 const pool = new Pool({
     user: process.env.DB_USER,
     host: process.env.DB_HOST,
     database: process.env.DB_NAME,
     password: process.env.DB_PASSWORD,
-    port: process.env.DB_PORT
+    port: process.env.DB_PORT,
+    ssl: SSL_HABILITADO ? { rejectUnauthorized: true } : false
 });
 
 module.exports = pool;

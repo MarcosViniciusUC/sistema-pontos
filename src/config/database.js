@@ -60,12 +60,19 @@ require("dotenv").config();
 const { Pool } = require("pg");
 const requestContext = require("./requestContext");
 
+// TLS — mesmo raciocínio de databaseAdmin.js (ver comentário lá): só em
+// produção, verificação de certificado sempre no padrão seguro do Node
+// (nunca `rejectUnauthorized: false`). Local de desenvolvimento continua
+// idêntico a antes, sem SSL nenhum.
+const SSL_HABILITADO = process.env.NODE_ENV === "production";
+
 const pool = new Pool({
     user: process.env.APP_RUNTIME_DB_USER,
     host: process.env.DB_HOST,
     database: process.env.DB_NAME,
     password: process.env.APP_RUNTIME_DB_PASSWORD,
-    port: process.env.DB_PORT
+    port: process.env.DB_PORT,
+    ssl: SSL_HABILITADO ? { rejectUnauthorized: true } : false
 });
 
 async function query(text, params) {
