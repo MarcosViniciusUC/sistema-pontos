@@ -50,6 +50,29 @@
  * qualquer hostname atual do Movement (ex: o domínio padrão do provedor)
  * com "tenant não encontrado" — ver checklist no relatório desta etapa.
  *
+ * CORREÇÃO — hostname padrão do Render sem domínio customizado ainda
+ * (achado no primeiro teste real em produção): o aviso acima se confirmou —
+ * `sistema-pontos-0i0k.onrender.com` (o único hostname público do serviço
+ * hoje, antes de qualquer domínio `*.mapletech.com.br` apontar pra cá) não
+ * é um subdomínio de nenhum `DOMINIOS_BASE_SUBDOMINIO`, então uma
+ * requisição sem header/query (ex: a própria página de login, que só manda
+ * `X-Tenant-Slug` quando a URL já tem `?tenantSlug=` — ver app.js) caía
+ * direto no branch de produção "nenhum slug identificado" e devolvia 404,
+ * mesmo para o Movement. `HOSTNAME_PADRAO_RENDER_ATUAL` (abaixo) é uma
+ * EXCEÇÃO ESTRITA, por comparação de string EXATA (nunca sufixo/wildcard):
+ * só esse UM hostname literal ganha um fallback pra 'movement', e só
+ * quando hostname/header/query não identificaram nada — continua sempre
+ * perdendo pra um `?tenantSlug=`/`X-Tenant-Slug` explícito (ex:
+ * `?tenantSlug=outro-tenant` neste mesmo hostname resolve pra "outro-tenant"
+ * normalmente, nunca é sobrescrito). Isto NUNCA vira um fallback genérico
+ * de produção: qualquer OUTRO hostname desconhecido (um erro de DNS, um
+ * domínio de preview, etc.) continua devolvendo NAO_ENCONTRADO exatamente
+ * como antes. Remover esta constante (e o bloco que a usa, em
+ * `resolverTenant`) assim que `movement.mapletech.com.br` (ou equivalente)
+ * estiver de fato mapeado e resolvendo para esta aplicação — a partir daí
+ * o hostname próprio do Movement volta a ser o único caminho, como o
+ * desenho original desta etapa já previa.
+ *
  * Esta etapa NÃO altera nenhuma query de negócio existente — nenhum
  * controller atual chama isto diretamente; tudo consome só o resultado já
  * resolvido (`req.tenantId`/`req.tenant`, ver resolverTenantMiddleware.js).
@@ -58,6 +81,11 @@ const pool = require("../config/database");
 
 const SLUG_FALLBACK = "movement";
 const NODE_ENV_DESENVOLVIMENTO = "development";
+
+// Ver "CORREÇÃO" no comentário do topo do arquivo. Comparação sempre EXATA
+// contra `req.hostname` (nunca `.endsWith`/prefixo/sufixo) — propositalmente
+// restrita a este único hostname literal.
+const HOSTNAME_PADRAO_RENDER_ATUAL = "sistema-pontos-0i0k.onrender.com";
 
 /**
  * Allow-list explícita (nunca deny-list) — mesmo princípio já usado em
@@ -169,11 +197,18 @@ async function resolverTenant(req) {
     const slugSolicitado = obterSlugDaRequisicao(req);
 
     if (!slugSolicitado && !fallbackParaMovementHabilitado()) {
-        // Produção, nenhum dos três mecanismos identificou um tenant —
-        // nunca cai em Movement silenciosamente (ver comentário no topo do
-        // arquivo). Mesmo formato de retorno de "slug não encontrado" — o
-        // middleware não precisa saber a diferença entre os dois casos.
-        return { erro: "NAO_ENCONTRADO" };
+        // Produção, nenhum dos três mecanismos identificou um tenant. Antes
+        // de desistir (NAO_ENCONTRADO), uma única exceção estrita: o
+        // hostname padrão atual do serviço no Render, por comparação EXATA
+        // — ver "CORREÇÃO" no comentário do topo do arquivo. Um
+        // `?tenantSlug=`/`X-Tenant-Slug` explícito já teria sido capturado
+        // por `obterSlugDaRequisicao` acima e nunca chega aqui — esta
+        // exceção só cobre a ausência total dos três mecanismos.
+        const hostnameAtual = typeof req.hostname === "string" ? req.hostname.toLowerCase() : "";
+
+        if (hostnameAtual !== HOSTNAME_PADRAO_RENDER_ATUAL) {
+            return { erro: "NAO_ENCONTRADO" };
+        }
     }
 
     const slugParaBuscar = slugSolicitado || SLUG_FALLBACK;
