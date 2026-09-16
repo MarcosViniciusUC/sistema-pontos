@@ -264,6 +264,13 @@ const MIGRATIONS = [
         // tenant (não só bypass). Uma coluna representativa basta pelo
         // mesmo motivo de sempre (transação única).
         jaAplicada: () => colunaExiste("tenants", "cor_primaria")
+    },
+    {
+        nome: "migrate-plataforma-auditoria.js",
+        // Histórico/auditoria das ações administrativas da Maple Tech —
+        // tabela nova, bypass-only (mesmo padrão de 'admins_plataforma'),
+        // sem UPDATE/DELETE para app_runtime (histórico imutável).
+        jaAplicada: () => tabelaExiste("plataforma_auditoria")
     }
 ];
 

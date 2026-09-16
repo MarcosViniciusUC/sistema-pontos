@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Maple Tech | Dashboard</title>
+    <title>Maple Tech | Histórico</title>
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -31,7 +31,7 @@
 
         <div class="admin-body">
             <nav class="admin-nav" id="main-nav" aria-label="Navegação da plataforma">
-                <a href="plataforma-dashboard.html" class="admin-nav__item is-active" aria-current="page">
+                <a href="plataforma-dashboard.html" class="admin-nav__item">
                     <svg class="admin-nav__icon" viewBox="0 0 24 24" fill="none" aria-hidden="true"><line x1="5" y1="19" x2="5" y2="11" stroke="currentColor" stroke-width="2.5"/><line x1="12" y1="19" x2="12" y2="6" stroke="currentColor" stroke-width="2.5"/><line x1="19" y1="19" x2="19" y2="14" stroke="currentColor" stroke-width="2.5"/></svg>
                     <span class="admin-nav__label">Dashboard</span>
                 </a>
@@ -39,36 +39,27 @@
                     <svg class="admin-nav__icon" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="3" y="3" width="7" height="7" stroke="currentColor" stroke-width="2"/><rect x="14" y="3" width="7" height="7" stroke="currentColor" stroke-width="2"/><rect x="3" y="14" width="7" height="7" stroke="currentColor" stroke-width="2"/><rect x="14" y="14" width="7" height="7" stroke="currentColor" stroke-width="2"/></svg>
                     <span class="admin-nav__label">Tenants</span>
                 </a>
-                <a href="plataforma-auditoria.html" class="admin-nav__item">
+                <a href="plataforma-auditoria.html" class="admin-nav__item is-active" aria-current="page">
                     <svg class="admin-nav__icon" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2"/><path d="M12 7v5l3 3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
                     <span class="admin-nav__label">Histórico</span>
                 </a>
             </nav>
 
             <main class="admin-main">
-                <h1 class="admin-page-title">Dashboard</h1>
+                <h1 class="admin-page-title">Histórico</h1>
+                <p class="field-hint">Principais ações administrativas realizadas pela Maple Tech — criação de tenants, mudanças de plano, status e configuração.</p>
 
                 <div id="page-message" class="form-message" role="status" aria-live="polite" tabindex="-1" hidden></div>
 
-                <div id="kpi-grid" class="kpi-grid" aria-live="polite">
+                <div id="auditoria-container" aria-live="polite">
                     <p class="dash-section__placeholder">Carregando...</p>
                 </div>
 
-                <section class="dash-section">
-                    <h2 class="dash-section__title">Distribuição por plano</h2>
-                    <div class="origem-panel">
-                        <div id="planos-lista" class="origem-list" aria-live="polite">
-                            <p class="dash-section__placeholder">Carregando...</p>
-                        </div>
-                    </div>
-                </section>
-
-                <section class="dash-section">
-                    <h2 class="dash-section__title">Tenants</h2>
-                    <div id="tenants-atividade-container" aria-live="polite">
-                        <p class="dash-section__placeholder">Carregando...</p>
-                    </div>
-                </section>
+                <div class="onboarding-nav" id="paginacao-container" hidden>
+                    <button type="button" id="btn-pagina-anterior" class="btn btn--ghost">&larr; Anterior</button>
+                    <span id="paginacao-info" class="field-hint" style="margin: 0 auto;"></span>
+                    <button type="button" id="btn-pagina-proxima" class="btn btn--ghost">Próxima &rarr;</button>
+                </div>
             </main>
         </div>
     </div>
@@ -76,6 +67,6 @@
     <script src="assets/js/plataforma-api.js"></script>
     <script src="assets/js/plataforma-auth.js"></script>
     <script src="assets/js/ui.js"></script>
-    <script src="assets/js/plataforma-dashboard.js"></script>
+    <script src="assets/js/plataforma-auditoria.js"></script>
 </body>
 </html>

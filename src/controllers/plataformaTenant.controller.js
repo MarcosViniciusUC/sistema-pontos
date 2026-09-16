@@ -15,6 +15,46 @@ const MAX_TENTATIVAS_QR_TOKEN = 5;
  */
 
 /**
+ * HISTÓRICO/AUDITORIA das ações administrativas da plataforma — ver
+ * scripts/migrate-plataforma-auditoria.js para o desenho da tabela.
+ *
+ * `adminPlataformaId` vem SEMPRE de `req.adminPlataforma.id` (já validado
+ * por authPlataformaMiddleware contra `admins_plataforma`) — nunca de
+ * body/query/params. Nenhuma chamada deste helper em todo o arquivo lê
+ * outra fonte.
+ *
+ * `client` já precisa estar dentro de uma transação com bypass RLS ativo
+ * (mesma exigência de `inserirAdminInicial`) — a auditoria só existe
+ * dentro da MESMA transação da operação principal, nunca depois/separada:
+ * se a operação principal falhar e a transação for desfeita (ROLLBACK), o
+ * registro de auditoria desfaz junto — nunca um log de sucesso para uma
+ * operação que não aconteceu.
+ */
+async function registrarAuditoria(client, { adminPlataformaId, tenantId, acao, entidade, entidadeId, descricao }) {
+    await client.query(
+        `INSERT INTO plataforma_auditoria (admin_plataforma_id, tenant_id, acao, entidade, entidade_id, descricao)
+         VALUES ($1, $2, $3, $4, $5, $6)`,
+        [adminPlataformaId, tenantId ?? null, acao, entidade, entidadeId ?? null, descricao]
+    );
+}
+
+// Rótulos de exibição para a descrição do histórico — nunca o texto cru do
+// banco ("ativo"/"essencial") na frase, sempre a versão capitalizada que já
+// aparece no resto do painel (ver criarReceiptRow/badges em
+// plataforma-tenant-detalhe.js). `null`/`undefined` (tenant legado, sem
+// plano) vira "Sem plano definido" — nunca "null" ou vazio na frase.
+const ROTULOS_STATUS = { ativo: "Ativo", inativo: "Inativo" };
+const ROTULOS_PLANO = { essencial: "Essencial", profissional: "Profissional", premium: "Premium" };
+
+function rotuloStatus(valor) {
+    return ROTULOS_STATUS[valor] || valor;
+}
+
+function rotuloPlano(valor) {
+    return valor ? (ROTULOS_PLANO[valor] || valor) : "Sem plano definido";
+}
+
+/**
  * Listagem administrativa básica — só as colunas que a plataforma precisa
  * para gerenciar tenants (nome, slug, plano, status, criado_em). Nunca
  * inclui dados de usuários/pontos/recompensas individuais: essa é
@@ -141,17 +181,40 @@ async function criar(req, res) {
         });
     }
 
+    // Transação própria (client, não pool.query direto) — a partir desta
+    // etapa, precisa registrar auditoria na MESMA transação da criação (ver
+    // registrarAuditoria acima): sucesso só existe se as duas coisas
+    // acontecerem juntas.
+    const client = await pool.connect();
+
     try {
-        const resultado = await pool.query(
+        await client.query("BEGIN");
+        await client.query("SELECT set_config('app.bypass_tenant_rls', 'on', true)");
+
+        const resultado = await client.query(
             `INSERT INTO tenants (nome, slug, plano, status)
              VALUES ($1, $2, $3, 'ativo')
              RETURNING id, nome, slug, plano, status, criado_em`,
             [nome.trim(), slugNormalizado, plano || null]
         );
 
-        res.status(201).json(resultado.rows[0]);
+        const tenant = resultado.rows[0];
+
+        await registrarAuditoria(client, {
+            adminPlataformaId: req.adminPlataforma.id,
+            tenantId: tenant.id,
+            acao: "criar_tenant",
+            entidade: "tenant",
+            entidadeId: tenant.id,
+            descricao: `Tenant "${tenant.nome}" criado (plano: ${rotuloPlano(tenant.plano)})`
+        });
+
+        await client.query("COMMIT");
+        res.status(201).json(tenant);
 
     } catch (erro) {
+        await client.query("ROLLBACK");
+
         if (erro.code === "23505") {
             return res.status(409).json({
                 mensagem: "Este slug já está em uso"
@@ -163,6 +226,9 @@ async function criar(req, res) {
         res.status(500).json({
             mensagem: "Erro ao criar tenant"
         });
+
+    } finally {
+        client.release();
     }
 }
 
@@ -184,8 +250,32 @@ async function atualizarStatus(req, res) {
 
     const { status } = req.body;
 
+    // Transação própria — precisa do status ANTERIOR (pra descrever "Ativo
+    // → Inativo" no histórico) e da auditoria na MESMA transação do UPDATE.
+    const client = await pool.connect();
+
     try {
-        const resultado = await pool.query(
+        await client.query("BEGIN");
+        await client.query("SELECT set_config('app.bypass_tenant_rls', 'on', true)");
+
+        // FOR UPDATE — mesma linha vai ser alterada já em seguida nesta
+        // mesma transação; evita ler um status que outra requisição
+        // concorrente troque entre este SELECT e o UPDATE abaixo.
+        const anterior = await client.query(
+            "SELECT nome, status FROM tenants WHERE id = $1 FOR UPDATE",
+            [id]
+        );
+
+        if (anterior.rows.length === 0) {
+            await client.query("ROLLBACK");
+            return res.status(404).json({
+                mensagem: "Tenant não encontrado"
+            });
+        }
+
+        const statusAnterior = anterior.rows[0].status;
+
+        const resultado = await client.query(
             `UPDATE tenants
              SET status = $1
              WHERE id = $2
@@ -193,20 +283,34 @@ async function atualizarStatus(req, res) {
             [status, id]
         );
 
-        if (resultado.rows.length === 0) {
-            return res.status(404).json({
-                mensagem: "Tenant não encontrado"
+        const tenant = resultado.rows[0];
+
+        // Só audita se o status REALMENTE mudou — reenviar o mesmo status
+        // já ativo não é uma "alteração" que precise virar histórico.
+        if (statusAnterior !== tenant.status) {
+            await registrarAuditoria(client, {
+                adminPlataformaId: req.adminPlataforma.id,
+                tenantId: id,
+                acao: "alterar_status",
+                entidade: "tenant",
+                entidadeId: id,
+                descricao: `Status do tenant "${tenant.nome}" alterado de ${rotuloStatus(statusAnterior)} para ${rotuloStatus(tenant.status)}`
             });
         }
 
-        res.json(resultado.rows[0]);
+        await client.query("COMMIT");
+        res.json(tenant);
 
     } catch (erro) {
+        await client.query("ROLLBACK");
         console.log(erro);
 
         res.status(500).json({
             mensagem: "Erro ao atualizar status do tenant"
         });
+
+    } finally {
+        client.release();
     }
 }
 
@@ -241,8 +345,29 @@ async function atualizarConfiguracao(req, res) {
 
     const { nome, corPrimaria, telefone, whatsapp, plano, status } = req.body;
 
+    // Transação própria — precisa dos valores ANTERIORES (pra descrever
+    // exatamente o que mudou no histórico: plano/status viram uma entrada
+    // de auditoria dedicada cada, os demais campos viram uma terceira
+    // entrada genérica) e da auditoria na MESMA transação do UPDATE.
+    const client = await pool.connect();
+
     try {
-        const resultado = await pool.query(
+        await client.query("BEGIN");
+        await client.query("SELECT set_config('app.bypass_tenant_rls', 'on', true)");
+
+        const anteriorResultado = await client.query(
+            "SELECT nome, cor_primaria, telefone, whatsapp, plano, status FROM tenants WHERE id = $1 FOR UPDATE",
+            [id]
+        );
+
+        if (anteriorResultado.rows.length === 0) {
+            await client.query("ROLLBACK");
+            return res.status(404).json({ mensagem: "Tenant não encontrado" });
+        }
+
+        const anterior = anteriorResultado.rows[0];
+
+        const resultado = await client.query(
             `UPDATE tenants
              SET nome = COALESCE($1, nome),
                  cor_primaria = COALESCE($2, cor_primaria),
@@ -255,11 +380,55 @@ async function atualizarConfiguracao(req, res) {
             [nome ?? null, corPrimaria ?? null, telefone ?? null, whatsapp ?? null, plano ?? null, status ?? null, id]
         );
 
-        if (resultado.rows.length === 0) {
-            return res.status(404).json({ mensagem: "Tenant não encontrado" });
+        const tenant = resultado.rows[0];
+
+        // Plano — entrada própria, só se realmente mudou.
+        if (plano !== undefined && plano !== anterior.plano) {
+            await registrarAuditoria(client, {
+                adminPlataformaId: req.adminPlataforma.id,
+                tenantId: id,
+                acao: "alterar_plano",
+                entidade: "tenant",
+                entidadeId: id,
+                descricao: `Plano do tenant "${tenant.nome}" alterado de ${rotuloPlano(anterior.plano)} para ${rotuloPlano(plano)}`
+            });
         }
 
-        const tenant = resultado.rows[0];
+        // Status — entrada própria, só se realmente mudou (mesma ação de
+        // atualizarStatus() acima — os dois caminhos escrevem a mesma
+        // coluna, então usam o mesmo valor de `acao` no histórico).
+        if (status !== undefined && status !== anterior.status) {
+            await registrarAuditoria(client, {
+                adminPlataformaId: req.adminPlataforma.id,
+                tenantId: id,
+                acao: "alterar_status",
+                entidade: "tenant",
+                entidadeId: id,
+                descricao: `Status do tenant "${tenant.nome}" alterado de ${rotuloStatus(anterior.status)} para ${rotuloStatus(status)}`
+            });
+        }
+
+        // Demais campos de identidade/contato — uma única entrada genérica,
+        // listando só os que de fato mudaram (nunca "nome" se só a cor
+        // mudou, por exemplo).
+        const camposGeraisAlterados = [];
+        if (nome !== undefined && nome !== anterior.nome) camposGeraisAlterados.push("nome");
+        if (corPrimaria !== undefined && corPrimaria !== anterior.cor_primaria) camposGeraisAlterados.push("cor principal");
+        if (telefone !== undefined && telefone !== anterior.telefone) camposGeraisAlterados.push("telefone");
+        if (whatsapp !== undefined && whatsapp !== anterior.whatsapp) camposGeraisAlterados.push("WhatsApp");
+
+        if (camposGeraisAlterados.length > 0) {
+            await registrarAuditoria(client, {
+                adminPlataformaId: req.adminPlataforma.id,
+                tenantId: id,
+                acao: "atualizar_configuracao",
+                entidade: "tenant",
+                entidadeId: id,
+                descricao: `Configuração do tenant "${tenant.nome}" atualizada (${camposGeraisAlterados.join(", ")})`
+            });
+        }
+
+        await client.query("COMMIT");
 
         res.json({
             id: tenant.id,
@@ -275,11 +444,15 @@ async function atualizarConfiguracao(req, res) {
         });
 
     } catch (erro) {
+        await client.query("ROLLBACK");
         console.log(erro);
 
         res.status(500).json({
             mensagem: "Erro ao atualizar tenant"
         });
+
+    } finally {
+        client.release();
     }
 }
 
@@ -391,7 +564,7 @@ async function criarAdmin(req, res) {
         await client.query("SELECT set_config('app.bypass_tenant_rls', 'on', true)");
 
         const tenantResultado = await client.query(
-            "SELECT id FROM tenants WHERE id = $1",
+            "SELECT id, nome FROM tenants WHERE id = $1",
             [id]
         );
 
@@ -403,6 +576,15 @@ async function criarAdmin(req, res) {
         }
 
         const usuarioCriado = await inserirAdminInicial(client, id, { nome, email, senha, telefone, cpf });
+
+        await registrarAuditoria(client, {
+            adminPlataformaId: req.adminPlataforma.id,
+            tenantId: id,
+            acao: "criar_admin_tenant",
+            entidade: "usuario",
+            entidadeId: usuarioCriado.id,
+            descricao: `Administrador "${usuarioCriado.nome}" (${usuarioCriado.email}) criado para o tenant "${tenantResultado.rows[0].nome}"`
+        });
 
         await client.query("COMMIT");
         res.status(201).json(usuarioCriado);
@@ -522,6 +704,15 @@ async function onboarding(req, res) {
             }
             throw erroEmpresa;
         }
+
+        await registrarAuditoria(client, {
+            adminPlataformaId: req.adminPlataforma.id,
+            tenantId: tenant.id,
+            acao: "criar_tenant",
+            entidade: "tenant",
+            entidadeId: tenant.id,
+            descricao: `Tenant "${tenant.nome}" criado via onboarding (plano: ${rotuloPlano(tenant.plano)}) com administrador "${admin.nome}" e empresa "${empresa.nome}"`
+        });
 
         await client.query("COMMIT");
 

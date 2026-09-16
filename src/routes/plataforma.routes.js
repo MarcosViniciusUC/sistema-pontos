@@ -2,6 +2,7 @@ const express = require("express");
 const rateLimit = require("express-rate-limit");
 const plataformaController = require("../controllers/plataforma.controller");
 const plataformaTenantController = require("../controllers/plataformaTenant.controller");
+const plataformaAuditoriaController = require("../controllers/plataformaAuditoria.controller");
 const validatePlataformaLogin = require("../middlewares/validatePlataformaLogin");
 const validatePlataformaTenantCreate = require("../middlewares/validatePlataformaTenantCreate");
 const validatePlataformaTenantStatus = require("../middlewares/validatePlataformaTenantStatus");
@@ -137,6 +138,18 @@ router.post(
     exigirEscopoPlataforma,
     validateOnboarding,
     plataformaTenantController.onboarding
+);
+
+// Histórico/auditoria das ações administrativas — ver
+// scripts/migrate-plataforma-auditoria.js e
+// plataformaTenant.controller.js:registrarAuditoria (onde cada linha é
+// escrita). Só leitura; mesmo par de autenticação/autorização de toda rota
+// de plataforma — nenhum admin comum de tenant, nem cliente, chega aqui.
+router.get(
+    "/plataforma/auditoria",
+    authPlataformaMiddleware,
+    exigirEscopoPlataforma,
+    plataformaAuditoriaController.listar
 );
 
 module.exports = router;
