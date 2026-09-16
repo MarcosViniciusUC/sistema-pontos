@@ -26,13 +26,21 @@ const { Pool } = require("pg");
 // TLS — só em produção (Render, ou qualquer Postgres gerenciado externo,
 // normalmente exige SSL em conexões de fora da própria rede interna dele;
 // o Postgres local de desenvolvimento nunca exigiu isso, e continua sem
-// exigir). `rejectUnauthorized` fica no padrão seguro do Node (`true` —
-// verifica a cadeia de certificado do servidor contra as CAs confiáveis do
-// próprio sistema) — nunca desabilitado aqui, mesmo que o motivo original
-// desta mudança tenha sido um erro de conexão (ECONNRESET): a causa era
-// ausência de SSL, não um certificado inválido, e habilitar verificação
-// insegura (`rejectUnauthorized: false`) esconderia um problema real de
-// certificado em vez de resolver a causa raiz.
+// exigir).
+//
+// CORREÇÃO (achado no primeiro deploy real): `rejectUnauthorized: true`
+// falhava com "self-signed certificate" contra a External Database URL do
+// Render — a documentação do próprio Render confirma que essa conexão
+// externa exige TLS, mas no nível equivalente a `sslmode=require` do
+// Postgres: TLS sempre obrigatório (a conexão nunca cai para texto puro),
+// só SEM validar a cadeia do certificado do servidor contra uma CA
+// conhecida. `rejectUnauthorized: false` aqui é exatamente esse modo — não
+// é "sem TLS", é "TLS sem verificação de cadeia", e o escopo é só este
+// `Pool` do `pg`: nunca afeta nenhuma outra conexão TLS/HTTPS do processo
+// (isso seria `NODE_TLS_REJECT_UNAUTHORIZED=0`, uma variável de ambiente
+// global — deliberadamente NÃO usada aqui, nem em lugar nenhum do
+// projeto). Continua só em produção; local de desenvolvimento continua com
+// `ssl: false` (nenhum TLS), sem nenhuma mudança.
 const SSL_HABILITADO = process.env.NODE_ENV === "production";
 
 const pool = new Pool({
@@ -41,7 +49,7 @@ const pool = new Pool({
     database: process.env.DB_NAME,
     password: process.env.DB_PASSWORD,
     port: process.env.DB_PORT,
-    ssl: SSL_HABILITADO ? { rejectUnauthorized: true } : false
+    ssl: SSL_HABILITADO ? { rejectUnauthorized: false } : false
 });
 
 module.exports = pool;
