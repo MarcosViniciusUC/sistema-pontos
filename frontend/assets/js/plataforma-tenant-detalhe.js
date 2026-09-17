@@ -35,6 +35,28 @@
     window.PlataformaAuth.configurarLogout("logout-btn");
     window.UI.configurarMenuPrincipal("nav-menu-btn", "main-nav");
 
+    // ==========================================================================
+    // Link de acesso do tenant
+    // ==========================================================================
+    //
+    // Regra de geração da URL isolada nesta ÚNICA função de propósito: os
+    // subdomínios comerciais (ex: https://movement.mapletech.com.br) ainda
+    // não existem (ver HOSTNAME_PADRAO_RENDER_ATUAL em
+    // src/services/tenantResolver.js — mesmo domínio único usado ali).
+    // Enquanto isso, todo tenant é acessado por
+    // "<domínio único>/?tenantSlug=<slug>". Quando os subdomínios entrarem
+    // em produção, a troca é só aqui dentro — nenhum outro lugar desta tela
+    // monta esse link "na mão".
+    const DOMINIO_PADRAO_ATUAL = "https://sistema-pontos-0i0k.onrender.com";
+
+    function construirLinkDeAcesso(slug) {
+        if (!slug || typeof slug !== "string" || !slug.trim()) {
+            return null;
+        }
+
+        return `${DOMINIO_PADRAO_ATUAL}/?tenantSlug=${encodeURIComponent(slug.trim())}`;
+    }
+
     const containerEl = document.getElementById("tenant-detalhe-container");
     const pageMessageEl = document.getElementById("page-message");
     const tituloEl = document.getElementById("tenant-titulo");
@@ -383,6 +405,92 @@
 
         secaoDados.appendChild(painelDados);
         containerEl.appendChild(secaoDados);
+
+        // ---- Link de acesso ----
+        // Ver construirLinkDeAcesso() (topo do arquivo) para a regra de
+        // geração da URL. Reconstruída a cada renderizar() (como o resto
+        // deste container) — sempre reflete o slug mais recente sem
+        // depender de sincronização manual.
+        const secaoLink = document.createElement("section");
+        secaoLink.className = "dash-section";
+
+        const tituloLink = document.createElement("h2");
+        tituloLink.className = "dash-section__title";
+        tituloLink.textContent = "Link de acesso";
+        secaoLink.appendChild(tituloLink);
+
+        const painelLink = document.createElement("div");
+        painelLink.className = "operacao-panel";
+
+        const linkDeAcesso = construirLinkDeAcesso(tenant.slug);
+
+        if (linkDeAcesso) {
+            const linhaLink = document.createElement("div");
+            linhaLink.className = "receipt-row";
+            const labelLink = document.createElement("span");
+            labelLink.className = "receipt-row__label";
+            labelLink.textContent = "URL";
+            const valorLink = document.createElement("span");
+            valorLink.className = "receipt-row__value";
+            valorLink.textContent = linkDeAcesso;
+            valorLink.style.wordBreak = "break-all";
+            linhaLink.appendChild(labelLink);
+            linhaLink.appendChild(valorLink);
+            painelLink.appendChild(linhaLink);
+
+            const acoesLink = document.createElement("div");
+            acoesLink.style.display = "flex";
+            acoesLink.style.flexWrap = "wrap";
+            acoesLink.style.gap = "var(--space-3)";
+            acoesLink.style.marginTop = "var(--space-2)";
+
+            const btnCopiarLink = document.createElement("button");
+            btnCopiarLink.type = "button";
+            btnCopiarLink.id = "btn-copiar-link";
+            btnCopiarLink.className = "btn btn--ghost";
+            btnCopiarLink.textContent = "Copiar link";
+
+            // Mesmo padrão já usado em perfil.js (copiar código do
+            // cliente): troca o rótulo do botão por "Copiado!"/"Não foi
+            // possível copiar" e volta ao original depois de um tempo —
+            // nunca um alert() nem um segundo componente de feedback.
+            btnCopiarLink.addEventListener("click", async function () {
+                const rotuloOriginal = btnCopiarLink.textContent;
+
+                try {
+                    await navigator.clipboard.writeText(linkDeAcesso);
+                    btnCopiarLink.textContent = "Copiado!";
+                } catch (erro) {
+                    btnCopiarLink.textContent = "Não foi possível copiar";
+                }
+
+                window.setTimeout(function () {
+                    btnCopiarLink.textContent = rotuloOriginal;
+                }, 1500);
+            });
+            acoesLink.appendChild(btnCopiarLink);
+
+            const linkAbrirSistema = document.createElement("a");
+            linkAbrirSistema.id = "btn-abrir-sistema";
+            linkAbrirSistema.className = "btn btn--primary";
+            linkAbrirSistema.textContent = "Abrir sistema";
+            linkAbrirSistema.href = linkDeAcesso;
+            linkAbrirSistema.target = "_blank";
+            linkAbrirSistema.rel = "noopener noreferrer";
+            acoesLink.appendChild(linkAbrirSistema);
+
+            painelLink.appendChild(acoesLink);
+
+        } else {
+            // Defensivo — na prática tenants.slug é NOT NULL/UNIQUE (ver
+            // migrate-tenants.js), então este ramo não deveria ser
+            // alcançável hoje. Existe para nunca montar um link quebrado
+            // (".../?tenantSlug=undefined") caso isso mude no futuro.
+            painelLink.appendChild(criarReceiptRow("URL", "Link indisponível — este tenant não possui um slug válido."));
+        }
+
+        secaoLink.appendChild(painelLink);
+        containerEl.appendChild(secaoLink);
 
         // Identidade — exibição (edição de verdade acontece na seção
         // "Editar tenant", fora deste container — ver
